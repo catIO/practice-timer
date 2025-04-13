@@ -1,0 +1,111 @@
+{
+  "users": {},
+  "settings": {
+    "1": {
+      "id": 1,
+      "userId": 1,
+      "soundEnabled": true,
+      "browserNotificationsEnabled": true,
+      "workDuration": 25,
+      "breakDuration": 1,
+      "iterations": 4,
+      "darkMode": true,
+      "numberOfBeeps": 4
+    }
+  },
+  "sessions": {
+    "1": [
+      {
+        "type": "work",
+        "startTime": "2025-04-03T10:57:42.104Z",
+        "endTime": "2025-04-03T11:22:42.106Z",
+        "duration": 25,
+        "completed": true,
+        "userId": 1,
+        "id": 1
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T11:18:45.440Z",
+        "endTime": "2025-04-03T11:23:45.440Z",
+        "duration": 5,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T11:26:02.097Z",
+        "endTime": "2025-04-03T11:27:02.097Z",
+        "duration": 1,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T11:27:54.854Z",
+        "endTime": "2025-04-03T11:28:54.854Z",
+        "duration": 1,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T11:30:53.536Z",
+        "endTime": "2025-04-03T11:31:53.536Z",
+        "duration": 1,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T11:33:52.678Z",
+        "endTime": "2025-04-03T11:34:52.678Z",
+        "duration": 1,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T11:38:06.750Z",
+        "endTime": "2025-04-03T11:39:06.750Z",
+        "duration": 1,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "work",
+        "startTime": "2025-04-03T11:39:11.085Z",
+        "endTime": "2025-04-03T12:04:11.085Z",
+        "duration": 25,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "break",
+        "startTime": "2025-04-03T12:03:29.338Z",
+        "endTime": "2025-04-03T12:04:29.338Z",
+        "duration": 1,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      },
+      {
+        "type": "work",
+        "startTime": "2025-04-03T12:33:23.645Z",
+        "endTime": "2025-04-03T12:58:23.645Z",
+        "duration": 25,
+        "completed": true,
+        "userId": 1,
+        "id": 2
+      }
+    ]
+  },
+  "pushSubscriptions": {}
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Practice Timer",
+  "short_name": "Timer",
+  "description": "A timer app for practice sessions with work and break intervals",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000"
+} 
