@@ -1,5 +1,5 @@
 [build]
-  base = "practice-timer"
+  base = "."
   command = "npm install && npm run build"
   publish = "client/dist"
   functions = "netlify/functions"
@@ -12,3 +12,4 @@
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
