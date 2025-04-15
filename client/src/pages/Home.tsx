@@ -139,45 +139,47 @@ export default function Home() {
 
   return (
     <div className="text-foreground font-sans min-h-screen">
-      <div className="max-w-2xl mx-auto">
-        <header className="relative p-4 flex items-center justify-between overflow-hidden">
-          <div className="relative z-10 flex items-center justify-between w-full">
-            <h1 className="text-2xl font-bold text-primary">Practice Timer</h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary hover:text-primary/80"
-              onClick={handleSettingsClick}
-            >
-              <span className="material-icons">settings</span>
-            </Button>
-          </div>
-        </header>
+      <div className="max-w-2xl mx-auto pt-8">
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6">
+          <header className="relative p-4 flex items-center justify-between overflow-hidden">
+            <div className="relative z-10 flex items-center justify-between w-full">
+              <h1 className="text-2xl font-bold text-primary">Practice Timer</h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-primary hover:text-primary/80"
+                onClick={handleSettingsClick}
+              >
+                <span className="material-icons">settings</span>
+              </Button>
+            </div>
+          </header>
 
-        <main className="p-6">
-          <div className="space-y-8">
-            <Timer
-              timeRemaining={timeRemaining}
-              totalTime={totalTime}
-              mode={mode}
-              isRunning={isRunning}
-            />
+          <main className="p-6">
+            <div className="space-y-8">
+              <Timer
+                timeRemaining={timeRemaining}
+                totalTime={totalTime}
+                mode={mode}
+                isRunning={isRunning}
+              />
 
-            <TimerControls
-              isRunning={isRunning}
-              onStart={handleStart}
-              onPause={handlePause}
-              onReset={handleResetAll}
-              onSkip={handleSkip}
-            />
+              <TimerControls
+                isRunning={isRunning}
+                onStart={handleStart}
+                onPause={handlePause}
+                onReset={handleResetAll}
+                onSkip={handleSkip}
+              />
 
-            <IterationTracker
-              currentIteration={currentIteration}
-              totalIterations={totalIterations}
-              mode={mode}
-            />
-          </div>
-        </main>
+              <IterationTracker
+                currentIteration={currentIteration}
+                totalIterations={totalIterations}
+                mode={mode}
+              />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

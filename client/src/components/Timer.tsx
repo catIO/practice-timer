@@ -14,8 +14,8 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning }: Tim
   const formattedTime = formatTime(timeRemaining || 0);
   
   // Calculate circle properties
-  const size = 200;
-  const strokeWidth = 20;
+  const size = 280;
+  const strokeWidth = 25;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progress / 100) * circumference;
@@ -56,7 +56,7 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning }: Tim
       
       {/* Timer text */}
       <div className="absolute flex items-center justify-center">
-        <div className="text-4xl font-bold text-primary">
+        <div className="text-5xl font-bold text-primary">
           {formattedTime}
         </div>
       </div>
