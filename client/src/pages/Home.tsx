@@ -140,10 +140,10 @@ export default function Home() {
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
-        <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6">
+        <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
-              <h1 className="text-2xl font-bold text-primary">Practice Timer</h1>
+              <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
               <Button
                 variant="ghost"
                 size="icon"

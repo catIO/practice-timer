@@ -53,7 +53,7 @@
   }
 
   body {
-    @apply font-sans antialiased text-foreground bg-background;
+    @apply font-sans antialiased text-foreground bg-gradient-to-br from-gray-900 via-gray-800 to-black;
     min-height: 100vh;
     margin: 0;
     padding: 0;
