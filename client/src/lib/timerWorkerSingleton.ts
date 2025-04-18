@@ -2,7 +2,7 @@
 // This module ensures only one worker instance exists throughout the application
 
 import { create } from 'zustand';
-import { getSettings } from './localStorage';
+import { getSettings } from '@/lib/localStorage';
 
 // Types
 export interface TimerState {

@@ -6,7 +6,8 @@ import { resumeAudioContext } from '@/lib/soundEffects';
 import { useTimerStore } from '@/stores/timerStore';
 import { SettingsType } from '@/lib/timerService';
 import { getSettings } from '@/lib/localStorage';
-import { getTimerWorker, addMessageHandler, removeMessageHandler, updateWorkerState } from '@/lib/timerWorkerSingleton';
+import { getTimerWorker, addMessageHandler, removeMessageHandler, updateWorkerState, terminateTimerWorker } from '@/lib/timerWorkerSingleton';
+import { TimerState } from '@/lib/timerWorkerSingleton';
 
 interface WakeLock {
   released: boolean;
@@ -126,32 +127,66 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
 
   // Initialize settings in store only once
   useEffect(() => {
+    console.log('useTimer: Initialization effect running, initializedRef.current:', initializedRef.current);
+    
     if (!initializedRef.current) {
       // Get saved settings
       const savedSettings = getSettings();
-      console.log('Loading saved settings:', savedSettings);
+      console.log('useTimer: Loading saved settings:', savedSettings);
       
       // Always initialize store settings with saved settings
       setStoreSettings(savedSettings);
       
-      // Calculate the correct duration from saved settings
-      const correctDuration = savedSettings.workDuration * 60;
-      console.log('Correct duration from settings:', correctDuration);
-      
-      // Always set the total time to the correct duration from settings
-      setTotalTime(correctDuration);
-      setStoreTotalTime(correctDuration);
-      
       // Check if we have existing state in the store
       if (storeTimeRemaining > 0) {
-        // Restore state from store but ensure total time is correct
-        setTimeRemaining(storeTimeRemaining);
+        // Calculate the correct duration based on current mode
+        const correctDuration = storeMode === 'work' 
+          ? savedSettings.workDuration * 60 
+          : savedSettings.breakDuration * 60;
+        
+        // Calculate the progress percentage from the store
+        const previousDuration = storeTotalTime;
+        const progressPercentage = previousDuration > 0 
+          ? (previousDuration - storeTimeRemaining) / previousDuration 
+          : 0;
+        
+        // Calculate new time remaining based on the progress percentage
+        const newTimeRemaining = Math.round(correctDuration - (progressPercentage * correctDuration));
+        
+        console.log('useTimer: Restoring timer state from store with mode:', storeMode, {
+          previousTimeRemaining: storeTimeRemaining,
+          newTimeRemaining,
+          correctDuration,
+          progressPercentage,
+          workDuration: savedSettings.workDuration * 60,
+          breakDuration: savedSettings.breakDuration * 60
+        });
+        
+        // Restore state from store with adjusted time remaining
+        setTimeRemaining(newTimeRemaining);
+        setTotalTime(correctDuration);
         setIsRunning(storeIsRunning);
         setMode(storeMode);
         setCurrentIteration(storeCurrentIteration);
         setTotalIterations(storeTotalIterations);
-        console.log('Restored timer state from store:', {
-          timeRemaining: storeTimeRemaining,
+        
+        // Update store with correct times
+        setStoreTimeRemaining(newTimeRemaining);
+        setStoreTotalTime(correctDuration);
+        
+        // Update worker state
+        if (workerRef.current) {
+          updateWorkerState(
+            newTimeRemaining,
+            storeIsRunning,
+            storeMode,
+            storeCurrentIteration,
+            storeTotalIterations
+          );
+        }
+        
+        console.log('useTimer: Restored timer state from store:', {
+          timeRemaining: newTimeRemaining,
           totalTime: correctDuration,
           isRunning: storeIsRunning,
           mode: storeMode,
@@ -160,17 +195,20 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         });
       } else {
         // Initialize with saved settings
+        const workDuration = savedSettings.workDuration * 60;
         setSettings(savedSettings);
         setStoreTotalIterations(savedSettings.iterations);
-        setStoreTimeRemaining(correctDuration);
+        setStoreTimeRemaining(workDuration);
+        setStoreTotalTime(workDuration);
         setStoreCurrentIteration(1);
-        setTimeRemaining(correctDuration);
+        setTimeRemaining(workDuration);
+        setTotalTime(workDuration);
         setTotalIterations(savedSettings.iterations);
-        console.log('Initialized timer with saved settings:', savedSettings);
+        console.log('useTimer: Initialized timer with saved settings:', savedSettings);
       }
       initializedRef.current = true;
     }
-  }, []); // Empty dependency array to run only once
+  }, []);
 
   // Initialize worker and settings
   useEffect(() => {
@@ -213,6 +251,11 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             setMode(mode);
             setCurrentIteration(currentIteration);
             setTotalIterations(totalIterations);
+            
+            // Set the correct total time based on the current mode
+            const correctTotalTime = mode === 'work' ? savedSettings.workDuration * 60 : savedSettings.breakDuration * 60;
+            setTotalTime(correctTotalTime);
+            setStoreTotalTime(correctTotalTime);
             
             // Update worker state
             updateWorkerState(

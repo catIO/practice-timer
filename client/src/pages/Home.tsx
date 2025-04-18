@@ -113,11 +113,18 @@ export default function Home() {
 
   // Handle settings navigation
   const handleSettingsClick = useCallback(() => {
+    console.log('Navigating to settings, current timer state:', {
+      timeRemaining,
+      totalTime,
+      mode,
+      isRunning
+    });
+    
     if (isRunning) {
       pauseTimer();
     }
     navigate('/settings');
-  }, [isRunning, pauseTimer, navigate]);
+  }, [isRunning, pauseTimer, navigate, timeRemaining, totalTime, mode]);
 
   // Handle keyboard events
   useEffect(() => {
