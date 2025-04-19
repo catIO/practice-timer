@@ -146,225 +146,227 @@ export default function Settings() {
 
   return (
     <div className="text-foreground font-sans min-h-screen">
-      <div className="max-w-2xl mx-auto">
-        <header className="relative p-4 flex items-center justify-between overflow-hidden">
-          <div className="relative z-10 flex items-center justify-between w-full">
-            <h1 className="text-2xl font-bold text-primary">Settings</h1>
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/">
-                <span className="material-icons text-primary hover:text-primary/80">arrow_back</span>
-              </Link>
-            </Button>
-          </div>
-        </header>
+      <div className="max-w-2xl mx-auto pt-8">
+        <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
+          <header className="relative p-4 flex items-center justify-between overflow-hidden">
+            <div className="relative z-10 flex items-center justify-between w-full">
+              <h1 className="text-2xl font-bold text-primary">Settings</h1>
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/">
+                  <span className="material-icons text-primary hover:text-primary/80">arrow_back</span>
+                </Link>
+              </Button>
+            </div>
+          </header>
 
-        <section className="p-6">
-          <div className="space-y-6">
-            {/* Sound Settings */}
-            <div>
-              <h2 className="text-lg font-medium mb-4">Sound Settings</h2>
-              <div className="space-y-4">
-                <div className="flex flex-col space-y-2">
+          <section className="p-6">
+            <div className="space-y-6">
+              {/* Sound Settings */}
+              <div>
+                <h2 className="text-lg font-medium mb-4">Sound Settings</h2>
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="volume" className="text-sm font-medium">
+                        Volume
+                      </label>
+                      <span className="text-sm text-muted-foreground">
+                        {localSettings.volume}%
+                      </span>
+                    </div>
+                    <Slider
+                      id="volume"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={[localSettings.volume]}
+                      onValueChange={handleVolumeChange}
+                      onValueCommit={handleVolumeChangeComplete}
+                      className="w-full"
+                    />
+                  </div>
                   <div className="flex items-center justify-between">
-                    <label htmlFor="volume" className="text-sm font-medium">
-                      Volume
-                    </label>
-                    <span className="text-sm text-muted-foreground">
-                      {localSettings.volume}%
-                    </span>
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">music_note</span>
+                      <Label htmlFor="sound-type-select">Sound Type</Label>
+                    </div>
+                    <div className="w-48">
+                      <Select
+                        value={localSettings.soundType || 'beep'}
+                        onValueChange={handleSoundTypeChange}
+                        onOpenChange={(open) => {
+                          if (!open) {
+                            handleSoundTypeChangeComplete();
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="sound-type-select">
+                          <SelectValue placeholder="Select sound type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="beep">Beep</SelectItem>
+                          <SelectItem value="bell">Bell</SelectItem>
+                          <SelectItem value="chime">Chime</SelectItem>
+                          <SelectItem value="digital">Digital</SelectItem>
+                          <SelectItem value="woodpecker">Woodpecker</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <Slider
-                    id="volume"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={[localSettings.volume]}
-                    onValueChange={handleVolumeChange}
-                    onValueCommit={handleVolumeChangeComplete}
-                    className="w-full"
-                  />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">notifications</span>
+                      <Label htmlFor="beeps-count">Number of Beeps</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          numberOfBeeps: Math.max(1, localSettings.numberOfBeeps - 1)
+                        })}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center">{localSettings.numberOfBeeps}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          numberOfBeeps: Math.min(5, localSettings.numberOfBeeps + 1)
+                        })}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="material-icons text-muted-foreground mr-3">music_note</span>
-                    <Label htmlFor="sound-type-select">Sound Type</Label>
+              </div>
+
+              {/* Timer Settings */}
+              <div>
+                <h2 className="text-lg font-medium mb-4">Timer Settings</h2>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">timer</span>
+                      <Label>Work Duration</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          workDuration: Math.max(5, localSettings.workDuration - 5)
+                        })}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center">{localSettings.workDuration} min</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          workDuration: Math.min(60, localSettings.workDuration + 5)
+                        })}
+                      >
+                        +
+                      </Button>
+                    </div>
                   </div>
-                  <div className="w-48">
-                    <Select
-                      value={localSettings.soundType || 'beep'}
-                      onValueChange={handleSoundTypeChange}
-                      onOpenChange={(open) => {
-                        if (!open) {
-                          handleSoundTypeChangeComplete();
-                        }
-                      }}
-                    >
-                      <SelectTrigger id="sound-type-select">
-                        <SelectValue placeholder="Select sound type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beep">Beep</SelectItem>
-                        <SelectItem value="bell">Bell</SelectItem>
-                        <SelectItem value="chime">Chime</SelectItem>
-                        <SelectItem value="digital">Digital</SelectItem>
-                        <SelectItem value="woodpecker">Woodpecker</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">coffee</span>
+                      <Label>Break Duration</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          breakDuration: Math.max(1, localSettings.breakDuration - 1)
+                        })}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center">{localSettings.breakDuration} min</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          breakDuration: Math.min(15, localSettings.breakDuration + 1)
+                        })}
+                      >
+                        +
+                      </Button>
+                    </div>
                   </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">repeat</span>
+                      <Label>Number of Iterations</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          iterations: Math.max(1, localSettings.iterations - 1)
+                        })}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center">{localSettings.iterations}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSettingsUpdate({
+                          ...localSettings,
+                          iterations: Math.min(8, localSettings.iterations + 1)
+                        })}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Number of work-break cycles to complete before reset.
+                  </p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="material-icons text-muted-foreground mr-3">notifications</span>
-                    <Label htmlFor="beeps-count">Number of Beeps</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
+              </div>
+
+              {/* Theme Settings */}
+              <div>
+                <h2 className="text-lg font-medium mb-4">Theme Settings</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">dark_mode</span>
+                      <Label htmlFor="dark-mode-toggle">Dark Mode</Label>
+                    </div>
+                    <Switch
+                      id="dark-mode-toggle"
+                      checked={localSettings.darkMode}
+                      onCheckedChange={(checked) => handleSettingsUpdate({
                         ...localSettings,
-                        numberOfBeeps: Math.max(1, localSettings.numberOfBeeps - 1)
+                        darkMode: checked
                       })}
-                    >
-                      -
-                    </Button>
-                    <span className="w-8 text-center">{localSettings.numberOfBeeps}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        numberOfBeeps: Math.min(5, localSettings.numberOfBeeps + 1)
-                      })}
-                    >
-                      +
-                    </Button>
+                    />
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Timer Settings */}
-            <div>
-              <h2 className="text-lg font-medium mb-4">Timer Settings</h2>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="material-icons text-muted-foreground mr-3">timer</span>
-                    <Label>Work Duration</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        workDuration: Math.max(5, localSettings.workDuration - 5)
-                      })}
-                    >
-                      -
-                    </Button>
-                    <span className="w-8 text-center">{localSettings.workDuration} min</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        workDuration: Math.min(60, localSettings.workDuration + 5)
-                      })}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="material-icons text-muted-foreground mr-3">coffee</span>
-                    <Label>Break Duration</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        breakDuration: Math.max(1, localSettings.breakDuration - 1)
-                      })}
-                    >
-                      -
-                    </Button>
-                    <span className="w-8 text-center">{localSettings.breakDuration} min</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        breakDuration: Math.min(15, localSettings.breakDuration + 1)
-                      })}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="material-icons text-muted-foreground mr-3">repeat</span>
-                    <Label>Number of Iterations</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        iterations: Math.max(1, localSettings.iterations - 1)
-                      })}
-                    >
-                      -
-                    </Button>
-                    <span className="w-8 text-center">{localSettings.iterations}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSettingsUpdate({
-                        ...localSettings,
-                        iterations: Math.min(8, localSettings.iterations + 1)
-                      })}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Number of work-break cycles to complete before reset.
-                </p>
-              </div>
-            </div>
-
-            {/* Theme Settings */}
-            <div>
-              <h2 className="text-lg font-medium mb-4">Theme Settings</h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="material-icons text-muted-foreground mr-3">dark_mode</span>
-                    <Label htmlFor="dark-mode-toggle">Dark Mode</Label>
-                  </div>
-                  <Switch
-                    id="dark-mode-toggle"
-                    checked={localSettings.darkMode}
-                    onCheckedChange={(checked) => handleSettingsUpdate({
-                      ...localSettings,
-                      darkMode: checked
-                    })}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );
