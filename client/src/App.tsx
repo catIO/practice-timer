@@ -17,12 +17,10 @@ function App() {
     // Initialize settings from local storage
     const localSettings = getSettings();
     if (localSettings) {
-      setSettings(localSettings);
-      if (localSettings.darkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      // Always ensure dark mode is enabled
+      const settingsWithDarkMode = { ...localSettings, darkMode: true };
+      setSettings(settingsWithDarkMode);
+      document.documentElement.classList.add('dark');
     } else {
       // Set dark mode by default
       const defaultSettings = { ...DEFAULT_SETTINGS, darkMode: true };

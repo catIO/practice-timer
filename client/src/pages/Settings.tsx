@@ -34,7 +34,8 @@ export default function Settings() {
 
   // Handle settings update
   const handleSettingsUpdate = (updates: Partial<SettingsType>) => {
-    const newSettings = { ...localSettings, ...updates };
+    // Always ensure dark mode is enabled
+    const newSettings = { ...localSettings, ...updates, darkMode: true };
     setLocalSettings(newSettings);
     
     // Save to localStorage first
@@ -43,12 +44,8 @@ export default function Settings() {
     // Then update global settings
     updateGlobalSettings(newSettings);
     
-    // Update dark mode
-    if (newSettings.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // Ensure dark mode is always applied
+    document.documentElement.classList.add('dark');
 
     // If timer duration settings changed, reset the timer
     if (
@@ -341,27 +338,6 @@ export default function Settings() {
                   <p className="text-xs text-muted-foreground">
                     Number of work-break cycles to complete before reset.
                   </p>
-                </div>
-              </div>
-
-              {/* Theme Settings */}
-              <div>
-                <h2 className="text-lg font-medium mb-4">Theme Settings</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">dark_mode</span>
-                      <Label htmlFor="dark-mode-toggle">Dark Mode</Label>
-                    </div>
-                    <Switch
-                      id="dark-mode-toggle"
-                      checked={localSettings.darkMode}
-                      onCheckedChange={(checked) => handleSettingsUpdate({
-                        ...localSettings,
-                        darkMode: checked
-                      })}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
