@@ -104,6 +104,20 @@ self.addEventListener('message', (event: MessageEvent) => {
       updateMode(payload.mode, payload.timeRemaining, payload.currentIteration, payload.totalIterations);
       break;
 
+    case 'SYNC_STATE':
+      console.log('Worker: Syncing state from main thread:', payload);
+      // Sync state without interfering with running timer
+      if (!state.isRunning) {
+        state.timeRemaining = payload.timeRemaining;
+        state.mode = payload.mode;
+        state.currentIteration = payload.currentIteration;
+        state.totalIterations = payload.totalIterations;
+        state.isRunning = payload.isRunning;
+      } else {
+        console.log('Worker: Timer is running, preserving current state');
+      }
+      break;
+
     default:
       console.warn('Worker: Unknown message type:', type);
   }
@@ -116,9 +130,12 @@ self.addEventListener('message', (event: MessageEvent) => {
 function updateState(newState: Partial<TimerState>) {
   console.log('Worker: Updating state:', newState);
   
-  // Only update the properties that are provided in newState
-  if (newState.timeRemaining !== undefined) {
+  // Don't update timeRemaining if timer is running to prevent interference
+  if (newState.timeRemaining !== undefined && !state.isRunning) {
+    console.log('Worker: Updating timeRemaining from', state.timeRemaining, 'to', newState.timeRemaining);
     state.timeRemaining = newState.timeRemaining;
+  } else if (newState.timeRemaining !== undefined && state.isRunning) {
+    console.log('Worker: Timer is running, skipping timeRemaining update to prevent interference');
   }
   
   if (newState.isRunning !== undefined) {
@@ -182,10 +199,19 @@ function updateMode(mode: 'work' | 'break', timeRemaining: number, currentIterat
 
 // Update the timer
 function updateTime(timeRemaining: number) {
+  console.log('Worker: Updating time to:', timeRemaining);
+  
+  // Don't update if timer is running to prevent interference
+  if (state.isRunning) {
+    console.log('Worker: Timer is running, skipping time update to prevent interference');
+    return;
+  }
+  
   state.timeRemaining = timeRemaining;
-  // Send updated state back to main thread
+  
+  // Send updated state back to main thread (not as TICK to avoid confusion)
   self.postMessage({
-    type: 'TICK',
+    type: 'TIME_UPDATED',
     payload: state
   });
 }
@@ -194,14 +220,36 @@ function updateTime(timeRemaining: number) {
 function startTimer() {
   if (!state.isRunning) {
     state.isRunning = true;
+    console.log('Worker: Starting timer with timeRemaining:', state.timeRemaining);
+    
+    // Validate timeRemaining before starting
+    if (state.timeRemaining <= 0) {
+      console.error('Worker: Cannot start timer with invalid timeRemaining:', state.timeRemaining);
+      state.isRunning = false;
+      return;
+    }
+    
     timerInterval = self.setInterval(() => {
       if (state.timeRemaining > 0) {
         state.timeRemaining--;
-        self.postMessage({ type: 'TICK', payload: { timeRemaining: state.timeRemaining } });
+        console.log('Worker: TICK - timeRemaining:', state.timeRemaining);
+        self.postMessage({ 
+          type: 'TICK', 
+          payload: { 
+            timeRemaining: state.timeRemaining,
+            mode: state.mode,
+            currentIteration: state.currentIteration,
+            totalIterations: state.totalIterations,
+            isRunning: state.isRunning
+          } 
+        });
       } else {
+        console.log('Worker: Timer reached zero, completing...');
         completeTimer();
       }
     }, 1000);
+  } else {
+    console.log('Worker: Timer is already running');
   }
 }
 
@@ -213,7 +261,17 @@ function pauseTimer() {
       self.clearInterval(timerInterval);
       timerInterval = null;
     }
-    self.postMessage({ type: 'PAUSED', payload: { timeRemaining: state.timeRemaining } });
+    console.log('Worker: Timer paused with timeRemaining:', state.timeRemaining);
+    self.postMessage({ 
+      type: 'PAUSED', 
+      payload: { 
+        timeRemaining: state.timeRemaining,
+        mode: state.mode,
+        currentIteration: state.currentIteration,
+        totalIterations: state.totalIterations,
+        isRunning: state.isRunning
+      } 
+    });
   }
 }
 

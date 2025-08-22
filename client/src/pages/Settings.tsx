@@ -31,6 +31,7 @@ export default function Settings() {
   const [localSettings, setLocalSettings] = useState<SettingsType>(getSettings() || DEFAULT_SETTINGS);
   const [isVolumeChanging, setIsVolumeChanging] = useState(false);
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
+  const { isRunning } = useTimerStore();
 
   // Handle settings update
   const handleSettingsUpdate = (updates: Partial<SettingsType>) => {
@@ -47,13 +48,14 @@ export default function Settings() {
     // Ensure dark mode is always applied
     document.documentElement.classList.add('dark');
 
-    // If timer duration settings changed, reset the timer
+    // If timer duration settings changed, reset the timer only if it's not running
     if (
-      updates.workDuration !== undefined ||
+      (updates.workDuration !== undefined ||
       updates.breakDuration !== undefined ||
-      updates.iterations !== undefined
+      updates.iterations !== undefined) &&
+      !isRunning // Only reset if timer is not running
     ) {
-      console.log('Settings: Timer duration changed, resetting timer');
+      console.log('Settings: Timer duration changed and timer is not running, resetting timer');
       const { setTimeRemaining, setTotalTime, setMode, setCurrentIteration, setTotalIterations, setSettings: setStoreSettings } = useTimerStore.getState();
       
       // Update store settings first
@@ -85,6 +87,15 @@ export default function Settings() {
         currentIteration: 1,
         totalIterations: newSettings.iterations
       });
+    } else if (
+      updates.workDuration !== undefined ||
+      updates.breakDuration !== undefined ||
+      updates.iterations !== undefined
+    ) {
+      console.log('Settings: Timer duration changed but timer is running, will apply on next session');
+      // Just update the settings, don't reset the timer
+      const { setSettings: setStoreSettings } = useTimerStore.getState();
+      setStoreSettings(newSettings);
     }
 
     toast({

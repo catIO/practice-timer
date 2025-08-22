@@ -52,9 +52,35 @@ export function useNotification() {
   const playSound = useCallback(async (settings: { numberOfBeeps: number; volume: number; soundType: string }) => {
     try {
       console.log('Playing sound with settings:', settings);
-      await playSoundEffect('end', settings.numberOfBeeps, settings.volume, settings.soundType as SoundType);
+      
+      // Ensure audio context is resumed before playing sound
+      await resumeAudioContext();
+      
+      // Play sound with retry mechanism
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          await playSoundEffect('end', settings.numberOfBeeps, settings.volume, settings.soundType as SoundType);
+          console.log('Sound played successfully');
+          break;
+        } catch (soundError) {
+          retryCount++;
+          console.error(`Sound playback attempt ${retryCount} failed:`, soundError);
+          
+          if (retryCount < maxRetries) {
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Try to resume audio context again
+            await resumeAudioContext();
+          } else {
+            throw soundError;
+          }
+        }
+      }
     } catch (error) {
-      console.error('Error playing sound:', error);
+      console.error('Error playing sound after retries:', error);
       toast({
         title: "Sound Playback Issue",
         description: "Failed to play sound. Please check your browser's audio settings.",

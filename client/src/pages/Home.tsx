@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { resumeAudioContext } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
-import { Settings } from "lucide-react";
+import { Settings, Info } from "lucide-react";
+import { IOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
+import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import "@/assets/headerBlur.css";
 
 export default function Home() {
@@ -18,6 +20,8 @@ export default function Home() {
   // Get settings from local storage
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   
   // Setup notifications and toast
   const { toast } = useToast();
@@ -98,6 +102,29 @@ export default function Home() {
     skipTimer();
   }, [skipTimer]);
 
+  // Detect iOS and show instructions if needed
+  useEffect(() => {
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(iOS);
+    
+    // Show iOS instructions on first visit
+    if (iOS && !localStorage.getItem('ios-instructions-shown')) {
+      setShowIOSInstructions(true);
+    }
+  }, []);
+
+  const handleDismissIOSInstructions = () => {
+    setShowIOSInstructions(false);
+    localStorage.setItem('ios-instructions-shown', 'true');
+  };
+
+  // Cleanup wake locks when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanupWakeLockFallback();
+    };
+  }, []);
+
   // Handle start timer
   const handleStart = useCallback(async () => {
     // Initialize audio context first
@@ -147,18 +174,41 @@ export default function Home() {
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
+        {/* iOS Instructions Modal */}
+        {showIOSInstructions && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <IOSBackgroundInstructions
+              isVisible={showIOSInstructions}
+              onDismiss={handleDismissIOSInstructions}
+            />
+          </div>
+        )}
+
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
               <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary hover:text-primary/80"
-                onClick={handleSettingsClick}
-              >
-                <span className="material-icons">settings</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                {isIOS && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-blue-500 hover:text-blue-400"
+                    onClick={() => setShowIOSInstructions(true)}
+                    title="iOS Optimization Tips"
+                  >
+                    <Info className="h-5 w-5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
+                  onClick={handleSettingsClick}
+                >
+                  <span className="material-icons">settings</span>
+                </Button>
+              </div>
             </div>
           </header>
 

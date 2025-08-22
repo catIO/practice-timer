@@ -8,6 +8,7 @@ import { SettingsType } from '@/lib/timerService';
 import { getSettings } from '@/lib/localStorage';
 import { getTimerWorker, addMessageHandler, removeMessageHandler, updateWorkerState, terminateTimerWorker } from '@/lib/timerWorkerSingleton';
 import { TimerState } from '@/lib/timerWorkerSingleton';
+import { getWakeLockFallback, cleanupWakeLockFallback } from '@/lib/wakeLockFallback';
 
 interface WakeLock {
   released: boolean;
@@ -31,6 +32,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const workerRef = useRef<Worker | null>(null);
   const { showNotification } = useNotification();
   const wakeLockRef = useRef<WakeLock | null>(null);
+  const wakeLockFallbackRef = useRef<any>(null);
   const { toast } = useToast();
   const startTimeRef = useRef<number>(0);
   const lastUpdateRef = useRef<number>(0);
@@ -39,6 +41,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const initializedRef = useRef(false);
   const lastTimeRemainingRef = useRef<number>(0);
   const timerStore = useTimerStore();
+  const serviceWorkerRef = useRef<ServiceWorkerRegistration | null>(null);
+  const backgroundSyncRef = useRef<boolean>(false);
   
   const {
     timeRemaining: storeTimeRemaining,
@@ -55,6 +59,107 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     setTotalIterations: setStoreTotalIterations,
     setSettings: setStoreSettings,
   } = useTimerStore();
+
+  // Initialize service worker and background sync
+  useEffect(() => {
+    const initializeServiceWorker = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          serviceWorkerRef.current = registration;
+          
+          // Check for background sync support
+          if ('sync' in window.ServiceWorkerRegistration.prototype) {
+            backgroundSyncRef.current = true;
+            console.log('Background sync is supported');
+          }
+          
+          // Listen for messages from service worker
+          navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+        } catch (error) {
+          console.error('Failed to initialize service worker:', error);
+        }
+      }
+    };
+
+    initializeServiceWorker();
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
+    };
+  }, []);
+
+  // Handle messages from service worker
+  const handleServiceWorkerMessage = useCallback((event: MessageEvent) => {
+    const { type, payload } = event.data;
+    
+    switch (type) {
+      case 'START_NEXT_SESSION':
+        // Handle starting next session from background notification
+        completeSession();
+        break;
+        
+      case 'TIMER_COMPLETED':
+        // Handle timer completion from background
+        handleBackgroundTimerCompletion(payload);
+        break;
+    }
+  }, []);
+
+  // Handle timer completion from background
+  const handleBackgroundTimerCompletion = useCallback((payload: any) => {
+    setIsRunning(false);
+    setStoreIsRunning(false);
+    
+    // Show notification
+    showNotification(
+      payload.mode === 'work' ? 'Work Time Complete!' : 'Break Time Complete!',
+      {
+        body: payload.mode === 'work' ? 'Time for a break!' : 'Time to get back to work!',
+        requireInteraction: true
+      }
+    );
+    
+    // Call onComplete callback if provided
+    if (onComplete) {
+      onComplete();
+    }
+    
+    // Complete the current session
+    completeSession();
+  }, [onComplete, showNotification, setIsRunning, setStoreIsRunning]);
+
+  // Update background timer state in service worker
+  const updateBackgroundTimer = useCallback((timerState: any) => {
+    if (serviceWorkerRef.current && backgroundSyncRef.current) {
+      serviceWorkerRef.current.active?.postMessage({
+        type: 'UPDATE_BACKGROUND_TIMER',
+        payload: timerState
+      });
+    }
+  }, []);
+
+  // Start background timer in service worker
+  const startBackgroundTimer = useCallback((timerState: any) => {
+    if (serviceWorkerRef.current && backgroundSyncRef.current) {
+      serviceWorkerRef.current.active?.postMessage({
+        type: 'START_BACKGROUND_TIMER',
+        payload: {
+          ...timerState,
+          duration: timerState.timeRemaining
+        }
+      });
+    }
+  }, []);
+
+  // Stop background timer in service worker
+  const stopBackgroundTimer = useCallback(() => {
+    if (serviceWorkerRef.current && backgroundSyncRef.current) {
+      serviceWorkerRef.current.active?.postMessage({
+        type: 'STOP_BACKGROUND_TIMER'
+      });
+    }
+  }, []);
 
   // Complete current session and start next one
   const completeSession = useCallback(() => {
@@ -88,6 +193,15 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           }
         });
       }
+
+      // Update background timer
+      updateBackgroundTimer({
+        mode: newMode,
+        timeRemaining: newTimeRemaining,
+        currentIteration,
+        totalIterations,
+        isRunning: false
+      });
     } else {
       // After break session, increment iteration and go to work mode
       const nextIteration = currentIteration + 1;
@@ -122,8 +236,17 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           }
         });
       }
+
+      // Update background timer
+      updateBackgroundTimer({
+        mode: newMode,
+        timeRemaining: newTimeRemaining,
+        currentIteration: newIteration,
+        totalIterations,
+        isRunning: false
+      });
     }
-  }, [mode, settings, currentIteration, totalIterations, setMode, setTimeRemaining, setTotalTime, setIsRunning, setStoreMode, setStoreTimeRemaining, setStoreTotalTime, setStoreIsRunning, setCurrentIteration, setStoreCurrentIteration]);
+  }, [mode, settings, currentIteration, totalIterations, setMode, setTimeRemaining, setTotalTime, setIsRunning, setStoreMode, setStoreTimeRemaining, setStoreTotalTime, setStoreIsRunning, setCurrentIteration, setStoreCurrentIteration, updateBackgroundTimer]);
 
   // Initialize settings in store only once
   useEffect(() => {
@@ -317,12 +440,40 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         const { type, payload } = event.data;
         if (type === 'TICK') {
           console.log('useTimer: Received TICK message:', payload);
+          console.log('useTimer: Current timeRemaining before update:', timeRemaining);
+          console.log('useTimer: New timeRemaining from payload:', payload.timeRemaining);
+          
+          // Validate the timeRemaining value
+          if (payload.timeRemaining < 0) {
+            console.error('useTimer: Invalid timeRemaining received:', payload.timeRemaining);
+            return;
+          }
+          
           setTimeRemaining(payload.timeRemaining);
           setStoreTimeRemaining(payload.timeRemaining);
+        } else if (type === 'TIME_UPDATED') {
+          console.log('useTimer: Received TIME_UPDATED message:', payload);
+          // Only update if timer is not running to prevent interference
+          if (!isRunning) {
+            setTimeRemaining(payload.timeRemaining);
+            setStoreTimeRemaining(payload.timeRemaining);
+          } else {
+            console.log('useTimer: Timer is running, skipping TIME_UPDATED');
+          }
         } else if (type === 'COMPLETE') {
           console.log('useTimer: Received COMPLETE message');
           setIsRunning(false);
           setStoreIsRunning(false);
+          
+          // Show notification immediately when timer completes
+          showNotification(
+            'Timer Complete!',
+            {
+              body: 'Your timer has finished!',
+              requireInteraction: true,
+              silent: false
+            }
+          );
           
           // Call onComplete callback if provided
           if (onComplete) {
@@ -357,8 +508,30 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     // Then pause the worker
     workerRef.current.postMessage({ type: 'PAUSE' });
     
+    // Stop background timer
+    stopBackgroundTimer();
+    
+    // Release wake locks when timer is paused
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release()
+        .then(() => {
+          wakeLockRef.current = null;
+          console.log('Wake lock released due to timer pause');
+        })
+        .catch(err => console.log('Error releasing wake lock:', err));
+    }
+    
+    if (wakeLockFallbackRef.current) {
+      wakeLockFallbackRef.current.release()
+        .then(() => {
+          wakeLockFallbackRef.current = null;
+          console.log('Fallback wake lock released due to timer pause');
+        })
+        .catch(err => console.log('Error releasing fallback wake lock:', err));
+    }
+    
     console.log('Timer paused with time remaining:', timeRemaining);
-  }, [timeRemaining, isRunning, setIsRunning, setStoreIsRunning]);
+  }, [timeRemaining, isRunning, setIsRunning, setStoreIsRunning, stopBackgroundTimer]);
 
   // Handle settings changes
   useEffect(() => {
@@ -371,32 +544,48 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     // Update store settings
     setStoreSettings(savedSettings);
     
-    // Update worker state with saved settings
-    const newDuration = savedSettings.workDuration * 60;
-    console.log('useTimer: Updating worker state with saved duration:', newDuration);
-    
-    // Update worker state without resetting timer
-    updateWorkerState(
-      newDuration,
-      false,
-      'work',
-      1,
-      savedSettings.iterations
-    );
-  }, [settings]);
+    // Only update worker state if timer is not running
+    if (!isRunning) {
+      const newDuration = savedSettings.workDuration * 60;
+      console.log('useTimer: Updating worker state with saved duration:', newDuration);
+      
+      // Update worker state without resetting timer
+      updateWorkerState(
+        newDuration,
+        false,
+        'work',
+        1,
+        savedSettings.iterations
+      );
+    } else {
+      console.log('useTimer: Timer is running, skipping settings update');
+    }
+  }, [settings, isRunning]);
 
   // Update worker state when timer state changes
   useEffect(() => {
-    if (workerRef.current) {
+    if (workerRef.current && !isRunning) {
+      // Only update worker state when timer is not running to avoid interference
+      console.log('useTimer: Updating worker state - timeRemaining:', timeRemaining, 'isRunning:', isRunning);
       updateWorkerState(timeRemaining, isRunning);
+    } else if (workerRef.current && isRunning) {
+      console.log('useTimer: Timer is running, skipping worker state update to prevent interference');
     }
   }, [timeRemaining, isRunning]);
 
   // Initialize timer with current settings
   const initializeTimer = useCallback((currentMode: 'work' | 'break', currentSettings: typeof settings) => {
+    // Don't initialize if timer is running
+    if (isRunning) {
+      console.log('useTimer: Timer is running, skipping initialization');
+      return;
+    }
+    
     const duration = currentMode === 'work' 
       ? currentSettings.workDuration 
       : currentSettings.breakDuration;
+    
+    console.log('useTimer: Initializing timer - mode:', currentMode, 'duration:', duration * 60);
     
     setTimeRemaining(duration * 60);
     setTotalTime(duration * 60);
@@ -408,22 +597,27 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         payload: { timeRemaining: duration * 60 }
       });
     }
-  }, []);
+  }, [isRunning]);
 
   const updateSettings = useCallback((newSettings: typeof settings) => {
     console.log('Updating settings:', newSettings);
     setSettings(newSettings);
     setTotalIterations(newSettings.iterations || 4);
     
-    // If we're in break mode, update the break duration
-    if (mode === 'break') {
-      initializeTimer('break', newSettings);
+    // Only update timer duration if timer is not running
+    if (!isRunning) {
+      // If we're in break mode, update the break duration
+      if (mode === 'break') {
+        initializeTimer('break', newSettings);
+      }
+      // If we're in work mode, update the work duration
+      else {
+        initializeTimer('work', newSettings);
+      }
+    } else {
+      console.log('useTimer: Timer is running, skipping settings update');
     }
-    // If we're in work mode, update the work duration
-    else {
-      initializeTimer('work', newSettings);
-    }
-  }, [mode, initializeTimer]);
+  }, [mode, initializeTimer, isRunning]);
 
   // Reset timer
   const resetTimer = useCallback(() => {
@@ -455,14 +649,17 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     completeSession();
   }, [completeSession]);
 
-  // Initialize timer when mode changes
+  // Initialize timer when mode changes (only when not running)
   useEffect(() => {
-    // Only initialize timer with new duration if we're not restoring from store
-    // This prevents resetting the timer when navigating back from settings
-    if (lastTimeRemainingRef.current === 0) {
+    // Only initialize timer with new duration if we're not restoring from store and timer is not running
+    // This prevents resetting the timer when navigating back from settings or when timer is active
+    if (lastTimeRemainingRef.current === 0 && !isRunning) {
+      console.log('useTimer: Initializing timer for mode change - mode:', mode, 'isRunning:', isRunning);
       initializeTimer(mode, settings);
+    } else if (lastTimeRemainingRef.current === 0 && isRunning) {
+      console.log('useTimer: Timer is running, skipping initialization for mode change');
     }
-  }, [mode, settings, initializeTimer]);
+  }, [mode, settings, initializeTimer, isRunning]);
 
   // Start timer
   const startTimer = useCallback(async () => {
@@ -504,14 +701,44 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         }
       }
 
-      // Request wake lock
-      if ('wakeLock' in navigator) {
-        try {
+      // Request wake lock to prevent screen timeout
+      try {
+        // Try native wake lock first
+        if ('wakeLock' in navigator) {
+          // Release any existing wake lock first
+          if (wakeLockRef.current) {
+            await wakeLockRef.current.release();
+            wakeLockRef.current = null;
+          }
+          
           // Try system wake lock first, fall back to screen wake lock if not supported
           const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
           wakeLockRef.current = await (navigator as any).wakeLock.request(wakeLockType);
-        } catch (err) {
-          console.log('Error requesting wake lock:', err);
+          
+          // Add event listener for wake lock release
+          wakeLockRef.current.addEventListener('release', () => {
+            console.log('Wake lock was released');
+            wakeLockRef.current = null;
+          });
+          
+          console.log('Native wake lock acquired successfully');
+        } else {
+          // Use fallback wake lock
+          const fallback = getWakeLockFallback();
+          wakeLockFallbackRef.current = fallback;
+          await fallback.request();
+          console.log('Fallback wake lock activated');
+        }
+      } catch (err) {
+        console.error('Error requesting wake lock:', err);
+        // Try fallback as last resort
+        try {
+          const fallback = getWakeLockFallback();
+          wakeLockFallbackRef.current = fallback;
+          await fallback.request();
+          console.log('Fallback wake lock activated after error');
+        } catch (fallbackErr) {
+          console.error('All wake lock methods failed:', fallbackErr);
         }
       }
 
@@ -520,7 +747,11 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       setStoreIsRunning(true);
       
       // Then start the worker
-      console.log('Starting timer with time remaining:', timeRemaining);
+      console.log('useTimer: Starting timer with time remaining:', timeRemaining);
+      console.log('useTimer: Timer mode:', mode);
+      console.log('useTimer: Current iteration:', currentIteration);
+      console.log('useTimer: Total iterations:', totalIterations);
+      
       workerRef.current.postMessage({ 
         type: 'START',
         payload: { 
@@ -530,6 +761,15 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           totalIterations
         }
       });
+
+      // Start background timer for iOS background support
+      startBackgroundTimer({
+        timeRemaining,
+        mode,
+        currentIteration,
+        totalIterations,
+        isRunning: true
+      });
     } catch (error) {
       console.error('Error starting timer:', error);
       toast({
@@ -538,11 +778,61 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         variant: "destructive",
       });
     }
-  }, [timeRemaining, mode, currentIteration, totalIterations, onComplete, completeSession, toast]);
+  }, [timeRemaining, mode, currentIteration, totalIterations, onComplete, completeSession, toast, startBackgroundTimer]);
 
-  // Cleanup wake lock on unmount
+  // Manage wake lock based on timer state and visibility
   useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.hidden) {
+        // Page is hidden, but keep wake lock active if timer is running
+        // This prevents screen timeout during timer
+        console.log('Page hidden, but keeping wake lock active for timer');
+      } else if (isRunning) {
+        // Page is visible and timer is running, ensure wake lock is active
+        if ('wakeLock' in navigator && !wakeLockRef.current) {
+          try {
+            const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
+            wakeLockRef.current = await (navigator as any).wakeLock.request(wakeLockType);
+            console.log('Wake lock re-acquired when page became visible');
+          } catch (err) {
+            console.error('Error re-acquiring wake lock:', err);
+          }
+        }
+        // Re-request fallback wake lock if needed
+        if (!wakeLockRef.current && !wakeLockFallbackRef.current) {
+          try {
+            const fallback = getWakeLockFallback();
+            wakeLockFallbackRef.current = fallback;
+            await fallback.request();
+            console.log('Fallback wake lock re-acquired when page became visible');
+          } catch (err) {
+            console.error('Error re-acquiring fallback wake lock:', err);
+          }
+        }
+        
+        // Sync timer state when page becomes visible to ensure accuracy
+        if (workerRef.current) {
+          console.log('Page became visible, syncing timer state');
+          workerRef.current.postMessage({
+            type: 'SYNC_STATE',
+            payload: {
+              timeRemaining,
+              mode,
+              currentIteration,
+              totalIterations,
+              isRunning
+            }
+          });
+        }
+      }
+    };
+
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup wake lock on unmount
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (wakeLockRef.current) {
         wakeLockRef.current.release()
           .then(() => {
@@ -550,8 +840,15 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           })
           .catch(err => console.log('Error releasing wake lock:', err));
       }
+      if (wakeLockFallbackRef.current) {
+        wakeLockFallbackRef.current.release()
+          .then(() => {
+            wakeLockFallbackRef.current = null;
+          })
+          .catch(err => console.log('Error releasing fallback wake lock:', err));
+      }
     };
-  }, []);
+  }, [isRunning, timeRemaining, mode, currentIteration, totalIterations]);
 
   return {
     timeRemaining,
