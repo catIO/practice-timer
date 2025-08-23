@@ -49,7 +49,10 @@ export const TimerDisplay = memo(function TimerDisplay({
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-6xl font-bold tabular-nums">
+            <div 
+              className="text-6xl font-bold tabular-nums"
+              style={{ fontFamily: 'Roboto Mono, monospace' }}
+            >
               {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
             </div>
             <div className="text-lg font-medium text-gray-500 mt-2">

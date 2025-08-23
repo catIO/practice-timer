@@ -11,7 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { resumeAudioContext } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
 import { Settings, Info } from "lucide-react";
-import { IOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
+import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
 import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import "@/assets/headerBlur.css";
 
@@ -177,7 +177,7 @@ export default function Home() {
         {/* iOS Instructions Modal */}
         {showIOSInstructions && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <IOSBackgroundInstructions
+            <iOSBackgroundInstructions
               isVisible={showIOSInstructions}
               onDismiss={handleDismissIOSInstructions}
             />

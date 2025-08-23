@@ -80,7 +80,10 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning }: Tim
       
       {/* Timer text */}
       <div className="absolute flex items-center justify-center">
-        <div className="text-5xl font-bold text-primary">
+        <div 
+          className="text-5xl font-bold text-primary"
+          style={{ fontFamily: 'Roboto Mono, monospace' }}
+        >
           {formattedTime}
         </div>
       </div>

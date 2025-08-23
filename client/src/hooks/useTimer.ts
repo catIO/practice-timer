@@ -9,6 +9,8 @@ import { getSettings } from '@/lib/localStorage';
 import { getTimerWorker, addMessageHandler, removeMessageHandler, updateWorkerState, terminateTimerWorker } from '@/lib/timerWorkerSingleton';
 import { TimerState } from '@/lib/timerWorkerSingleton';
 import { getWakeLockFallback, cleanupWakeLockFallback } from '@/lib/wakeLockFallback';
+import { initializeIOSBackgroundTimer, getIOSBackgroundTimer, cleanupIOSBackgroundTimer } from '@/lib/iOSBackgroundTimer';
+import { getIOSWakeLock, cleanupIOSWakeLock } from '@/lib/iOSWakeLock';
 
 interface WakeLock {
   released: boolean;
@@ -33,6 +35,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const { showNotification } = useNotification();
   const wakeLockRef = useRef<WakeLock | null>(null);
   const wakeLockFallbackRef = useRef<any>(null);
+  const iosWakeLockRef = useRef<any>(null);
+  const iosBackgroundTimerRef = useRef<any>(null);
   const { toast } = useToast();
   const startTimeRef = useRef<number>(0);
   const lastUpdateRef = useRef<number>(0);
@@ -43,6 +47,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const timerStore = useTimerStore();
   const serviceWorkerRef = useRef<ServiceWorkerRegistration | null>(null);
   const backgroundSyncRef = useRef<boolean>(false);
+  const isIOSRef = useRef<boolean>(false);
   
   const {
     timeRemaining: storeTimeRemaining,
@@ -59,6 +64,75 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     setTotalIterations: setStoreTotalIterations,
     setSettings: setStoreSettings,
   } = useTimerStore();
+
+  // Create refs for callback functions to avoid dependency issues
+  const completeSessionRef = useRef<(() => void) | null>(null);
+
+  // Detect iOS and initialize iOS-specific components
+  useEffect(() => {
+    const detectIOS = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isIOS = /iphone|ipad|ipod/.test(userAgent);
+      isIOSRef.current = isIOS;
+      
+      if (isIOS) {
+        console.log('iOS device detected, initializing iOS-specific components');
+        
+        // Initialize iOS background timer
+        iosBackgroundTimerRef.current = initializeIOSBackgroundTimer({
+          onTick: (timeRemaining) => {
+            setTimeRemaining(timeRemaining);
+            setStoreTimeRemaining(timeRemaining);
+          },
+          onComplete: (state) => {
+            setIsRunning(false);
+            setStoreIsRunning(false);
+            
+            showNotification(
+              state.mode === 'work' ? 'Work Time Complete!' : 'Break Time Complete!',
+              {
+                body: state.mode === 'work' ? 'Time for a break!' : 'Time to get back to work!',
+                requireInteraction: true
+              }
+            );
+            
+            if (onComplete) {
+              onComplete();
+            }
+            
+            // Use the ref to call completeSession
+            if (completeSessionRef.current) {
+              completeSessionRef.current();
+            }
+          },
+          onBackground: () => {
+            console.log('Timer going to background on iOS');
+          },
+          onForeground: () => {
+            console.log('Timer coming to foreground on iOS');
+          }
+        });
+        
+        // Initialize iOS wake lock
+        iosWakeLockRef.current = getIOSWakeLock({
+          preventScreenTimeout: true,
+          preventSystemSleep: true,
+          audioContext: true,
+          userActivity: true,
+          fullscreen: false
+        });
+      }
+    };
+
+    detectIOS();
+
+    return () => {
+      if (isIOSRef.current) {
+        cleanupIOSBackgroundTimer();
+        cleanupIOSWakeLock();
+      }
+    };
+  }, [onComplete, showNotification, setIsRunning, setStoreIsRunning]);
 
   // Initialize service worker and background sync
   useEffect(() => {
@@ -247,6 +321,11 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       });
     }
   }, [mode, settings, currentIteration, totalIterations, setMode, setTimeRemaining, setTotalTime, setIsRunning, setStoreMode, setStoreTimeRemaining, setStoreTotalTime, setStoreIsRunning, setCurrentIteration, setStoreCurrentIteration, updateBackgroundTimer]);
+
+  // Update ref with completeSession function
+  useEffect(() => {
+    completeSessionRef.current = completeSession;
+  }, [completeSession]);
 
   // Initialize settings in store only once
   useEffect(() => {
@@ -499,7 +578,29 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
 
   // Pause timer
   const pauseTimer = useCallback(() => {
-    if (!workerRef.current || !isRunning) return;
+    if (!isRunning) return;
+
+    // Handle iOS-specific timer pause
+    if (isIOSRef.current && iosBackgroundTimerRef.current) {
+      console.log('Pausing iOS background timer');
+      
+      // Pause iOS background timer
+      iosBackgroundTimerRef.current.pause();
+      
+      // Release iOS wake lock
+      if (iosWakeLockRef.current) {
+        iosWakeLockRef.current.release();
+      }
+      
+      // Update local state
+      setIsRunning(false);
+      setStoreIsRunning(false);
+      
+      return;
+    }
+
+    // Non-iOS timer pause (existing logic)
+    if (!workerRef.current) return;
 
     // Update local state first
     setIsRunning(false);
@@ -673,6 +774,31 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         // Continue even if audio fails - we don't want to block the timer
       }
 
+      // Handle iOS-specific timer start
+      if (isIOSRef.current && iosBackgroundTimerRef.current) {
+        console.log('Starting iOS background timer');
+        
+        // Request iOS wake lock
+        if (iosWakeLockRef.current) {
+          await iosWakeLockRef.current.request();
+        }
+        
+        // Start iOS background timer
+        iosBackgroundTimerRef.current.start(
+          timeRemaining,
+          mode,
+          currentIteration,
+          totalIterations
+        );
+        
+        // Update local state
+        setIsRunning(true);
+        setStoreIsRunning(true);
+        
+        return;
+      }
+
+      // Non-iOS timer start (existing logic)
       // Ensure worker is initialized
       if (!workerRef.current) {
         console.log('Worker not initialized, initializing now...');

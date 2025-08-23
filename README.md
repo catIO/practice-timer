@@ -26,6 +26,8 @@ This app includes enhanced background functionality specifically designed to wor
 ✅ **State Persistence**: Timer state is saved and restored when app becomes active  
 ✅ **Audio Alerts**: Sound notifications work when app is in background (limited time)  
 ✅ **Background Sync**: Service worker attempts to maintain timer state  
+✅ **iOS-Specific Timer**: Dedicated background timer implementation for iOS devices  
+✅ **Enhanced Wake Lock**: Multiple strategies to prevent screen timeout  
 
 ### iOS Limitations
 
@@ -38,20 +40,22 @@ This app includes enhanced background functionality specifically designed to wor
 
 The app includes several iOS-specific optimizations:
 
-1. **Background Timer Utility**: Calculates accurate time based on start timestamp
-2. **State Synchronization**: Syncs timer state when app becomes active
-3. **Service Worker Background Sync**: Attempts to maintain timer state in background
-4. **Enhanced Notifications**: Rich notifications with action buttons
-5. **PWA Manifest**: Optimized for iOS installation and background performance
+1. **iOS Background Timer**: Dedicated timer implementation with drift correction
+2. **iOS Wake Lock**: Multiple strategies to prevent screen timeout
+3. **State Synchronization**: Syncs timer state when app becomes active
+4. **Service Worker Background Sync**: Attempts to maintain timer state in background
+5. **Enhanced Notifications**: Rich notifications with action buttons
+6. **PWA Manifest**: Optimized for iOS installation and background performance
 
 ### iOS Setup Instructions
 
 When using the app on iOS, you'll see optimization tips that guide you through:
 
-1. **Install as App**: Add to home screen for better background performance
-2. **Enable Notifications**: Allow notifications for timer completion alerts
-3. **Check Volume**: Ensure device volume is on for audio alerts
-4. **Background App Refresh**: Enable in iOS Settings for better background performance
+1. **Enable Background App Refresh**: Go to Settings > General > Background App Refresh
+2. **Install as App**: Add to home screen for better background performance
+3. **Enable Notifications**: Allow notifications for timer completion alerts
+4. **Keep Wi-Fi Connected**: Ensure stable internet connection
+5. **Disable Low Power Mode**: For more reliable background operation
 
 ### Best Practices for iOS Users
 
@@ -65,11 +69,16 @@ When using the app on iOS, you'll see optimization tips that guide you through:
 
 The iOS background functionality includes:
 
-- **Background Timer Class**: Manages timer state and calculates accurate elapsed time
+- **iOS Background Timer Class**: Manages timer state with drift correction and real-time sync
+- **iOS Wake Lock**: Audio context and user activity simulation to prevent screen timeout
 - **Service Worker**: Handles background sync and notifications
 - **State Persistence**: Saves timer state to localStorage for restoration
 - **Visibility API**: Detects when app becomes active/inactive
 - **Timestamp-based Calculation**: Uses start time to calculate accurate elapsed time
+
+### Detailed iOS Guide
+
+For comprehensive information about iOS background operation, troubleshooting, and technical details, see [iOS Background Timer Operation Guide](client/README-iOS-Background.md).
 
 ## Development
 
