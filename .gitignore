@@ -37,3 +37,7 @@ yarn-error.log*
 # macOS system files
 .DS_Store
 **/.DS_Store
+
+# Generated files
+generated-icon.png
+*.generated.*
