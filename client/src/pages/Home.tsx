@@ -4,6 +4,7 @@ import TimerControls from "@/components/TimerControls";
 import IterationTracker from "@/components/IterationTracker";
 import { useTimer } from "@/hooks/useTimer";
 import { useNotification } from "@/hooks/useNotification";
+import { playSound } from "@/lib/soundEffects";
 import { useToast } from "@/hooks/use-toast";
 import { SettingsType } from "@/lib/timerService";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export default function Home() {
   
   // Setup notifications and toast
   const { toast } = useToast();
-  const { playSound } = useNotification();
+  const { showNotification } = useNotification();
 
   // Initialize audio context on user interaction
   const initializeAudio = async () => {
@@ -79,13 +80,13 @@ export default function Home() {
       });
       
       // Play the completion sound
-      await playSound(settings);
+      await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
       
       toast({
         title: 'Timer Complete',
         description: 'Your timer has finished!',
       });
-    }, [settings, toast, playSound])
+    }, [settings, toast])
   });
 
   // Handle reset all (reset to first iteration)
