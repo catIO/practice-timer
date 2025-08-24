@@ -258,46 +258,122 @@ export const resumeAudioContext = async (): Promise<boolean> => {
   }
 };
 
-// Simple iOS audio unlock
+// Direct iOS audio unlock - just play a sound
 export const initializeAudioForIOS = async (): Promise<boolean> => {
   try {
-    console.log('iOS: Simple audio unlock attempt...');
+    console.log('iOS: Direct audio unlock attempt...');
     
-    // Create a simple audio element
-    const audio = new Audio();
-    audio.volume = 0.1;
+    // Create a new audio context specifically for iOS
+    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Try to play a simple beep sound
-    try {
-      // Create a simple beep using Web Audio API
-      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      if (context.state === 'suspended') {
-        await context.resume();
+    // Resume if suspended
+    if (context.state === 'suspended') {
+      await context.resume();
+    }
+    
+    // Create and play a simple sound immediately
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    
+    // Set up the sound
+    oscillator.frequency.setValueAtTime(800, context.currentTime);
+    gainNode.gain.setValueAtTime(0.3, context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
+    
+    // Play the sound
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 0.2);
+    
+    console.log('iOS: Direct audio unlock successful');
+    return true;
+  } catch (error) {
+    console.error('Error in direct iOS audio unlock:', error);
+    return false;
+  }
+};
+
+// iOS-specific sound playback
+const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
+  try {
+    console.log(`iOS: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
+    
+    // Convert volume from 0-100 to 0-1 range
+    const normalizedVolume = Math.min(1, volume / 100);
+    
+    // Create a new audio context for each sound (iOS requirement)
+    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Resume if suspended
+    if (context.state === 'suspended') {
+      await context.resume();
+    }
+    
+    // Play the sound(s)
+    if (effect === 'end') {
+      // Play multiple beeps
+      for (let i = 0; i < numberOfBeeps; i++) {
+        console.log(`iOS: Playing beep ${i + 1} of ${numberOfBeeps}`);
+        
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        // Set frequency based on sound type
+        let frequency = 800; // default
+        switch (soundType) {
+          case 'bell': frequency = 440; break;
+          case 'chime': frequency = 523.25; break;
+          case 'digital': frequency = 880; break;
+          case 'woodpecker': frequency = 300; break;
+          case 'beep': frequency = 800; break;
+        }
+        
+        oscillator.frequency.setValueAtTime(frequency, context.currentTime);
+        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+        
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + 0.5);
+        
+        // Wait between beeps
+        if (i < numberOfBeeps - 1) {
+          await new Promise(resolve => setTimeout(resolve, 600));
+        }
       }
-      
+    } else {
+      // Play single sound
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
       
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
       
-      oscillator.frequency.setValueAtTime(440, context.currentTime);
-      gainNode.gain.setValueAtTime(0.1, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+      // Set frequency based on sound type
+      let frequency = 800; // default
+      switch (soundType) {
+        case 'bell': frequency = 440; break;
+        case 'chime': frequency = 523.25; break;
+        case 'digital': frequency = 880; break;
+        case 'woodpecker': frequency = 300; break;
+        case 'beep': frequency = 800; break;
+      }
+      
+      oscillator.frequency.setValueAtTime(frequency, context.currentTime);
+      gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
       
       oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + 0.1);
-      
-      console.log('iOS: Simple audio unlock successful');
-      return true;
-    } catch (error) {
-      console.log('iOS: Simple audio unlock failed:', error);
-      return false;
+      oscillator.stop(context.currentTime + 0.3);
     }
+    
+    console.log('iOS: Sound playback completed successfully');
   } catch (error) {
-    console.error('Error in simple iOS audio unlock:', error);
-    return false;
+    console.error('Error playing iOS sound:', error);
   }
 };
 
@@ -305,6 +381,15 @@ export const initializeAudioForIOS = async (): Promise<boolean> => {
 export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
   try {
     console.log(`Attempting to play ${effect} sound with ${numberOfBeeps} beeps at volume ${volume} with sound type ${soundType}...`);
+    
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    if (isIOS) {
+      // Use simplified iOS audio approach
+      await playSoundIOS(effect, numberOfBeeps, volume, soundType);
+      return;
+    }
     
     // Convert volume from 0-100 to 0-1 range with increased maximum volume
     // Apply a non-linear curve to increase volume at higher settings
