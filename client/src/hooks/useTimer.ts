@@ -517,6 +517,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       // Add message handler for TICK and COMPLETE messages
       messageHandler = (event: MessageEvent) => {
         const { type, payload } = event.data;
+        console.log('useTimer: Received message from worker:', type, payload);
+        
         if (type === 'TICK') {
           console.log('useTimer: Received TICK message:', payload);
           console.log('useTimer: Current timeRemaining before update:', timeRemaining);
@@ -916,6 +918,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       console.log('useTimer: Current iteration:', currentIteration);
       console.log('useTimer: Total iterations:', totalIterations);
       
+      console.log('useTimer: Sending START message to worker');
       workerRef.current.postMessage({ 
         type: 'START',
         payload: { 
@@ -925,6 +928,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           totalIterations
         }
       });
+      console.log('useTimer: START message sent to worker');
 
       // Start background timer for iOS background support
       startBackgroundTimer({
