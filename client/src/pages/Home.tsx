@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import Timer from "@/components/Timer";
 import TimerControls from "@/components/TimerControls";
 import IterationTracker from "@/components/IterationTracker";
@@ -179,6 +179,60 @@ export default function Home() {
     };
   }, [isRunning]);
 
+  // TEMPORARY: Simple test timer to debug the issue
+  const [testTimeRemaining, setTestTimeRemaining] = useState(1200);
+  const [testIsRunning, setTestIsRunning] = useState(false);
+  const testIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startTestTimer = useCallback(() => {
+    console.log('Starting test timer with time remaining:', testTimeRemaining);
+    setTestIsRunning(true);
+    
+    testIntervalRef.current = setInterval(() => {
+      setTestTimeRemaining(prev => {
+        const newTime = prev - 1;
+        console.log('Test timer tick:', newTime);
+        if (newTime <= 0) {
+          setTestIsRunning(false);
+          if (testIntervalRef.current) {
+            clearInterval(testIntervalRef.current);
+            testIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return newTime;
+      });
+    }, 1000);
+  }, [testTimeRemaining]);
+
+  const pauseTestTimer = useCallback(() => {
+    console.log('Pausing test timer');
+    setTestIsRunning(false);
+    if (testIntervalRef.current) {
+      clearInterval(testIntervalRef.current);
+      testIntervalRef.current = null;
+    }
+  }, []);
+
+  const resetTestTimer = useCallback(() => {
+    console.log('Resetting test timer');
+    setTestTimeRemaining(1200);
+    setTestIsRunning(false);
+    if (testIntervalRef.current) {
+      clearInterval(testIntervalRef.current);
+      testIntervalRef.current = null;
+    }
+  }, []);
+
+  // Cleanup test timer on unmount
+  useEffect(() => {
+    return () => {
+      if (testIntervalRef.current) {
+        clearInterval(testIntervalRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
@@ -210,6 +264,32 @@ export default function Home() {
 
           <main className="p-6">
             <div className="space-y-8">
+              {/* TEMPORARY: Test timer display */}
+              <div className="bg-red-900/20 p-4 rounded-lg border border-red-500/30">
+                <h3 className="text-red-400 font-bold mb-2">TEST TIMER (20:00)</h3>
+                <div className="text-3xl font-mono text-red-300 mb-4">
+                  {Math.floor(testTimeRemaining / 60)}:{(testTimeRemaining % 60).toString().padStart(2, '0')}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testIsRunning ? pauseTestTimer : startTestTimer}
+                    className="text-red-300 border-red-500/50"
+                  >
+                    {testIsRunning ? 'Pause' : 'Start'} Test
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetTestTimer}
+                    className="text-red-300 border-red-500/50"
+                  >
+                    Reset Test
+                  </Button>
+                </div>
+              </div>
+
               <Timer
                 timeRemaining={timeRemaining}
                 totalTime={totalTime}
