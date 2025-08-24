@@ -81,6 +81,8 @@ export class WakeLockFallback {
       this.keepPageActive();
 
       this.isActive = true;
+      // Add data attribute to track wake lock status
+      document.documentElement.setAttribute('data-wake-lock', 'active');
       console.log('Fallback wake lock started');
       return true;
     } catch (error) {
@@ -170,6 +172,8 @@ export class WakeLockFallback {
       console.log('Error closing audio context:', error);
     }
 
+    // Remove data attribute
+    document.documentElement.removeAttribute('data-wake-lock');
     console.log('Fallback wake lock released');
   }
 

@@ -11,8 +11,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { resumeAudioContext } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
 import { Settings, Info } from "lucide-react";
-import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
+import { iOSBackgroundInstructions } from "@/components/iOSBackgroundInstructions";
 import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
+import { cn } from "@/lib/utils";
+
 import "@/assets/headerBlur.css";
 
 export default function Home() {
@@ -22,6 +24,7 @@ export default function Home() {
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [wakeLockActive, setWakeLockActive] = useState(false);
   
   // Setup notifications and toast
   const { toast } = useToast();
@@ -171,6 +174,29 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isRunning, handleStart, handlePause]);
 
+  // Monitor wake lock status
+  useEffect(() => {
+    const checkWakeLockStatus = () => {
+      // Check if any wake lock is active
+      const hasNativeWakeLock = 'wakeLock' in navigator;
+      const hasWakeLockFallback = document.querySelector('[data-wake-lock="active"]');
+      
+      setWakeLockActive(hasNativeWakeLock || !!hasWakeLockFallback);
+    };
+
+    // Check initially
+    checkWakeLockStatus();
+
+    // Check periodically when timer is running
+    const intervalId = isRunning ? setInterval(checkWakeLockStatus, 5000) : null;
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isRunning]);
+
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
@@ -187,7 +213,16 @@ export default function Home() {
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
-              <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
+                {/* Wake Lock Status Indicator */}
+                {isRunning && (
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    wakeLockActive ? "bg-gray-400 animate-pulse" : "bg-gray-600"
+                  )} title={wakeLockActive ? "Wake lock active" : "Wake lock inactive"} />
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 {isIOS && (
                   <Button
@@ -219,6 +254,7 @@ export default function Home() {
                 totalTime={totalTime}
                 mode={mode}
                 isRunning={isRunning}
+                wakeLockActive={wakeLockActive}
               />
 
               <TimerControls
@@ -234,6 +270,8 @@ export default function Home() {
                 totalIterations={totalIterations}
                 mode={mode}
               />
+
+
             </div>
           </main>
         </div>

@@ -7,9 +7,10 @@ interface TimerProps {
   totalTime: number;
   mode: 'work' | 'break';
   isRunning: boolean;
+  wakeLockActive?: boolean;
 }
 
-export default function Timer({ timeRemaining, totalTime, mode, isRunning }: TimerProps) {
+export default function Timer({ timeRemaining, totalTime, mode, isRunning, wakeLockActive }: TimerProps) {
   console.log('Timer component rendered with props:', { timeRemaining, totalTime, mode, isRunning });
   
   // Ensure we have valid numbers for the progress calculation
@@ -87,6 +88,8 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning }: Tim
           {formattedTime}
         </div>
       </div>
+      
+
     </div>
   );
 }

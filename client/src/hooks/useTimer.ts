@@ -612,24 +612,9 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     // Stop background timer
     stopBackgroundTimer();
     
-    // Release wake locks when timer is paused
-    if (wakeLockRef.current) {
-      wakeLockRef.current.release()
-        .then(() => {
-          wakeLockRef.current = null;
-          console.log('Wake lock released due to timer pause');
-        })
-        .catch(err => console.log('Error releasing wake lock:', err));
-    }
-    
-    if (wakeLockFallbackRef.current) {
-      wakeLockFallbackRef.current.release()
-        .then(() => {
-          wakeLockFallbackRef.current = null;
-          console.log('Fallback wake lock released due to timer pause');
-        })
-        .catch(err => console.log('Error releasing fallback wake lock:', err));
-    }
+    // Keep wake locks active when timer is paused to prevent screen timeout
+    // Only release wake locks when timer is completely stopped or reset
+    console.log('Timer paused - keeping wake lock active to prevent screen timeout');
     
     console.log('Timer paused with time remaining:', timeRemaining);
   }, [timeRemaining, isRunning, setIsRunning, setStoreIsRunning, stopBackgroundTimer]);
@@ -722,6 +707,36 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
 
   // Reset timer
   const resetTimer = useCallback(() => {
+    // Handle iOS-specific timer reset
+    if (isIOSRef.current && iosBackgroundTimerRef.current) {
+      console.log('Resetting iOS background timer');
+      
+      // Stop iOS background timer
+      iosBackgroundTimerRef.current.stop();
+      
+      // Release iOS wake lock
+      if (iosWakeLockRef.current) {
+        iosWakeLockRef.current.release();
+      }
+      
+      // Reset all state
+      setIsRunning(false);
+      setMode('work');
+      setCurrentIteration(1);
+      setTimeRemaining(settings.workDuration * 60);
+      setTotalTime(settings.workDuration * 60);
+
+      // Update store state
+      setStoreIsRunning(false);
+      setStoreMode('work');
+      setStoreCurrentIteration(1);
+      setStoreTimeRemaining(settings.workDuration * 60);
+      setStoreTotalTime(settings.workDuration * 60);
+      
+      return;
+    }
+
+    // Non-iOS timer reset
     if (!workerRef.current) return;
 
     // Reset worker
@@ -729,6 +744,25 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       type: 'RESET',
       payload: { timeRemaining: settings.workDuration * 60 }
     });
+
+    // Release wake locks when timer is reset
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release()
+        .then(() => {
+          wakeLockRef.current = null;
+          console.log('Wake lock released due to timer reset');
+        })
+        .catch(err => console.log('Error releasing wake lock:', err));
+    }
+    
+    if (wakeLockFallbackRef.current) {
+      wakeLockFallbackRef.current.release()
+        .then(() => {
+          wakeLockFallbackRef.current = null;
+          console.log('Fallback wake lock released due to timer reset');
+        })
+        .catch(err => console.log('Error releasing fallback wake lock:', err));
+    }
 
     // Reset all state
     setIsRunning(false);
@@ -845,8 +879,12 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           wakeLockRef.current.addEventListener('release', () => {
             console.log('Wake lock was released');
             wakeLockRef.current = null;
+            // Remove data attribute
+            document.documentElement.removeAttribute('data-wake-lock');
           });
           
+          // Add data attribute to track wake lock status
+          document.documentElement.setAttribute('data-wake-lock', 'active');
           console.log('Native wake lock acquired successfully');
         } else {
           // Use fallback wake lock
@@ -975,6 +1013,47 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       }
     };
   }, [isRunning, timeRemaining, mode, currentIteration, totalIterations]);
+
+  // Ensure wake lock is maintained during timer session
+  useEffect(() => {
+    const ensureWakeLock = async () => {
+      if (isRunning) {
+        // Timer is running, ensure wake lock is active
+        if (!wakeLockRef.current && !wakeLockFallbackRef.current) {
+          console.log('Timer is running but no wake lock active, requesting wake lock...');
+          
+          try {
+            // Try native wake lock first
+            if ('wakeLock' in navigator) {
+              const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
+              wakeLockRef.current = await (navigator as any).wakeLock.request(wakeLockType);
+              console.log('Wake lock re-acquired for running timer');
+            } else {
+              // Use fallback wake lock
+              const fallback = getWakeLockFallback();
+              wakeLockFallbackRef.current = fallback;
+              await fallback.request();
+              console.log('Fallback wake lock re-acquired for running timer');
+            }
+          } catch (error) {
+            console.error('Failed to re-acquire wake lock for running timer:', error);
+          }
+        }
+      }
+    };
+
+    // Check wake lock status every 30 seconds when timer is running
+    let intervalId: number | null = null;
+    if (isRunning) {
+      intervalId = window.setInterval(ensureWakeLock, 30000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isRunning]);
 
   return {
     timeRemaining,

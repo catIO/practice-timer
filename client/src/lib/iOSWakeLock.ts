@@ -74,6 +74,8 @@ export class iOSWakeLock {
       }
 
       this.isActive = true;
+      // Add data attribute to track wake lock status
+      document.documentElement.setAttribute('data-wake-lock', 'active');
       console.log('iOS wake lock activated using fallback strategies');
       return true;
 
@@ -254,6 +256,8 @@ export class iOSWakeLock {
       this.fullscreenElement = null;
     }
 
+    // Remove data attribute
+    document.documentElement.removeAttribute('data-wake-lock');
     this.isActive = false;
     console.log('iOS wake lock released');
   }
