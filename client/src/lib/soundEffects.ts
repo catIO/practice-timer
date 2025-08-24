@@ -295,7 +295,7 @@ export const initializeAudioForIOS = async (): Promise<boolean> => {
   }
 };
 
-// iOS-specific sound playback
+// iOS-specific sound playback using HTML5 Audio (more reliable)
 const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
   try {
     console.log(`iOS: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
@@ -303,13 +303,34 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
     // Convert volume from 0-100 to 0-1 range
     const normalizedVolume = Math.min(1, volume / 100);
     
-    // Create a new audio context for each sound (iOS requirement)
-    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Create audio element for iOS (more reliable than Web Audio API)
+    const audio = new Audio();
+    audio.volume = normalizedVolume;
     
-    // Resume if suspended
-    if (context.state === 'suspended') {
-      await context.resume();
+    // Generate a simple beep sound using data URL
+    const sampleRate = 44100;
+    const duration = 0.3; // 300ms
+    const frequency = soundType === 'bell' ? 440 : 
+                     soundType === 'chime' ? 523.25 : 
+                     soundType === 'digital' ? 880 : 
+                     soundType === 'woodpecker' ? 300 : 800;
+    
+    // Create a simple sine wave
+    const numSamples = Math.floor(sampleRate * duration);
+    const audioData = new Float32Array(numSamples);
+    
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sampleRate;
+      const amplitude = Math.exp(-3 * t); // Exponential decay
+      audioData[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
     }
+    
+    // Convert to WAV format
+    const wavData = createWAV(audioData, sampleRate);
+    const blob = new Blob([wavData], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    
+    audio.src = url;
     
     // Play the sound(s)
     if (effect === 'end') {
@@ -317,64 +338,87 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
       for (let i = 0; i < numberOfBeeps; i++) {
         console.log(`iOS: Playing beep ${i + 1} of ${numberOfBeeps}`);
         
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
+        // Create a new audio element for each beep
+        const beepAudio = new Audio(url);
+        beepAudio.volume = normalizedVolume;
         
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-        
-        // Set frequency based on sound type
-        let frequency = 800; // default
-        switch (soundType) {
-          case 'bell': frequency = 440; break;
-          case 'chime': frequency = 523.25; break;
-          case 'digital': frequency = 880; break;
-          case 'woodpecker': frequency = 300; break;
-          case 'beep': frequency = 800; break;
-        }
-        
-        oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
-        
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 0.5);
-        
-        // Wait between beeps
-        if (i < numberOfBeeps - 1) {
-          await new Promise(resolve => setTimeout(resolve, 600));
+        try {
+          await beepAudio.play();
+          
+          // Wait for the beep to finish
+          await new Promise((resolve) => {
+            beepAudio.onended = resolve;
+            // Fallback timeout
+            setTimeout(resolve, 500);
+          });
+          
+          // Wait between beeps
+          if (i < numberOfBeeps - 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (error) {
+          console.error(`Error playing beep ${i + 1}:`, error);
         }
       }
     } else {
       // Play single sound
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-      
-      // Set frequency based on sound type
-      let frequency = 800; // default
-      switch (soundType) {
-        case 'bell': frequency = 440; break;
-        case 'chime': frequency = 523.25; break;
-        case 'digital': frequency = 880; break;
-        case 'woodpecker': frequency = 300; break;
-        case 'beep': frequency = 800; break;
+      try {
+        await audio.play();
+        
+        // Wait for the sound to finish
+        await new Promise((resolve) => {
+          audio.onended = resolve;
+          // Fallback timeout
+          setTimeout(resolve, 500);
+        });
+      } catch (error) {
+        console.error('Error playing single sound:', error);
       }
-      
-      oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-      gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-      
-      oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + 0.3);
     }
     
+    // Clean up
+    URL.revokeObjectURL(url);
     console.log('iOS: Sound playback completed successfully');
   } catch (error) {
     console.error('Error playing iOS sound:', error);
   }
+};
+
+// Helper function to create WAV data
+const createWAV = (audioData: Float32Array, sampleRate: number): ArrayBuffer => {
+  const buffer = new ArrayBuffer(44 + audioData.length * 2);
+  const view = new DataView(buffer);
+  
+  // WAV header
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + audioData.length * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, audioData.length * 2, true);
+  
+  // Convert float32 to int16
+  let offset = 44;
+  for (let i = 0; i < audioData.length; i++) {
+    const sample = Math.max(-1, Math.min(1, audioData[i]));
+    view.setInt16(offset, sample * 0x7FFF, true);
+    offset += 2;
+  }
+  
+  return buffer;
 };
 
 // Play a sound effect

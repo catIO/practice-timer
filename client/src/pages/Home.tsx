@@ -198,11 +198,10 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
+                  className="text-primary hover:text-primary/80 flex items-center gap-2"
                   onClick={handleSettingsClick}
                 >
-                  <span className="material-icons">settings</span>
+                  ⚙️ Settings
                 </Button>
               </div>
             </div>
