@@ -116,10 +116,10 @@ export default function Home() {
     
     setIsIOS(shouldShowIOSInstructions);
     
-    // Show iOS instructions on first visit (only for non-Brave browsers)
-    if (shouldShowIOSInstructions && !localStorage.getItem('ios-instructions-shown')) {
-      setShowIOSInstructions(true);
-    }
+    // Temporarily disable iOS instructions to fix greyed-out UI
+    // if (shouldShowIOSInstructions && !localStorage.getItem('ios-instructions-shown')) {
+    //   setShowIOSInstructions(true);
+    // }
   }, []);
 
   const handleDismissIOSInstructions = () => {
@@ -206,15 +206,15 @@ export default function Home() {
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
-        {/* iOS Instructions Modal */}
-        {showIOSInstructions && (
+        {/* iOS Instructions Modal - Temporarily disabled to fix greyed-out UI */}
+        {/* {showIOSInstructions && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <iOSBackgroundInstructions
               isVisible={showIOSInstructions}
               onDismiss={handleDismissIOSInstructions}
             />
           </div>
-        )}
+        )} */}
 
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
