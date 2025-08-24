@@ -55,6 +55,64 @@ export default function Settings() {
   const [isVolumeChanging, setIsVolumeChanging] = useState(false);
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
   const { isRunning } = useTimerStore();
+  
+  // Add immediate iOS debug indicator
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      console.log('iOS detected in Settings component');
+      
+      // Create debug div immediately
+      const debugDiv = document.getElementById('ios-debug') || createDebugDiv();
+      debugDiv.textContent = 'iOS DETECTED - Settings page loaded. Move volume slider to test audio.';
+      
+      // Also add a visible button for testing
+      const testButton = document.createElement('button');
+      testButton.textContent = 'TEST AUDIO';
+      testButton.style.cssText = `
+        position: fixed;
+        top: 120px;
+        left: 10px;
+        background: red;
+        color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        z-index: 10000;
+        font-size: 14px;
+      `;
+      testButton.onclick = async () => {
+        debugDiv.textContent = 'TEST BUTTON CLICKED - Testing audio...';
+        try {
+          const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+          debugDiv.textContent = `Audio context created, state: ${context.state}`;
+          
+          if (context.state === 'suspended') {
+            await context.resume();
+            debugDiv.textContent = 'Audio context resumed';
+          }
+          
+          const oscillator = context.createOscillator();
+          const gainNode = context.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(context.destination);
+          
+          oscillator.frequency.setValueAtTime(800, context.currentTime);
+          gainNode.gain.setValueAtTime(0.5, context.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+          
+          oscillator.start(context.currentTime);
+          oscillator.stop(context.currentTime + 0.3);
+          
+          debugDiv.textContent = 'AUDIO TEST COMPLETED - DID YOU HEAR A BEEP?';
+        } catch (error) {
+          debugDiv.textContent = `AUDIO TEST FAILED: ${error.message}`;
+        }
+      };
+      document.body.appendChild(testButton);
+    }
+  }, []);
 
   // Handle settings update
   const handleSettingsUpdate = (updates: Partial<SettingsType>) => {
