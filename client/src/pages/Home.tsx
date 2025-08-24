@@ -107,11 +107,17 @@ export default function Home() {
 
   // Detect iOS and show instructions if needed
   useEffect(() => {
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIsIOS(iOS);
+    const userAgent = navigator.userAgent;
+    const isBrave = userAgent.includes('Brave');
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
     
-    // Show iOS instructions on first visit
-    if (iOS && !localStorage.getItem('ios-instructions-shown')) {
+    // Don't show iOS instructions for Brave mobile (which has compatibility issues)
+    const shouldShowIOSInstructions = isIOS && !isBrave;
+    
+    setIsIOS(shouldShowIOSInstructions);
+    
+    // Show iOS instructions on first visit (only for non-Brave browsers)
+    if (shouldShowIOSInstructions && !localStorage.getItem('ios-instructions-shown')) {
       setShowIOSInstructions(true);
     }
   }, []);

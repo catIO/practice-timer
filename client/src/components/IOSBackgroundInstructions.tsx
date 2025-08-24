@@ -16,12 +16,17 @@ export function iOSBackgroundInstructions({ isVisible = false, onDismiss }: iOSB
 
   useEffect(() => {
     // Detect iOS device
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-    setIsIOS(isIOSDevice);
+    const userAgent = navigator.userAgent;
+    const isBrave = userAgent.includes('Brave');
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent.toLowerCase());
     
-    // Show instructions if on iOS and component is visible
-    if (isIOSDevice && isVisible) {
+    // Don't show iOS instructions for Brave mobile (which has compatibility issues)
+    const shouldShowIOSInstructions = isIOSDevice && !isBrave;
+    
+    setIsIOS(shouldShowIOSInstructions);
+    
+    // Show instructions if on iOS and component is visible (only for non-Brave browsers)
+    if (shouldShowIOSInstructions && isVisible) {
       setShowInstructions(true);
     }
   }, [isVisible]);
