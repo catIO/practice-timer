@@ -21,6 +21,7 @@ let masterVolume = 0.5;
 let audioContext: AudioContext | null = null;
 let audioContextInitialized = false;
 let audioContextResumed = false;
+let audioUnlockListenerAdded = false;
 
 // Initialize audio context
 const getAudioContext = () => {
@@ -37,9 +38,19 @@ export const initializeAudioContext = async () => {
     const context = getAudioContext();
     console.log('Audio context state:', context.state);
     
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
     if (context.state === 'suspended') {
       console.log('Resuming suspended audio context...');
-      await context.resume();
+      
+      if (isIOS) {
+        // Use iOS-specific unlock
+        await initializeAudioForIOS();
+      } else {
+        await context.resume();
+      }
+      
       console.log('Audio context resumed successfully');
       audioContextResumed = true;
     } else if (context.state === 'running') {
@@ -49,11 +60,41 @@ export const initializeAudioContext = async () => {
     
     audioContextInitialized = true;
     console.log('Audio context initialized successfully');
+    
+    // Add global audio unlock listener for iOS
+    if (isIOS && !audioUnlockListenerAdded) {
+      addGlobalAudioUnlockListener();
+      audioUnlockListenerAdded = true;
+    }
+    
     return true;
   } catch (error) {
     console.error('Error initializing audio context:', error);
     return false;
   }
+};
+
+// Add global listener to unlock audio on any user interaction
+const addGlobalAudioUnlockListener = () => {
+  const unlockAudio = async () => {
+    try {
+      const context = getAudioContext();
+      if (context.state === 'suspended') {
+        console.log('iOS: Unlocking audio on user interaction...');
+        await initializeAudioForIOS();
+      }
+    } catch (error) {
+      console.error('Error unlocking audio on user interaction:', error);
+    }
+  };
+
+  // Add listeners for various user interactions
+  const events = ['touchstart', 'touchend', 'click', 'keydown', 'scroll'];
+  events.forEach(event => {
+    document.addEventListener(event, unlockAudio, { once: true, passive: true });
+  });
+  
+  console.log('iOS: Added global audio unlock listeners');
 };
 
 // Generate sine wave
@@ -222,9 +263,11 @@ export const initializeAudioForIOS = async (): Promise<boolean> => {
   try {
     const context = getAudioContext();
     
-    // For iOS, we need to create a silent sound to unlock audio
+    // For iOS, we need multiple strategies to unlock audio
     if (context.state === 'suspended') {
-      // Create a silent oscillator to unlock audio
+      console.log('iOS: Audio context suspended, attempting to unlock...');
+      
+      // Strategy 1: Create a silent oscillator to unlock audio
       const silentOscillator = context.createOscillator();
       const silentGain = context.createGain();
       
@@ -238,10 +281,29 @@ export const initializeAudioForIOS = async (): Promise<boolean> => {
       silentOscillator.start(context.currentTime);
       silentOscillator.stop(context.currentTime + 0.1);
       
-      // Resume the context
+      // Strategy 2: Resume the context
       await context.resume();
+      
+      // Strategy 3: Create a very short audible sound to ensure unlock
+      const unlockOscillator = context.createOscillator();
+      const unlockGain = context.createGain();
+      
+      unlockOscillator.connect(unlockGain);
+      unlockGain.connect(context.destination);
+      
+      // Very short, very quiet sound
+      unlockGain.gain.setValueAtTime(0.01, context.currentTime);
+      unlockGain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.05);
+      
+      unlockOscillator.frequency.setValueAtTime(440, context.currentTime);
+      unlockOscillator.start(context.currentTime);
+      unlockOscillator.stop(context.currentTime + 0.05);
+      
+      // Wait a bit for the unlock to take effect
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     
+    console.log('iOS: Audio context state after unlock:', context.state);
     return context.state === 'running';
   } catch (error) {
     console.error('Error initializing audio for iOS:', error);
