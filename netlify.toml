@@ -1,6 +1,6 @@
 [build]
-  base = "client"
-  publish = "dist"
+  base = "."
+  publish = "client/dist"
   command = "npm run build"
 
 [build.environment]
@@ -12,7 +12,7 @@
   status = 200
 
 [dev]
-  base = "client"
+  base = "."
   command = "npm run dev"
   port = 5173
-  publish = "dist"
+  publish = "client/dist"
