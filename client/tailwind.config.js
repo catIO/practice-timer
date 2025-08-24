@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        'mono': ['JetBrains Mono', 'monospace'],
+        'mono': ['Roboto', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
