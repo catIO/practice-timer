@@ -105,7 +105,7 @@ export default function Settings() {
   };
 
   // Handle volume change with preview sound
-  const handleVolumeChange = (value: number[]) => {
+  const handleVolumeChange = async (value: number[]) => {
     const newVolume = value[0];
     const newSettings = {
       ...localSettings,
@@ -133,7 +133,7 @@ export default function Settings() {
   };
 
   // Handle sound type change with preview
-  const handleSoundTypeChange = (value: string) => {
+  const handleSoundTypeChange = async (value: string) => {
     const newSoundType = value as SoundType;
     const newSettings = {
       ...localSettings,
