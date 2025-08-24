@@ -115,22 +115,11 @@ export default function Settings() {
     // Update settings
     setLocalSettings(newSettings);
     
-    // For iOS, aggressively unlock audio on volume change
+    // For iOS, try to unlock audio on volume change
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      console.log('iOS: Volume change detected, unlocking audio...');
+      console.log('iOS: Volume change detected, trying audio unlock...');
       await initializeAudioForIOS();
-      
-      // Also try to create and play a test sound immediately
-      try {
-        const testAudio = new Audio();
-        testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-        testAudio.volume = 0.1;
-        await testAudio.play();
-        console.log('iOS: Test audio played successfully');
-      } catch (testError) {
-        console.log('iOS: Test audio failed:', testError);
-      }
     }
     
     playSound('end', 1, newVolume, localSettings.soundType as SoundType)
@@ -156,22 +145,11 @@ export default function Settings() {
     // Update settings
     setLocalSettings(newSettings);
     
-    // For iOS, aggressively unlock audio on sound type change
+    // For iOS, try to unlock audio on sound type change
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      console.log('iOS: Sound type change detected, unlocking audio...');
+      console.log('iOS: Sound type change detected, trying audio unlock...');
       await initializeAudioForIOS();
-      
-      // Also try to create and play a test sound immediately
-      try {
-        const testAudio = new Audio();
-        testAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-        testAudio.volume = 0.1;
-        await testAudio.play();
-        console.log('iOS: Test audio played successfully');
-      } catch (testError) {
-        console.log('iOS: Test audio failed:', testError);
-      }
     }
     
     playSound('end', 1, localSettings.volume, newSoundType)

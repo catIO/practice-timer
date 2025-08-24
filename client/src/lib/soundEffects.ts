@@ -258,54 +258,45 @@ export const resumeAudioContext = async (): Promise<boolean> => {
   }
 };
 
-// iOS-compatible audio initialization using HTML5 Audio
+// Simple iOS audio unlock
 export const initializeAudioForIOS = async (): Promise<boolean> => {
   try {
-    console.log('iOS: Using HTML5 Audio for iOS compatibility...');
+    console.log('iOS: Simple audio unlock attempt...');
     
-    // Create a silent HTML5 audio element to unlock audio
-    const silentAudio = new Audio();
-    silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-    silentAudio.volume = 0;
+    // Create a simple audio element
+    const audio = new Audio();
+    audio.volume = 0.1;
     
-    // Try to play the silent audio
+    // Try to play a simple beep sound
     try {
-      await silentAudio.play();
-      console.log('iOS: HTML5 Audio unlock successful');
-      return true;
-    } catch (playError) {
-      console.log('iOS: HTML5 Audio unlock failed, trying Web Audio API...');
-      
-      // Fallback to Web Audio API
-      const context = getAudioContext();
+      // Create a simple beep using Web Audio API
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
       
       if (context.state === 'suspended') {
-        // Create a silent oscillator to unlock audio
-        const silentOscillator = context.createOscillator();
-        const silentGain = context.createGain();
-        
-        silentOscillator.connect(silentGain);
-        silentGain.connect(context.destination);
-        
-        // Set volume to 0 (silent)
-        silentGain.gain.setValueAtTime(0, context.currentTime);
-        
-        // Start and immediately stop the silent oscillator
-        silentOscillator.start(context.currentTime);
-        silentOscillator.stop(context.currentTime + 0.1);
-        
-        // Resume the context
         await context.resume();
-        
-        // Wait a bit for the unlock to take effect
-        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      console.log('iOS: Web Audio API state after unlock:', context.state);
-      return context.state === 'running';
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      
+      oscillator.frequency.setValueAtTime(440, context.currentTime);
+      gainNode.gain.setValueAtTime(0.1, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+      
+      oscillator.start(context.currentTime);
+      oscillator.stop(context.currentTime + 0.1);
+      
+      console.log('iOS: Simple audio unlock successful');
+      return true;
+    } catch (error) {
+      console.log('iOS: Simple audio unlock failed:', error);
+      return false;
     }
   } catch (error) {
-    console.error('Error initializing audio for iOS:', error);
+    console.error('Error in simple iOS audio unlock:', error);
     return false;
   }
 };
