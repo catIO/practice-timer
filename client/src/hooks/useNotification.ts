@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { playSound as playSoundEffect, resumeAudioContext, SoundType, SoundEffect } from '@/lib/soundEffects';
+import { playSound as playSoundEffect, resumeAudioContext, initializeAudioForIOS, SoundType, SoundEffect } from '@/lib/soundEffects';
 import { useToast } from '@/hooks/use-toast';
 import { SettingsType } from '@/lib/timerService';
 
@@ -53,8 +53,15 @@ export function useNotification() {
     try {
       console.log('Playing sound with settings:', settings);
       
-      // Ensure audio context is resumed before playing sound
-      await resumeAudioContext();
+      // For iOS, use the improved audio initialization
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        console.log('iOS detected, using iOS-compatible audio initialization');
+        await initializeAudioForIOS();
+      } else {
+        // Ensure audio context is resumed before playing sound
+        await resumeAudioContext();
+      }
       
       // Play sound with retry mechanism
       let retryCount = 0;
@@ -73,7 +80,11 @@ export function useNotification() {
             // Wait a bit before retrying
             await new Promise(resolve => setTimeout(resolve, 500));
             // Try to resume audio context again
-            await resumeAudioContext();
+            if (isIOS) {
+              await initializeAudioForIOS();
+            } else {
+              await resumeAudioContext();
+            }
           } else {
             throw soundError;
           }

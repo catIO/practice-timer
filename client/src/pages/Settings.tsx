@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useNotification } from "@/hooks/useNotification";
 import { useSettingsStore } from '@/stores/settingsStore';
-import { playSound } from "@/lib/soundEffects";
+import { playSound, initializeAudioForIOS } from "@/lib/soundEffects";
 import { SoundType } from "@/lib/soundEffects";
 import {
   Select,
@@ -116,6 +116,10 @@ export default function Settings() {
     setLocalSettings(newSettings);
     
     // Play preview sound immediately
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      await initializeAudioForIOS();
+    }
     playSound('end', 1, newVolume, localSettings.soundType as SoundType)
       .catch(error => {
         console.error('Error playing preview sound:', error);
@@ -140,6 +144,10 @@ export default function Settings() {
     setLocalSettings(newSettings);
     
     // Play preview sound immediately
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      await initializeAudioForIOS();
+    }
     playSound('end', 1, localSettings.volume, newSoundType)
       .catch(error => {
         console.error('Error playing preview sound:', error);

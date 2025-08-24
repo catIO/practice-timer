@@ -204,10 +204,47 @@ export const resumeAudioContext = async (): Promise<boolean> => {
       audioContextResumed = true;
     }
     
+    // For iOS, we need to ensure the context is running
+    if (audioContext.state === 'running') {
+      audioContextResumed = true;
+    }
+    
     audioContextInitialized = true;
     return true;
   } catch (error) {
     console.error('Error resuming audio context:', error);
+    return false;
+  }
+};
+
+// iOS-compatible audio initialization
+export const initializeAudioForIOS = async (): Promise<boolean> => {
+  try {
+    const context = getAudioContext();
+    
+    // For iOS, we need to create a silent sound to unlock audio
+    if (context.state === 'suspended') {
+      // Create a silent oscillator to unlock audio
+      const silentOscillator = context.createOscillator();
+      const silentGain = context.createGain();
+      
+      silentOscillator.connect(silentGain);
+      silentGain.connect(context.destination);
+      
+      // Set volume to 0 (silent)
+      silentGain.gain.setValueAtTime(0, context.currentTime);
+      
+      // Start and immediately stop the silent oscillator
+      silentOscillator.start(context.currentTime);
+      silentOscillator.stop(context.currentTime + 0.1);
+      
+      // Resume the context
+      await context.resume();
+    }
+    
+    return context.state === 'running';
+  } catch (error) {
+    console.error('Error initializing audio for iOS:', error);
     return false;
   }
 };
@@ -221,9 +258,21 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
     // Apply a non-linear curve to increase volume at higher settings
     const normalizedVolume = Math.pow(volume / 100, 0.7) * 1.5;
     
-    // Get audio context
+    // Get audio context and ensure it's ready for iOS
     const context = getAudioContext();
     console.log('Audio context state before playing:', context.state);
+    
+    // For iOS, ensure audio context is properly initialized
+    if (context.state === 'suspended') {
+      console.log('Audio context suspended, attempting to resume for iOS...');
+      await initializeAudioForIOS();
+    }
+    
+    // Double-check context state
+    if (context.state !== 'running') {
+      console.warn('Audio context not running, attempting to resume...');
+      await context.resume();
+    }
     
     // For end sound, play multiple beeps
     if (effect === 'end') {
