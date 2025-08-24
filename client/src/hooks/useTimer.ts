@@ -582,24 +582,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const pauseTimer = useCallback(() => {
     if (!isRunning) return;
 
-    // Handle iOS-specific timer pause
-    if (isIOSRef.current && iosBackgroundTimerRef.current) {
-      console.log('Pausing iOS background timer');
-      
-      // Pause iOS background timer
-      iosBackgroundTimerRef.current.pause();
-      
-      // Release iOS wake lock
-      if (iosWakeLockRef.current) {
-        iosWakeLockRef.current.release();
-      }
-      
-      // Update local state
-      setIsRunning(false);
-      setStoreIsRunning(false);
-      
-      return;
-    }
+    // Use worker for all platforms (including iOS) for reliable background operation
+    console.log('Pausing timer with worker');
 
     // Non-iOS timer pause (existing logic)
     if (!workerRef.current) return;
@@ -709,34 +693,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
 
   // Reset timer
   const resetTimer = useCallback(() => {
-    // Handle iOS-specific timer reset
-    if (isIOSRef.current && iosBackgroundTimerRef.current) {
-      console.log('Resetting iOS background timer');
-      
-      // Stop iOS background timer
-      iosBackgroundTimerRef.current.stop();
-      
-      // Release iOS wake lock
-      if (iosWakeLockRef.current) {
-        iosWakeLockRef.current.release();
-      }
-      
-      // Reset all state
-      setIsRunning(false);
-      setMode('work');
-      setCurrentIteration(1);
-      setTimeRemaining(settings.workDuration * 60);
-      setTotalTime(settings.workDuration * 60);
-
-      // Update store state
-      setStoreIsRunning(false);
-      setStoreMode('work');
-      setStoreCurrentIteration(1);
-      setStoreTimeRemaining(settings.workDuration * 60);
-      setStoreTotalTime(settings.workDuration * 60);
-      
-      return;
-    }
+    // Use worker for all platforms (including iOS) for reliable background operation
+    console.log('Resetting timer with worker');
 
     // Non-iOS timer reset
     if (!workerRef.current) return;
@@ -810,29 +768,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         // Continue even if audio fails - we don't want to block the timer
       }
 
-      // Handle iOS-specific timer start
-      if (isIOSRef.current && iosBackgroundTimerRef.current) {
-        console.log('Starting iOS background timer');
-        
-        // Request iOS wake lock
-        if (iosWakeLockRef.current) {
-          await iosWakeLockRef.current.request();
-        }
-        
-        // Start iOS background timer
-        iosBackgroundTimerRef.current.start(
-          timeRemaining,
-          mode,
-          currentIteration,
-          totalIterations
-        );
-        
-        // Update local state
-        setIsRunning(true);
-        setStoreIsRunning(true);
-        
-        return;
-      }
+      // Use worker for all platforms (including iOS) for reliable background operation
+      console.log('Starting timer with worker for reliable background operation');
 
       // Non-iOS timer start (existing logic)
       // Ensure worker is initialized
