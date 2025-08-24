@@ -22,8 +22,7 @@ export default function Home() {
   // Get settings from local storage
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
-  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
+  // iOS detection state removed to fix greyed-out UI
   const [wakeLockActive, setWakeLockActive] = useState(false);
   
   // Setup notifications and toast
@@ -123,10 +122,7 @@ export default function Home() {
     // }
   }, []);
 
-  const handleDismissIOSInstructions = () => {
-    setShowIOSInstructions(false);
-    localStorage.setItem('ios-instructions-shown', 'true');
-  };
+  // iOS dismiss handler removed to fix greyed-out UI
 
   // Cleanup wake locks when component unmounts
   useEffect(() => {
