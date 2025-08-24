@@ -11,6 +11,29 @@ import { useNotification } from "@/hooks/useNotification";
 import { useSettingsStore } from '@/stores/settingsStore';
 import { playSound, initializeAudioForIOS } from "@/lib/soundEffects";
 import { SoundType } from "@/lib/soundEffects";
+
+// Helper function to create debug div for iOS
+const createDebugDiv = () => {
+  const debugDiv = document.createElement('div');
+  debugDiv.id = 'ios-debug';
+  debugDiv.style.cssText = `
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 9999;
+    max-height: 100px;
+    overflow: auto;
+  `;
+  document.body.appendChild(debugDiv);
+  return debugDiv;
+};
 import {
   Select,
   SelectContent,
@@ -118,16 +141,25 @@ export default function Settings() {
     // For iOS, try to unlock audio on volume change
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      console.log('iOS: Volume change detected, trying direct sound test...');
+      const debugMsg = 'iOS: Volume change detected, trying direct sound test...';
+      console.log(debugMsg);
+      
+      // Show debug message on screen for iOS
+      const debugDiv = document.getElementById('ios-debug') || createDebugDiv();
+      debugDiv.textContent = debugMsg;
       
       // Try to play a sound directly in the user gesture context
       try {
         const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-        console.log('iOS: Audio context created, state:', context.state);
+        const stateMsg = `iOS: Audio context created, state: ${context.state}`;
+        console.log(stateMsg);
+        debugDiv.textContent = stateMsg;
         
         if (context.state === 'suspended') {
           await context.resume();
-          console.log('iOS: Audio context resumed');
+          const resumeMsg = 'iOS: Audio context resumed';
+          console.log(resumeMsg);
+          debugDiv.textContent = resumeMsg;
         }
         
         const oscillator = context.createOscillator();
@@ -143,9 +175,13 @@ export default function Settings() {
         oscillator.start(context.currentTime);
         oscillator.stop(context.currentTime + 0.3);
         
-        console.log('iOS: Direct sound test completed');
+        const successMsg = 'iOS: Direct sound test completed - DID YOU HEAR A BEEP?';
+        console.log(successMsg);
+        debugDiv.textContent = successMsg;
       } catch (error) {
-        console.error('iOS: Direct sound test failed:', error);
+        const errorMsg = `iOS: Direct sound test failed: ${error.message}`;
+        console.error(errorMsg);
+        debugDiv.textContent = errorMsg;
       }
     }
     
