@@ -105,18 +105,19 @@ export default function Home() {
     skipTimer();
   }, [skipTimer]);
 
-  // Detect iOS and show instructions if needed
+  // Detect iOS and show instructions if needed - Temporarily disabled
   useEffect(() => {
-    const userAgent = navigator.userAgent;
-    const isBrave = userAgent.includes('Brave');
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+    // Temporarily disable all iOS detection to fix greyed-out UI
+    // const userAgent = navigator.userAgent;
+    // const isBrave = userAgent.includes('Brave');
+    // const isIOS = /iPad|iPhone|iPod/.test(userAgent);
     
-    // Don't show iOS instructions for Brave mobile (which has compatibility issues)
-    const shouldShowIOSInstructions = isIOS && !isBrave;
+    // // Don't show iOS instructions for Brave mobile (which has compatibility issues)
+    // const shouldShowIOSInstructions = isIOS && !isBrave;
     
-    setIsIOS(shouldShowIOSInstructions);
+    // setIsIOS(shouldShowIOSInstructions);
     
-    // Temporarily disable iOS instructions to fix greyed-out UI
+    // // Temporarily disable iOS instructions to fix greyed-out UI
     // if (shouldShowIOSInstructions && !localStorage.getItem('ios-instructions-shown')) {
     //   setShowIOSInstructions(true);
     // }
@@ -230,7 +231,8 @@ export default function Home() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {isIOS && (
+                {/* iOS info button temporarily disabled */}
+                {/* {isIOS && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -240,7 +242,7 @@ export default function Home() {
                   >
                     <Info className="h-5 w-5" />
                   </Button>
-                )}
+                )} */}
                 <Button
                   variant="ghost"
                   size="icon"
