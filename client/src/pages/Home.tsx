@@ -22,7 +22,6 @@ export default function Home() {
   // Get settings from local storage
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
-  // iOS detection state removed to fix greyed-out UI
   const [wakeLockActive, setWakeLockActive] = useState(false);
   
   // Setup notifications and toast
@@ -104,26 +103,6 @@ export default function Home() {
     skipTimer();
   }, [skipTimer]);
 
-  // Detect iOS and show instructions if needed - Temporarily disabled
-  useEffect(() => {
-    // Temporarily disable all iOS detection to fix greyed-out UI
-    // const userAgent = navigator.userAgent;
-    // const isBrave = userAgent.includes('Brave');
-    // const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-    
-    // // Don't show iOS instructions for Brave mobile (which has compatibility issues)
-    // const shouldShowIOSInstructions = isIOS && !isBrave;
-    
-    // setIsIOS(shouldShowIOSInstructions);
-    
-    // // Temporarily disable iOS instructions to fix greyed-out UI
-    // if (shouldShowIOSInstructions && !localStorage.getItem('ios-instructions-shown')) {
-    //   setShowIOSInstructions(true);
-    // }
-  }, []);
-
-  // iOS dismiss handler removed to fix greyed-out UI
-
   // Cleanup wake locks when component unmounts
   useEffect(() => {
     return () => {
@@ -203,16 +182,6 @@ export default function Home() {
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
-        {/* iOS Instructions Modal - Temporarily disabled to fix greyed-out UI */}
-        {/* {showIOSInstructions && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <iOSBackgroundInstructions
-              isVisible={showIOSInstructions}
-              onDismiss={handleDismissIOSInstructions}
-            />
-          </div>
-        )} */}
-
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
@@ -227,18 +196,6 @@ export default function Home() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {/* iOS info button temporarily disabled */}
-                {/* {isIOS && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-blue-500 hover:text-blue-400"
-                    onClick={() => setShowIOSInstructions(true)}
-                    title="iOS Optimization Tips"
-                  >
-                    <Info className="h-5 w-5" />
-                  </Button>
-                )} */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -274,8 +231,6 @@ export default function Home() {
                 totalIterations={totalIterations}
                 mode={mode}
               />
-
-
             </div>
           </main>
         </div>
