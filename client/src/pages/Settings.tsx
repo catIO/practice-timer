@@ -12,28 +12,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { playSound, initializeAudioForIOS } from "@/lib/soundEffects";
 import { SoundType } from "@/lib/soundEffects";
 
-  // Helper function to create debug div for iOS
-  const createDebugDiv = () => {
-    const debugDiv = document.createElement('div');
-    debugDiv.id = 'ios-debug';
-    debugDiv.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      font-family: monospace;
-      font-size: 12px;
-      z-index: 9999;
-      max-height: 100px;
-      overflow: auto;
-    `;
-    document.body.appendChild(debugDiv);
-    return debugDiv;
-  };
+
 import {
   Select,
   SelectContent,
@@ -56,63 +35,7 @@ export default function Settings() {
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
   const { isRunning } = useTimerStore();
   
-  // Add immediate iOS debug indicator
-  useEffect(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      console.log('iOS detected in Settings component');
-      
-      // Create debug div immediately
-      const debugDiv = document.getElementById('ios-debug') || createDebugDiv();
-      debugDiv.textContent = 'iOS DETECTED - Settings page loaded. Move volume slider to test audio.';
-      
-      // Also add a visible button for testing
-      const testButton = document.createElement('button');
-      testButton.textContent = 'TEST AUDIO';
-      testButton.style.cssText = `
-        position: fixed;
-        top: 120px;
-        left: 10px;
-        background: red;
-        color: white;
-        padding: 10px;
-        border: none;
-        border-radius: 5px;
-        z-index: 10000;
-        font-size: 14px;
-      `;
-      testButton.onclick = async () => {
-        debugDiv.textContent = 'TEST BUTTON CLICKED - Testing audio...';
-        try {
-          const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-          debugDiv.textContent = `Audio context created, state: ${context.state}`;
-          
-          if (context.state === 'suspended') {
-            await context.resume();
-            debugDiv.textContent = 'Audio context resumed';
-          }
-          
-          const oscillator = context.createOscillator();
-          const gainNode = context.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(context.destination);
-          
-          oscillator.frequency.setValueAtTime(800, context.currentTime);
-          gainNode.gain.setValueAtTime(0.5, context.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-          
-          oscillator.start(context.currentTime);
-          oscillator.stop(context.currentTime + 0.3);
-          
-          debugDiv.textContent = 'AUDIO TEST COMPLETED - DID YOU HEAR A BEEP?';
-        } catch (error) {
-          debugDiv.textContent = `AUDIO TEST FAILED: ${error.message}`;
-        }
-      };
-      document.body.appendChild(testButton);
-    }
-  }, []);
+
 
   // Handle settings update
   const handleSettingsUpdate = (updates: Partial<SettingsType>) => {
@@ -196,7 +119,7 @@ export default function Settings() {
     // Update settings
     setLocalSettings(newSettings);
     
-            // iOS audio test removed to fix UI issues
+    
     
     playSound('end', 1, newVolume, localSettings.soundType as SoundType)
       .catch(error => {
