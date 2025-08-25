@@ -51,6 +51,29 @@ export default function Home() {
     localStorage.setItem('ios-instructions-dismissed', 'true');
   };
 
+  // Test audio functionality
+  const testAudio = async () => {
+    try {
+      addDebugInfo('Testing audio functionality...');
+      console.log('Testing audio functionality...');
+      
+      // First ensure audio is initialized
+      if (!audioInitialized) {
+        addDebugInfo('Audio not initialized, initializing first...');
+        await initializeAudio();
+      }
+      
+      // Test with a simple beep
+      addDebugInfo('Playing test beep...');
+      await playSound('end', 1, 50, 'beep');
+      addDebugInfo('Test beep completed');
+      
+    } catch (error) {
+      console.error('Audio test failed:', error);
+      addDebugInfo(`Audio test failed: ${error}`);
+    }
+  };
+
   // Add debug info
   const addDebugInfo = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -65,15 +88,22 @@ export default function Home() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isIPad = detectIPad();
         
+        addDebugInfo(`Device: iOS=${isIOS}, iPad=${isIPad}`);
+        addDebugInfo(`User Agent: ${navigator.userAgent}`);
+        
         if (isIOS || isIPad) {
           console.log('iOS device detected, using iOS-specific audio initialization');
+          addDebugInfo('Using iOS-specific audio initialization');
+          
           // Use iOS-specific audio initialization
           const success = await initializeAudioForIOS();
           if (success) {
             setAudioInitialized(true);
             console.log('iOS audio context initialized successfully');
+            addDebugInfo('iOS audio context initialized successfully');
           } else {
             console.error('Failed to initialize iOS audio context');
+            addDebugInfo('Failed to initialize iOS audio context');
             toast({
               title: "Audio Initialization Failed",
               description: "Please ensure your browser allows audio playback for this site.",
@@ -83,12 +113,15 @@ export default function Home() {
           }
         } else {
           // Non-iOS devices
+          addDebugInfo('Using standard audio initialization');
           const resumed = await resumeAudioContext();
           if (resumed) {
             setAudioInitialized(true);
             console.log('Audio context initialized on user interaction');
+            addDebugInfo('Standard audio context initialized successfully');
           } else {
             console.error('Failed to initialize audio context on user interaction');
+            addDebugInfo('Failed to initialize standard audio context');
             toast({
               title: "Audio Initialization Failed",
               description: "Please ensure your browser allows audio playback for this site.",
@@ -99,6 +132,7 @@ export default function Home() {
         }
       } catch (error) {
         console.error('Error initializing audio:', error);
+        addDebugInfo(`Audio initialization error: ${error}`);
         toast({
           title: "Audio Initialization Failed",
           description: "Please ensure your browser allows audio playback for this site.",
@@ -191,10 +225,12 @@ export default function Home() {
         console.log('Screen dimensions:', `${window.screen.width}x${window.screen.height}`);
         addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
         addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
+        addDebugInfo(`Audio initialized: ${audioInitialized}`);
         
         if (isIOS || isIPad) {
           // iOS: Use notification sounds (works in background)
           console.log('iOS detected - using notification sounds');
+          addDebugInfo('iOS detected - using notification sounds');
           
           // Check if Notification API is available
           if (typeof Notification !== 'undefined') {
@@ -282,7 +318,7 @@ export default function Home() {
         console.error('Error in timer completion callback:', error);
         addDebugInfo(`Callback error: ${error}`);
       }
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo])
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo, audioInitialized])
   });
 
   // Handle reset all (reset to first iteration)
@@ -392,10 +428,10 @@ export default function Home() {
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
         {/* iOS Background Instructions */}
-        <iOSBackgroundInstructions 
+        {/* <iOSBackgroundInstructions 
           isVisible={showIOSInstructions} 
           onDismiss={dismissIOSInstructions}
-        />
+        /> */}
         
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
@@ -445,6 +481,16 @@ export default function Home() {
                   onReset={handleResetAll}
                   onSkip={handleSkip}
                 />
+
+                {/* Audio Test Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={testAudio}
+                  className="mt-4"
+                >
+                  Test Audio
+                </Button>
 
                 <IterationTracker
                   currentIteration={currentIteration}
