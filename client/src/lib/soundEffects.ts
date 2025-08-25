@@ -452,6 +452,118 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
   }
 };
 
+// Simple fallback audio for iPad using basic HTML5 Audio
+const playSoundFallback = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
+  try {
+    console.log(`Fallback: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
+    
+    // Convert volume from 0-100 to 0-1 range
+    const normalizedVolume = Math.min(1, volume / 100);
+    
+    // Create a simple beep using oscillator (if available) or fallback to basic audio
+    if (effect === 'end') {
+      // Play multiple beeps
+      for (let i = 0; i < numberOfBeeps; i++) {
+        console.log(`Fallback: Playing beep ${i + 1} of ${numberOfBeeps}`);
+        
+        try {
+          // Try to create a simple beep using Web Audio API
+          const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+          
+          if (context.state === 'suspended') {
+            await context.resume();
+          }
+          
+          const oscillator = context.createOscillator();
+          const gainNode = context.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(context.destination);
+          
+          oscillator.frequency.setValueAtTime(800, context.currentTime);
+          gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+          
+          oscillator.start(context.currentTime);
+          oscillator.stop(context.currentTime + 0.3);
+          
+          // Wait for the beep to finish
+          await new Promise(resolve => setTimeout(resolve, 350));
+          
+        } catch (error) {
+          console.log('Fallback: Web Audio failed, trying basic audio element:', error);
+          
+          // Fallback to basic audio element
+          const audio = new Audio();
+          audio.volume = normalizedVolume;
+          
+          // Create a simple data URL for a beep sound
+          const sampleRate = 44100;
+          const duration = 0.3;
+          const frequency = 800;
+          const numSamples = Math.floor(sampleRate * duration);
+          const audioData = new Float32Array(numSamples);
+          
+          for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const amplitude = Math.exp(-3 * t);
+            audioData[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
+          }
+          
+          const wavData = createWAV(audioData, sampleRate);
+          const blob = new Blob([wavData], { type: 'audio/wav' });
+          const url = URL.createObjectURL(blob);
+          
+          audio.src = url;
+          
+          try {
+            await audio.play();
+            await new Promise(resolve => setTimeout(resolve, 350));
+            URL.revokeObjectURL(url);
+          } catch (audioError) {
+            console.error('Fallback: Basic audio also failed:', audioError);
+            URL.revokeObjectURL(url);
+          }
+        }
+        
+        // Wait between beeps
+        if (i < numberOfBeeps - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      console.log(`Fallback: Finished playing all ${numberOfBeeps} beeps`);
+    } else {
+      // Single beep
+      try {
+        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        if (context.state === 'suspended') {
+          await context.resume();
+        }
+        
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        oscillator.frequency.setValueAtTime(800, context.currentTime);
+        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+        
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + 0.3);
+        
+      } catch (error) {
+        console.error('Fallback: Single beep failed:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Fallback: Error in fallback audio:', error);
+    throw error;
+  }
+};
+
 // Helper function to create WAV data
 const createWAV = (audioData: Float32Array, sampleRate: number): ArrayBuffer => {
   const buffer = new ArrayBuffer(44 + audioData.length * 2);
@@ -494,7 +606,7 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
   try {
     console.log(`Attempting to play ${effect} sound with ${numberOfBeeps} beeps at volume ${volume} with sound type ${soundType}...`);
     
-    // Check if we're on iOS
+    // Check if we're on iOS or iPad
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isIPad = detectIPad();
     
@@ -510,26 +622,43 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
     if (isIOS || isIPad) {
       console.log('iOS/iPad detected, using hybrid audio approach...');
       
-      // For iPad, try Web Audio API first, then fall back to HTML5 Audio
+      // For iPad, try multiple approaches
       if (isIPad) {
         try {
           console.log('iPad detected, trying Web Audio API first...');
           await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
           return;
         } catch (error) {
-          console.log('Web Audio API failed on iPad, falling back to HTML5 Audio:', error);
-          await playSoundIOS(effect, numberOfBeeps, volume, soundType);
-          return;
+          console.log('Web Audio API failed on iPad, trying HTML5 Audio:', error);
+          try {
+            await playSoundIOS(effect, numberOfBeeps, volume, soundType);
+            return;
+          } catch (iosError) {
+            console.log('HTML5 Audio also failed on iPad, trying fallback:', iosError);
+            await playSoundFallback(effect, numberOfBeeps, volume, soundType);
+            return;
+          }
         }
       } else {
         // For iPhone/iPod, use iOS-specific approach
-        await playSoundIOS(effect, numberOfBeeps, volume, soundType);
-        return;
+        try {
+          await playSoundIOS(effect, numberOfBeeps, volume, soundType);
+          return;
+        } catch (error) {
+          console.log('iOS audio failed, trying fallback:', error);
+          await playSoundFallback(effect, numberOfBeeps, volume, soundType);
+          return;
+        }
       }
     }
     
     // For non-iOS devices, use Web Audio API
-    await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
+    try {
+      await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
+    } catch (error) {
+      console.log('Web Audio failed on desktop, trying fallback:', error);
+      await playSoundFallback(effect, numberOfBeeps, volume, soundType);
+    }
   } catch (error) {
     console.error('Error playing sound:', error);
     throw error;

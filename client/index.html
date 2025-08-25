@@ -17,8 +17,44 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script>
+    // Enhanced iPad detection that works with new iPadOS behavior
+    const detectIPad = () => {
+      // Check for iPad-specific user agent (older iPads)
+      if (/iPad/.test(navigator.userAgent)) {
+        return true;
+      }
+      
+      // Check for new iPadOS behavior where iPad reports as Macintosh
+      if (/Macintosh/.test(navigator.userAgent)) {
+        // Check if it has touch support (iPad has touch, Mac doesn't)
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+          // Check screen size (iPad typically has larger screen than iPhone)
+          const screenWidth = window.screen.width;
+          const screenHeight = window.screen.height;
+          const minDimension = Math.min(screenWidth, screenHeight);
+          const maxDimension = Math.max(screenWidth, screenHeight);
+          
+          // iPad typically has screen dimensions like 768x1024, 834x1194, etc.
+          if (minDimension >= 768 && maxDimension >= 1024) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    };
+
     // Force mobile website detection on iPad
-    if (navigator.userAgent.includes('iPad')) {
+    if (detectIPad()) {
+      console.log('iPad detected, forcing mobile layout...');
+      
+      // Override user agent to force mobile detection
+      Object.defineProperty(navigator, 'userAgent', {
+        get: function () {
+          return 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
+        }
+      });
+      
       // Set mobile-specific properties
       document.documentElement.style.setProperty('--mobile-layout', 'true');
       document.body.classList.add('mobile-layout');
@@ -28,6 +64,13 @@
       if (viewport) {
         viewport.setAttribute('content', 'width=375, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
       }
+      
+      // Add additional mobile indicators
+      document.documentElement.classList.add('mobile-device');
+      document.body.classList.add('ipad-mobile');
+      
+      // Force mobile user agent for any scripts that check it
+      window.mobileOverride = true;
     }
   </script>
 </head>
