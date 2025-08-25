@@ -81,13 +81,14 @@ export const initializeAudioContext = async () => {
     const context = getAudioContext();
     console.log('Audio context state:', context.state);
     
-    // Check if we're on iOS
+    // Check if we're on iOS or iPad
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isIPad = detectIPad();
     
     if (context.state === 'suspended') {
       console.log('Resuming suspended audio context...');
       
-      if (isIOS) {
+      if (isIOS || isIPad) {
         // Use enhanced iOS-specific unlock
         await initializeAudioForIOS();
       } else {
@@ -104,8 +105,8 @@ export const initializeAudioContext = async () => {
     audioContextInitialized = true;
     console.log('Audio context initialized successfully');
     
-    // Add global audio unlock listener for iOS
-    if (isIOS && !audioUnlockListenerAdded) {
+    // Add global audio unlock listener for iOS/iPad
+    if ((isIOS || isIPad) && !audioUnlockListenerAdded) {
       addGlobalAudioUnlockListener();
       audioUnlockListenerAdded = true;
     }
@@ -141,6 +142,33 @@ const addGlobalAudioUnlockListener = () => {
   });
   
   console.log('iOS: Added enhanced global audio unlock listeners');
+};
+
+// Enhanced iPad detection that works with new iPadOS behavior
+const detectIPad = (): boolean => {
+  // Check for iPad-specific user agent (older iPads)
+  if (/iPad/.test(navigator.userAgent)) {
+    return true;
+  }
+  
+  // Check for new iPadOS behavior where iPad reports as Macintosh
+  if (/Macintosh/.test(navigator.userAgent)) {
+    // Check if it has touch support (iPad has touch, Mac doesn't)
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      // Check screen size (iPad typically has larger screen than iPhone)
+      const screenWidth = window.screen.width;
+      const screenHeight = window.screen.height;
+      const minDimension = Math.min(screenWidth, screenHeight);
+      const maxDimension = Math.max(screenWidth, screenHeight);
+      
+      // iPad typically has screen dimensions like 768x1024, 834x1194, etc.
+      if (minDimension >= 768 && maxDimension >= 1024) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 };
 
 // Generate sine wave
@@ -282,8 +310,9 @@ export const resumeAudioContext = async (): Promise<boolean> => {
   try {
     console.log('Resuming audio context...');
     
-    // Check if we're on iOS
+    // Check if we're on iOS or iPad
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isIPad = detectIPad();
     
     // Create a new audio context if we don't have one
     if (!audioContext) {
@@ -295,7 +324,7 @@ export const resumeAudioContext = async (): Promise<boolean> => {
     if (audioContext.state === 'suspended') {
       console.log('Audio context suspended, attempting to resume...');
       
-      if (isIOS) {
+      if (isIOS || isIPad) {
         // Use iOS-specific unlock for better reliability
         await initializeAudioForIOS();
       } else {
@@ -467,119 +496,87 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
     
     // Check if we're on iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isIPad = detectIPad();
     
-    if (isIOS) {
-      console.log('iOS detected, using iOS-specific audio handling...');
-      // Use enhanced iOS audio approach
-      await playSoundIOS(effect, numberOfBeeps, volume, soundType);
-      return;
-    }
+    console.log('Device detection:', {
+      userAgent: navigator.userAgent,
+      isIOS: isIOS,
+      isIPad: isIPad,
+      hasTouch: 'ontouchstart' in window,
+      maxTouchPoints: navigator.maxTouchPoints,
+      screenSize: `${window.screen.width}x${window.screen.height}`
+    });
     
-    // Convert volume from 0-100 to 0-1 range with increased maximum volume
-    // Apply a non-linear curve to increase volume at higher settings
-    const normalizedVolume = Math.pow(volume / 100, 0.7) * 1.5;
-    
-    // Get audio context and ensure it's ready
-    const context = getAudioContext();
-    console.log('Audio context state before playing:', context.state);
-    
-    // Enhanced audio context handling for all platforms
-    if (context.state === 'suspended') {
-      console.log('Audio context suspended, attempting to resume...');
-      try {
-        await context.resume();
-        console.log('Audio context resumed successfully');
-      } catch (error) {
-        console.error('Failed to resume audio context:', error);
-        // Try iOS-specific unlock as fallback
-        if (isIOS) {
-          await initializeAudioForIOS();
+    if (isIOS || isIPad) {
+      console.log('iOS/iPad detected, using hybrid audio approach...');
+      
+      // For iPad, try Web Audio API first, then fall back to HTML5 Audio
+      if (isIPad) {
+        try {
+          console.log('iPad detected, trying Web Audio API first...');
+          await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
+          return;
+        } catch (error) {
+          console.log('Web Audio API failed on iPad, falling back to HTML5 Audio:', error);
+          await playSoundIOS(effect, numberOfBeeps, volume, soundType);
+          return;
         }
+      } else {
+        // For iPhone/iPod, use iOS-specific approach
+        await playSoundIOS(effect, numberOfBeeps, volume, soundType);
+        return;
       }
     }
     
-    // Double-check context state
-    if (context.state !== 'running') {
-      console.warn('Audio context not running, attempting to resume...');
-      try {
-        await context.resume();
-      } catch (error) {
-        console.error('Failed to resume audio context on second attempt:', error);
-        throw new Error('Audio context could not be resumed');
-      }
+    // For non-iOS devices, use Web Audio API
+    await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
+  } catch (error) {
+    console.error('Error playing sound:', error);
+    throw error;
+  }
+};
+
+// Web Audio API implementation
+const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
+  // Convert volume from 0-100 to 0-1 range with increased maximum volume
+  // Apply a non-linear curve to increase volume at higher settings
+  const normalizedVolume = Math.pow(volume / 100, 0.7) * 1.5;
+  
+  // Get audio context and ensure it's ready
+  const context = getAudioContext();
+  console.log('Web Audio: Audio context state before playing:', context.state);
+  
+  // Enhanced audio context handling for all platforms
+  if (context.state === 'suspended') {
+    console.log('Web Audio: Audio context suspended, attempting to resume...');
+    try {
+      await context.resume();
+      console.log('Web Audio: Audio context resumed successfully');
+    } catch (error) {
+      console.error('Web Audio: Failed to resume audio context:', error);
+      throw new Error('Audio context could not be resumed');
     }
-    
-    // For end sound, play multiple beeps
-    if (effect === 'end') {
-      console.log(`Playing ${numberOfBeeps} beeps...`);
-      // Play all beeps in the loop
-      for (let i = 0; i < numberOfBeeps; i++) {
-        console.log(`Playing beep ${i + 1} of ${numberOfBeeps}`);
-        
-        // Create oscillator and gain nodes
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-        
-        // Set up oscillator based on sound type
-        oscillator.type = 'sine';
-        
-        // Set frequency based on sound type
-        switch (soundType) {
-          case 'bell':
-            oscillator.frequency.setValueAtTime(440, context.currentTime);
-            break;
-          case 'chime':
-            oscillator.frequency.setValueAtTime(523.25, context.currentTime);
-            break;
-          case 'digital':
-            oscillator.frequency.setValueAtTime(880, context.currentTime);
-            break;
-          case 'woodpecker':
-            oscillator.frequency.setValueAtTime(300, context.currentTime); // Higher base frequency
-            break;
-          case 'beep':
-          default:
-            oscillator.frequency.setValueAtTime(880, context.currentTime);
-            break;
-        }
-        
-        // Set up gain node with the normalized volume
-        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-        
-        // Set decay based on sound type
-        switch (soundType) {
-          case 'bell':
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.5);
-            break;
-          case 'chime':
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.3);
-            break;
-          case 'digital':
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.8);
-            break;
-          case 'woodpecker':
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
-            break;
-          case 'beep':
-          default:
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.2);
-            break;
-        }
-        
-        // Connect nodes
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-        
-        // Start and stop oscillator
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 1.5);
-        
-        // Wait for the full duration of the beep before playing the next one
-        await new Promise(resolve => setTimeout(resolve, 1200));
-      }
-      console.log(`Finished playing all ${numberOfBeeps} beeps`);
-    } else {
-      // For other sounds, just play once
+  }
+  
+  // Double-check context state
+  if (context.state !== 'running') {
+    console.warn('Web Audio: Audio context not running, attempting to resume...');
+    try {
+      await context.resume();
+    } catch (error) {
+      console.error('Web Audio: Failed to resume audio context on second attempt:', error);
+      throw new Error('Audio context could not be resumed');
+    }
+  }
+  
+  // For end sound, play multiple beeps
+  if (effect === 'end') {
+    console.log(`Web Audio: Playing ${numberOfBeeps} beeps...`);
+    // Play all beeps in the loop
+    for (let i = 0; i < numberOfBeeps; i++) {
+      console.log(`Web Audio: Playing beep ${i + 1} of ${numberOfBeeps}`);
+      
+      // Create oscillator and gain nodes
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
       
@@ -625,7 +622,7 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
           break;
         case 'beep':
         default:
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.2);
           break;
       }
       
@@ -636,10 +633,69 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
       // Start and stop oscillator
       oscillator.start(context.currentTime);
       oscillator.stop(context.currentTime + 1.5);
+      
+      // Wait for the full duration of the beep before playing the next one
+      await new Promise(resolve => setTimeout(resolve, 1200));
     }
-  } catch (error) {
-    console.error('Error playing sound:', error);
-    throw error;
+    console.log(`Web Audio: Finished playing all ${numberOfBeeps} beeps`);
+  } else {
+    // For other sounds, just play once
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    
+    // Set up oscillator based on sound type
+    oscillator.type = 'sine';
+    
+    // Set frequency based on sound type
+    switch (soundType) {
+      case 'bell':
+        oscillator.frequency.setValueAtTime(440, context.currentTime);
+        break;
+      case 'chime':
+        oscillator.frequency.setValueAtTime(523.25, context.currentTime);
+        break;
+      case 'digital':
+        oscillator.frequency.setValueAtTime(880, context.currentTime);
+        break;
+      case 'woodpecker':
+        oscillator.frequency.setValueAtTime(300, context.currentTime); // Higher base frequency
+        break;
+      case 'beep':
+      default:
+        oscillator.frequency.setValueAtTime(880, context.currentTime);
+        break;
+    }
+    
+    // Set up gain node with the normalized volume
+    gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+    
+    // Set decay based on sound type
+    switch (soundType) {
+      case 'bell':
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.5);
+        break;
+      case 'chime':
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.3);
+        break;
+      case 'digital':
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.8);
+        break;
+      case 'woodpecker':
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
+        break;
+      case 'beep':
+      default:
+        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+        break;
+    }
+    
+    // Connect nodes
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    
+    // Start and stop oscillator
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 1.5);
   }
 };
 
