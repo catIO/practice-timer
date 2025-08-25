@@ -66,11 +66,29 @@ export default function Home() {
       // Test with a simple beep
       addDebugInfo('Playing test beep...');
       await playSound('end', 1, 50, 'beep');
-      addDebugInfo('Test beep completed');
+      addDebugInfo('Test beep completed successfully');
+      
+      // Test with multiple beeps
+      addDebugInfo('Playing multiple test beeps...');
+      await playSound('end', 3, 30, 'beep');
+      addDebugInfo('Multiple test beeps completed successfully');
       
     } catch (error) {
       console.error('Audio test failed:', error);
       addDebugInfo(`Audio test failed: ${error}`);
+      
+      // Try to reinitialize audio and test again
+      try {
+        addDebugInfo('Attempting to reinitialize audio...');
+        setAudioInitialized(false);
+        await initializeAudio();
+        
+        addDebugInfo('Retrying audio test after reinitialization...');
+        await playSound('end', 1, 50, 'beep');
+        addDebugInfo('Audio test successful after reinitialization');
+      } catch (retryError) {
+        addDebugInfo(`Audio test failed after reinitialization: ${retryError}`);
+      }
     }
   };
 
@@ -101,6 +119,15 @@ export default function Home() {
             setAudioInitialized(true);
             console.log('iOS audio context initialized successfully');
             addDebugInfo('iOS audio context initialized successfully');
+            
+            // Test audio immediately after initialization
+            try {
+              addDebugInfo('Testing audio immediately after initialization...');
+              await playSound('end', 1, 30, 'beep');
+              addDebugInfo('Audio test successful after initialization');
+            } catch (testError) {
+              addDebugInfo(`Audio test failed after initialization: ${testError}`);
+            }
           } else {
             console.error('Failed to initialize iOS audio context');
             addDebugInfo('Failed to initialize iOS audio context');
@@ -119,6 +146,15 @@ export default function Home() {
             setAudioInitialized(true);
             console.log('Audio context initialized on user interaction');
             addDebugInfo('Standard audio context initialized successfully');
+            
+            // Test audio immediately after initialization
+            try {
+              addDebugInfo('Testing audio immediately after initialization...');
+              await playSound('end', 1, 30, 'beep');
+              addDebugInfo('Audio test successful after initialization');
+            } catch (testError) {
+              addDebugInfo(`Audio test failed after initialization: ${testError}`);
+            }
           } else {
             console.error('Failed to initialize audio context on user interaction');
             addDebugInfo('Failed to initialize standard audio context');
@@ -165,12 +201,13 @@ export default function Home() {
     const handleUserInteraction = async () => {
       if (!audioInitialized) {
         console.log('User interaction detected, initializing audio...');
+        addDebugInfo('User interaction detected, initializing audio...');
         await initializeAudio();
       }
     };
 
     // Add listeners for various user interactions
-    const events = ['click', 'touchstart', 'keydown', 'mousedown'];
+    const events = ['click', 'touchstart', 'keydown', 'mousedown', 'scroll', 'mouseover'];
     events.forEach(event => {
       document.addEventListener(event, handleUserInteraction, { once: true, passive: true });
     });
@@ -180,7 +217,7 @@ export default function Home() {
         document.removeEventListener(event, handleUserInteraction);
       });
     };
-  }, [audioInitialized, initializeAudio]);
+  }, [audioInitialized, initializeAudio, addDebugInfo]);
 
   const {
     timeRemaining,
@@ -263,28 +300,44 @@ export default function Home() {
               
               if (audioContext.state === 'suspended') {
                 addDebugInfo('Resuming suspended audio context...');
-                await audioContext.resume();
-                addDebugInfo(`Audio context resumed: ${audioContext.state}`);
+                try {
+                  await audioContext.resume();
+                  addDebugInfo(`Audio context resumed: ${audioContext.state}`);
+                } catch (resumeError) {
+                  addDebugInfo(`Audio context resume failed: ${resumeError}`);
+                  console.error('Audio context resume failed:', resumeError);
+                }
               }
               
               // Test with a simple beep first
               addDebugInfo('Testing simple audio beep...');
-              const oscillator = audioContext.createOscillator();
-              const gainNode = audioContext.createGain();
-              oscillator.connect(gainNode);
-              gainNode.connect(audioContext.destination);
-              
-              oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-              gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Louder volume
-              
-              oscillator.start(audioContext.currentTime);
-              oscillator.stop(audioContext.currentTime + 0.5);
-              addDebugInfo('Simple beep test completed');
+              try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Louder volume
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                addDebugInfo('Simple beep test completed');
+              } catch (beepError) {
+                addDebugInfo(`Simple beep test failed: ${beepError}`);
+                console.error('Simple beep test failed:', beepError);
+              }
               
               // Now try the actual timer completion sound
-              await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-              console.log('iOS fallback audio played successfully');
-              addDebugInfo('Fallback audio played successfully');
+              addDebugInfo('Attempting to play timer completion sound...');
+              try {
+                await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+                console.log('iOS fallback audio played successfully');
+                addDebugInfo('Fallback audio played successfully');
+              } catch (playError) {
+                console.error(`iOS fallback audio error: ${playError}`);
+                addDebugInfo(`Fallback audio error: ${playError}`);
+              }
             } catch (error) {
               console.error(`iOS fallback audio error: ${error}`);
               addDebugInfo(`Fallback audio error: ${error}`);
