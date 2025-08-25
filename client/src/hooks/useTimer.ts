@@ -520,18 +520,48 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         console.log('useTimer: Received message from worker:', type, payload);
         
         if (type === 'TICK') {
-          console.log('useTimer: Received TICK message:', payload);
-          console.log('useTimer: Current timeRemaining before update:', timeRemaining);
-          console.log('useTimer: New timeRemaining from payload:', payload.timeRemaining);
+          console.log('useTimer: Received TICK message from worker');
+          console.log('useTimer: TICK payload:', payload);
           
-          // Validate the timeRemaining value
-          if (payload.timeRemaining < 0) {
-            console.error('useTimer: Invalid timeRemaining received:', payload.timeRemaining);
-            return;
-          }
-          
+          // Update local state
           setTimeRemaining(payload.timeRemaining);
           setStoreTimeRemaining(payload.timeRemaining);
+          setMode(payload.mode);
+          setCurrentIteration(payload.currentIteration);
+          setTotalIterations(payload.totalIterations);
+          
+          // iOS Fallback: Check if timer should be complete
+          if (payload.timeRemaining <= 0 && isRunning) {
+            console.log('useTimer: iOS Fallback - Timer reached zero, triggering completion');
+            setIsRunning(false);
+            setStoreIsRunning(false);
+            
+            // Show notification immediately when timer completes
+            showNotification(
+              'Timer Complete!',
+              {
+                body: 'Your timer has finished!',
+                requireInteraction: true,
+                silent: false
+              }
+            );
+            
+            // Call onComplete callback if provided
+            if (onComplete) {
+              console.log('useTimer: iOS Fallback - Calling onComplete callback');
+              try {
+                onComplete();
+                console.log('useTimer: iOS Fallback - onComplete callback executed successfully');
+              } catch (error) {
+                console.error('useTimer: iOS Fallback - Error in onComplete callback:', error);
+              }
+            } else {
+              console.log('useTimer: iOS Fallback - No onComplete callback provided');
+            }
+            
+            // Complete the current session
+            completeSession();
+          }
         } else if (type === 'TIME_UPDATED') {
           console.log('useTimer: Received TIME_UPDATED message:', payload);
           // Only update if timer is not running to prevent interference

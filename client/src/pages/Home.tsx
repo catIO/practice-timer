@@ -23,6 +23,7 @@ export default function Home() {
   // Get settings from local storage
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
+  const [debugMessages, setDebugMessages] = useState<string[]>([]);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   
   // Setup notifications and toast
@@ -80,6 +81,12 @@ export default function Home() {
     };
   }, [audioInitialized, initializeAudio]);
 
+  // Add debug message function
+  const addDebugMessage = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugMessages(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
+  }, []);
+
   const {
     timeRemaining,
     totalTime,
@@ -95,6 +102,7 @@ export default function Home() {
     initialSettings: settings,
     onComplete: useCallback(async () => {
       console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
+      addDebugMessage('Timer completed - callback started');
       console.log('Timer completed - onComplete callback triggered');
       console.log('Current settings:', settings);
       console.log('Settings for sound:', {
@@ -105,6 +113,7 @@ export default function Home() {
       
       try {
         console.log('Attempting to play completion sound...');
+        addDebugMessage('Playing completion sound...');
         console.log('Calling playSound with:', {
           effect: 'end',
           numberOfBeeps: settings.numberOfBeeps,
@@ -115,8 +124,10 @@ export default function Home() {
         // Play the completion sound
         await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
         console.log('Completion sound played successfully');
+        addDebugMessage('Completion sound played successfully');
       } catch (error) {
         console.error('Error playing completion sound:', error);
+        addDebugMessage(`Sound error: ${error instanceof Error ? error.message : String(error)}`);
         console.error('Error details:', {
           message: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined
@@ -124,13 +135,15 @@ export default function Home() {
       }
       
       console.log('Showing toast notification...');
+      addDebugMessage('Showing notification...');
       toast({
         title: 'Timer Complete',
         description: 'Your timer has finished!',
       });
       
       console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast])
+      addDebugMessage('Timer completion callback finished');
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, addDebugMessage])
   });
 
   // Handle reset all (reset to first iteration)
@@ -327,27 +340,38 @@ export default function Home() {
 
           <main className="p-6">
             <div className="space-y-8">
-              <Timer
-                timeRemaining={timeRemaining}
-                totalTime={totalTime}
-                mode={mode}
-                isRunning={isRunning}
-                wakeLockActive={wakeLockActive}
-              />
+              <div className="flex flex-col items-center space-y-6">
+                <Timer
+                  timeRemaining={timeRemaining}
+                  totalTime={totalTime}
+                  mode={mode}
+                  isRunning={isRunning}
+                />
 
-              <TimerControls
-                isRunning={isRunning}
-                onStart={handleStart}
-                onPause={handlePause}
-                onReset={handleResetAll}
-                onSkip={handleSkip}
-              />
+                {/* Debug Display */}
+                {debugMessages.length > 0 && (
+                  <div className="bg-black/80 text-white p-3 rounded-lg text-xs max-w-sm">
+                    <div className="font-bold mb-1">Debug Messages:</div>
+                    {debugMessages.map((msg, index) => (
+                      <div key={index} className="mb-1">{msg}</div>
+                    ))}
+                  </div>
+                )}
 
-              <IterationTracker
-                currentIteration={currentIteration}
-                totalIterations={totalIterations}
-                mode={mode}
-              />
+                <TimerControls
+                  isRunning={isRunning}
+                  onStart={handleStart}
+                  onPause={handlePause}
+                  onReset={handleResetAll}
+                  onSkip={handleSkip}
+                />
+
+                <IterationTracker
+                  currentIteration={currentIteration}
+                  totalIterations={totalIterations}
+                  mode={mode}
+                />
+              </div>
             </div>
           </main>
         </div>
