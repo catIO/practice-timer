@@ -230,9 +230,10 @@ function startTimer() {
     }
     
     timerInterval = self.setInterval(() => {
+      console.log('Worker: Interval tick - timeRemaining before decrement:', state.timeRemaining);
       if (state.timeRemaining > 0) {
         state.timeRemaining--;
-        console.log('Worker: TICK - timeRemaining:', state.timeRemaining);
+        console.log('Worker: TICK - timeRemaining after decrement:', state.timeRemaining);
         self.postMessage({ 
           type: 'TICK', 
           payload: { 
@@ -244,7 +245,7 @@ function startTimer() {
           } 
         });
       } else {
-        console.log('Worker: Timer reached zero, completing...');
+        console.log('Worker: Timer reached zero, calling completeTimer()...');
         completeTimer();
       }
     }, 1000);
@@ -284,10 +285,14 @@ function resetTimer() {
 
 // Complete the timer
 function completeTimer() {
+  console.log('Worker: completeTimer() called');
+  console.log('Worker: Current state before completion:', state);
+  
   pauseTimer();
   
   // Play sound if enabled
   if (state.settings.soundEnabled) {
+    console.log('Worker: Sending PLAY_SOUND message');
     self.postMessage({ type: 'PLAY_SOUND', payload: { 
       numberOfBeeps: state.settings.numberOfBeeps,
       volume: state.settings.volume,
@@ -297,6 +302,7 @@ function completeTimer() {
 
   // Show notification if enabled
   if (state.settings.browserNotificationsEnabled) {
+    console.log('Worker: Sending SHOW_NOTIFICATION message');
     self.postMessage({ type: 'SHOW_NOTIFICATION', payload: { 
       title: state.mode === 'work' ? 'Work Time Complete!' : 'Break Time Complete!',
       body: state.mode === 'work' ? 'Time for a break!' : 'Time to get back to work!'
@@ -316,6 +322,7 @@ function completeTimer() {
 
   // Check if all iterations are complete
   if (state.currentIteration > state.totalIterations) {
+    console.log('Worker: All iterations complete, sending COMPLETE message');
     self.postMessage({ type: 'COMPLETE', payload: { 
       mode: state.mode,
       currentIteration: state.currentIteration,
@@ -325,11 +332,14 @@ function completeTimer() {
   }
 
   // Send COMPLETE message without starting the next timer
+  console.log('Worker: Timer session complete, sending COMPLETE message');
   self.postMessage({ type: 'COMPLETE', payload: { 
     mode: state.mode,
     currentIteration: state.currentIteration,
     totalIterations: state.totalIterations
   }});
+  
+  console.log('Worker: completeTimer() finished, final state:', state);
 }
 
 // Update settings
