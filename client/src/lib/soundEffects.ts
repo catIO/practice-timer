@@ -22,6 +22,7 @@ let audioContext: AudioContext | null = null;
 let audioContextInitialized = false;
 let audioContextResumed = false;
 let audioUnlockListenerAdded = false;
+let userGestureDetected = false;
 
 // Initialize audio context
 const getAudioContext = () => {
@@ -29,6 +30,48 @@ const getAudioContext = () => {
     audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   }
   return audioContext;
+};
+
+// Enhanced iOS audio unlock with better iPad support
+export const initializeAudioForIOS = async (): Promise<boolean> => {
+  try {
+    console.log('iOS: Enhanced audio unlock attempt for iPad...');
+    
+    // Create a new audio context specifically for iOS
+    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Resume if suspended
+    if (context.state === 'suspended') {
+      console.log('iOS: Audio context suspended, attempting to resume...');
+      await context.resume();
+    }
+    
+    // Create and play a simple sound immediately to unlock audio
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    
+    // Set up the sound (very quiet unlock sound)
+    oscillator.frequency.setValueAtTime(800, context.currentTime);
+    gainNode.gain.setValueAtTime(0.1, context.currentTime); // Very quiet
+    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+    
+    // Play the sound
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 0.1);
+    
+    // Wait a bit for the sound to play
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    console.log('iOS: Enhanced audio unlock successful, context state:', context.state);
+    userGestureDetected = true;
+    return true;
+  } catch (error) {
+    console.error('Error in enhanced iOS audio unlock:', error);
+    return false;
+  }
 };
 
 // Initialize audio context after user interaction
@@ -45,7 +88,7 @@ export const initializeAudioContext = async () => {
       console.log('Resuming suspended audio context...');
       
       if (isIOS) {
-        // Use iOS-specific unlock
+        // Use enhanced iOS-specific unlock
         await initializeAudioForIOS();
       } else {
         await context.resume();
@@ -74,27 +117,30 @@ export const initializeAudioContext = async () => {
   }
 };
 
-// Add global listener to unlock audio on any user interaction
+// Enhanced global listener to unlock audio on any user interaction
 const addGlobalAudioUnlockListener = () => {
   const unlockAudio = async () => {
     try {
-      const context = getAudioContext();
-      if (context.state === 'suspended') {
-        console.log('iOS: Unlocking audio on user interaction...');
-        await initializeAudioForIOS();
+      if (!userGestureDetected) {
+        console.log('iOS: User gesture detected, unlocking audio...');
+        const context = getAudioContext();
+        if (context.state === 'suspended') {
+          await initializeAudioForIOS();
+        }
+        userGestureDetected = true;
       }
     } catch (error) {
       console.error('Error unlocking audio on user interaction:', error);
     }
   };
 
-  // Add listeners for various user interactions
-  const events = ['touchstart', 'touchend', 'click', 'keydown', 'scroll'];
+  // Add listeners for various user interactions (more comprehensive for iPad)
+  const events = ['touchstart', 'touchend', 'click', 'keydown', 'scroll', 'mousedown', 'mouseup'];
   events.forEach(event => {
     document.addEventListener(event, unlockAudio, { once: true, passive: true });
   });
   
-  console.log('iOS: Added global audio unlock listeners');
+  console.log('iOS: Added enhanced global audio unlock listeners');
 };
 
 // Generate sine wave
@@ -258,54 +304,19 @@ export const resumeAudioContext = async (): Promise<boolean> => {
   }
 };
 
-// Direct iOS audio unlock - just play a sound
-export const initializeAudioForIOS = async (): Promise<boolean> => {
-  try {
-    console.log('iOS: Direct audio unlock attempt...');
-    
-    // Create a new audio context specifically for iOS
-    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // Resume if suspended
-    if (context.state === 'suspended') {
-      await context.resume();
-    }
-    
-    // Create and play a simple sound immediately
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-    
-    // Set up the sound
-    oscillator.frequency.setValueAtTime(800, context.currentTime);
-    gainNode.gain.setValueAtTime(0.3, context.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
-    
-    // Play the sound
-    oscillator.start(context.currentTime);
-    oscillator.stop(context.currentTime + 0.2);
-    
-    console.log('iOS: Direct audio unlock successful');
-    return true;
-  } catch (error) {
-    console.error('Error in direct iOS audio unlock:', error);
-    return false;
-  }
-};
-
 // iOS-specific sound playback using HTML5 Audio (more reliable)
 const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
   try {
     console.log(`iOS: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
     
+    // Ensure audio is unlocked first
+    if (!userGestureDetected) {
+      console.log('iOS: No user gesture detected, attempting to unlock audio...');
+      await initializeAudioForIOS();
+    }
+    
     // Convert volume from 0-100 to 0-1 range
     const normalizedVolume = Math.min(1, volume / 100);
-    
-    // Create audio element for iOS (more reliable than Web Audio API)
-    const audio = new Audio();
-    audio.volume = normalizedVolume;
     
     // Generate a simple beep sound using data URL
     const sampleRate = 44100;
@@ -330,8 +341,6 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
     const blob = new Blob([wavData], { type: 'audio/wav' });
     const url = URL.createObjectURL(blob);
     
-    audio.src = url;
-    
     // Play the sound(s)
     if (effect === 'end') {
       // Play multiple beeps
@@ -343,6 +352,13 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
         beepAudio.volume = normalizedVolume;
         
         try {
+          // Ensure audio is loaded before playing
+          await new Promise((resolve, reject) => {
+            beepAudio.oncanplaythrough = resolve;
+            beepAudio.onerror = reject;
+            beepAudio.load();
+          });
+          
           await beepAudio.play();
           
           // Wait for the beep to finish
@@ -357,30 +373,37 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         } catch (error) {
-          console.error(`Error playing beep ${i + 1}:`, error);
+          console.error(`iOS: Error playing beep ${i + 1}:`, error);
+          // Continue with next beep even if one fails
         }
       }
+      console.log(`iOS: Finished playing all ${numberOfBeeps} beeps`);
     } else {
-      // Play single sound
+      // For other sounds, just play once
+      const audio = new Audio(url);
+      audio.volume = normalizedVolume;
+      
       try {
-        await audio.play();
-        
-        // Wait for the sound to finish
-        await new Promise((resolve) => {
-          audio.onended = resolve;
-          // Fallback timeout
-          setTimeout(resolve, 500);
+        // Ensure audio is loaded before playing
+        await new Promise((resolve, reject) => {
+          audio.oncanplaythrough = resolve;
+          audio.onerror = reject;
+          audio.load();
         });
+        
+        await audio.play();
+        console.log('iOS: Sound played successfully');
       } catch (error) {
-        console.error('Error playing single sound:', error);
+        console.error('iOS: Error playing sound:', error);
+        throw error;
       }
     }
     
-    // Clean up
+    // Clean up the blob URL
     URL.revokeObjectURL(url);
-    console.log('iOS: Sound playback completed successfully');
   } catch (error) {
-    console.error('Error playing iOS sound:', error);
+    console.error('iOS: Error in playSoundIOS:', error);
+    throw error;
   }
 };
 
@@ -430,7 +453,8 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     
     if (isIOS) {
-      // Use simplified iOS audio approach
+      console.log('iOS detected, using iOS-specific audio handling...');
+      // Use enhanced iOS audio approach
       await playSoundIOS(effect, numberOfBeeps, volume, soundType);
       return;
     }
@@ -439,20 +463,34 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
     // Apply a non-linear curve to increase volume at higher settings
     const normalizedVolume = Math.pow(volume / 100, 0.7) * 1.5;
     
-    // Get audio context and ensure it's ready for iOS
+    // Get audio context and ensure it's ready
     const context = getAudioContext();
     console.log('Audio context state before playing:', context.state);
     
-    // For iOS, ensure audio context is properly initialized
+    // Enhanced audio context handling for all platforms
     if (context.state === 'suspended') {
-      console.log('Audio context suspended, attempting to resume for iOS...');
-      await initializeAudioForIOS();
+      console.log('Audio context suspended, attempting to resume...');
+      try {
+        await context.resume();
+        console.log('Audio context resumed successfully');
+      } catch (error) {
+        console.error('Failed to resume audio context:', error);
+        // Try iOS-specific unlock as fallback
+        if (isIOS) {
+          await initializeAudioForIOS();
+        }
+      }
     }
     
     // Double-check context state
     if (context.state !== 'running') {
       console.warn('Audio context not running, attempting to resume...');
-      await context.resume();
+      try {
+        await context.resume();
+      } catch (error) {
+        console.error('Failed to resume audio context on second attempt:', error);
+        throw new Error('Audio context could not be resumed');
+      }
     }
     
     // For end sound, play multiple beeps
