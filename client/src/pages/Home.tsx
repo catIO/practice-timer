@@ -134,22 +134,39 @@ export default function Home() {
         if (isIOS || isIPad) {
           // iOS: Use notification sounds (works in background)
           console.log('iOS detected - using notification sounds');
-          console.log('Notification permission:', Notification.permission);
-          addDebugInfo(`Notification permission: ${Notification.permission}`);
-          addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
           
-          try {
-            addDebugInfo('Attempting to send notification...');
-            await showTimerCompletionNotification({
-              numberOfBeeps: settings.numberOfBeeps,
-              volume: settings.volume,
-              soundType: settings.soundType
-            });
-            console.log('Timer completion notification sent');
-            addDebugInfo('Notification sent successfully');
-          } catch (error) {
-            console.error(`Notification error: ${error}`);
-            addDebugInfo(`Notification error: ${error}`);
+          // Check if Notification API is available
+          if (typeof Notification !== 'undefined') {
+            console.log('Notification permission:', Notification.permission);
+            addDebugInfo(`Notification permission: ${Notification.permission}`);
+            addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
+            
+            try {
+              addDebugInfo('Attempting to send notification...');
+              await showTimerCompletionNotification({
+                numberOfBeeps: settings.numberOfBeeps,
+                volume: settings.volume,
+                soundType: settings.soundType
+              });
+              console.log('Timer completion notification sent');
+              addDebugInfo('Notification sent successfully');
+            } catch (error) {
+              console.error(`Notification error: ${error}`);
+              addDebugInfo(`Notification error: ${error}`);
+            }
+          } else {
+            // Notification API not available - fallback to audio
+            console.log('Notification API not available, falling back to audio');
+            addDebugInfo('Notification API not available, using audio fallback');
+            addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
+            try {
+              await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+              console.log('iOS fallback audio played successfully');
+              addDebugInfo('Fallback audio played successfully');
+            } catch (error) {
+              console.error(`iOS fallback audio error: ${error}`);
+              addDebugInfo(`Fallback audio error: ${error}`);
+            }
           }
         } else {
           // Non-iOS: Use regular audio
