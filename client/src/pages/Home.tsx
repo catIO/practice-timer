@@ -239,125 +239,39 @@ export default function Home() {
         
         // Add device detection info to debug display
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        const detectIPad = (): boolean => {
-          if (/iPad/.test(navigator.userAgent)) {
-            return true;
-          }
-          if (/Macintosh/.test(navigator.userAgent)) {
-            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-              const minDimension = Math.min(window.screen.width, window.screen.height);
-              const maxDimension = Math.max(window.screen.width, window.screen.height);
-              if (minDimension >= 768 && maxDimension >= 1024) {
-                return true;
-              }
-            }
-          }
-          return false;
-        };
         const isIPad = detectIPad();
         
         console.log('Timer completed - onComplete callback triggered');
-        console.log('Device detection:', { isIOS, isAndroid, isIPad });
-        console.log('Screen dimensions:', `${window.screen.width}x${window.screen.height}`);
-        addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
-        addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
+        console.log('Device detection:', { isIOS, isIPad });
+        addDebugInfo(`Device: iOS=${isIOS}, iPad=${isIPad}`);
         addDebugInfo(`Audio initialized: ${audioInitialized}`);
         
-        if (isIOS || isIPad) {
-          // iOS: Use notification sounds (works in background)
-          console.log('iOS detected - using notification sounds');
-          addDebugInfo('iOS detected - using notification sounds');
-          
-          // Check if Notification API is available
-          if (typeof Notification !== 'undefined') {
-            console.log('Notification permission:', Notification.permission);
-            addDebugInfo(`Notification permission: ${Notification.permission}`);
-            addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
-            
-            try {
-              addDebugInfo('Attempting to send notification...');
-              await showTimerCompletionNotification({
-                numberOfBeeps: settings.numberOfBeeps,
-                volume: settings.volume,
-                soundType: settings.soundType
-              });
-              console.log('Timer completion notification sent');
-              addDebugInfo('Notification sent successfully');
-            } catch (error) {
-              console.error(`Notification error: ${error}`);
-              addDebugInfo(`Notification error: ${error}`);
-            }
-          } else {
-            // Notification API not available - fallback to audio
-            console.log('Notification API not available, falling back to audio');
-            addDebugInfo('Notification API not available, using audio fallback');
-            addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
-            try {
-              // Add audio context debugging
-              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-              addDebugInfo(`Audio context state: ${audioContext.state}`);
-              
-              if (audioContext.state === 'suspended') {
-                addDebugInfo('Resuming suspended audio context...');
-                try {
-                  await audioContext.resume();
-                  addDebugInfo(`Audio context resumed: ${audioContext.state}`);
-                } catch (resumeError) {
-                  addDebugInfo(`Audio context resume failed: ${resumeError}`);
-                  console.error('Audio context resume failed:', resumeError);
-                }
-              }
-              
-              // Test with a simple beep first
-              addDebugInfo('Testing simple audio beep...');
-              try {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Louder volume
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-                addDebugInfo('Simple beep test completed');
-              } catch (beepError) {
-                addDebugInfo(`Simple beep test failed: ${beepError}`);
-                console.error('Simple beep test failed:', beepError);
-              }
-              
-              // Now try the actual timer completion sound
-              addDebugInfo('Attempting to play timer completion sound...');
-              try {
-                await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-                console.log('iOS fallback audio played successfully');
-                addDebugInfo('Fallback audio played successfully');
-              } catch (playError) {
-                console.error(`iOS fallback audio error: ${playError}`);
-                addDebugInfo(`Fallback audio error: ${playError}`);
-              }
-            } catch (error) {
-              console.error(`iOS fallback audio error: ${error}`);
-              addDebugInfo(`Fallback audio error: ${error}`);
-            }
-          }
-        } else {
-          // Non-iOS: Use regular audio
-          console.log('Non-iOS: Playing completion sound');
-          addDebugInfo('Playing completion sound');
-          addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
-          try {
-            await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-            console.log('Non-iOS: Completion sound played successfully');
-            addDebugInfo('Sound played successfully');
-          } catch (error) {
-            console.error(`Non-iOS sound error: ${error}`);
-            addDebugInfo(`Sound error: ${error}`);
-          }
+        // Play sound regardless of device type
+        addDebugInfo(`Playing completion sound: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
+        try {
+          await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+          console.log('Completion sound played successfully');
+          addDebugInfo('Completion sound played successfully');
+        } catch (soundError) {
+          console.error('Sound playback failed:', soundError);
+          addDebugInfo(`Sound playback failed: ${soundError}`);
         }
         
+        // Show notification
+        try {
+          await showTimerCompletionNotification({
+            numberOfBeeps: settings.numberOfBeeps,
+            volume: settings.volume,
+            soundType: settings.soundType
+          });
+          console.log('Timer completion notification sent');
+          addDebugInfo('Notification sent successfully');
+        } catch (notificationError) {
+          console.error('Notification failed:', notificationError);
+          addDebugInfo(`Notification failed: ${notificationError}`);
+        }
+        
+        // Show toast notification
         console.log('Showing toast notification...');
         addDebugInfo('Showing toast notification');
         toast({
@@ -386,8 +300,10 @@ export default function Home() {
 
   // Handle skip current session
   const handleSkip = useCallback(() => {
+    console.log('Skip button clicked');
+    addDebugInfo('Skip button clicked');
     skipTimer();
-  }, [skipTimer]);
+  }, [skipTimer, addDebugInfo]);
 
   // Cleanup wake locks when component unmounts
   useEffect(() => {

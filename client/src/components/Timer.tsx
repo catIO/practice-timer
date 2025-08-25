@@ -33,6 +33,10 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning, wakeL
   
   console.log('Circle properties:', { size, strokeWidth, radius, circumference, offset });
   
+  // Determine circle color based on mode
+  const circleColor = mode === 'work' ? 'stroke-red-500' : 'stroke-green-500';
+  console.log('Circle color:', { mode, circleColor });
+  
   // Log timer state for debugging
   useEffect(() => {
     console.log('Timer component state:', {
@@ -41,9 +45,10 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning, wakeL
       mode,
       isRunning,
       progress,
-      offset
+      offset,
+      circleColor
     });
-  }, [timeRemaining, totalTime, mode, isRunning, progress, offset]);
+  }, [timeRemaining, totalTime, mode, isRunning, progress, offset, circleColor]);
   
   return (
     <div className="relative flex items-center justify-center">
@@ -70,9 +75,7 @@ export default function Timer({ timeRemaining, totalTime, mode, isRunning, wakeL
           strokeWidth={strokeWidth}
           className={cn(
             "transition-all duration-300 ease-in-out fill-none",
-            mode === 'work' 
-              ? "stroke-red-500" 
-              : "stroke-green-500"
+            circleColor
           )}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
