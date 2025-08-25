@@ -23,7 +23,6 @@ export default function Home() {
   // Get settings from local storage
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
-  const [debugMessages, setDebugMessages] = useState<string[]>([]);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   
   // Setup notifications and toast
@@ -81,12 +80,6 @@ export default function Home() {
     };
   }, [audioInitialized, initializeAudio]);
 
-  // Add debug message function
-  const addDebugMessage = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setDebugMessages(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
-  }, []);
-
   const {
     timeRemaining,
     totalTime,
@@ -102,7 +95,6 @@ export default function Home() {
     initialSettings: settings,
     onComplete: useCallback(async () => {
       console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
-      addDebugMessage('Timer completed - callback started');
       
       // Add device detection info to debug display
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -123,9 +115,6 @@ export default function Home() {
       };
       const isIPad = detectIPad();
       
-      addDebugMessage(`Device: iOS=${isIOS}, iPad=${isIPad}`);
-      addDebugMessage(`Screen: ${window.screen.width}x${window.screen.height}`);
-      
       console.log('Timer completed - onComplete callback triggered');
       console.log('Current settings:', settings);
       console.log('Settings for sound:', {
@@ -137,40 +126,32 @@ export default function Home() {
       // iOS Solution: Use notification sounds for background audio
       if (isIOS || isIPad) {
         // iOS: Use notification sounds (works in background)
-        addDebugMessage('iOS detected - using notification sounds');
-        addDebugMessage(`Notification permission: ${Notification.permission}`);
-        
         try {
           await showTimerCompletionNotification({
             numberOfBeeps: settings.numberOfBeeps,
             volume: settings.volume,
             soundType: settings.soundType
           });
-          addDebugMessage('Timer completion notification sent');
         } catch (error) {
-          addDebugMessage(`Notification error: ${error}`);
+          console.error(`Notification error: ${error}`);
         }
       } else {
         // Non-iOS: Use regular audio
-        addDebugMessage('Non-iOS: Playing completion sound');
         try {
           await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-          addDebugMessage('Non-iOS: Completion sound played successfully');
         } catch (error) {
-          addDebugMessage(`Non-iOS sound error: ${error}`);
+          console.error(`Non-iOS sound error: ${error}`);
         }
       }
       
       console.log('Showing toast notification...');
-      addDebugMessage('Showing notification...');
       toast({
         title: 'Timer Complete',
         description: 'Your timer has finished!',
       });
       
       console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
-      addDebugMessage('Timer completion callback finished');
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, addDebugMessage])
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification])
   });
 
   // Handle reset all (reset to first iteration)
@@ -287,247 +268,9 @@ export default function Home() {
                   variant="ghost"
                   size="icon"
                   className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Audio test button clicked');
-                    await initializeAudio();
-                    try {
-                      await playSound('start', 1, 50, 'beep');
-                      console.log('Audio test successful');
-                    } catch (error) {
-                      console.error('Audio test failed:', error);
-                    }
-                  }}
-                  title="Test Audio"
-                >
-                  🔊
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Timer completion test button clicked');
-                    try {
-                      // Simulate timer completion
-                      await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-                      console.log('Timer completion sound test successful');
-                    } catch (error) {
-                      console.error('Timer completion sound test failed:', error);
-                    }
-                  }}
-                  title="Test Timer Completion Sound"
-                >
-                  ⏰
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Manual onComplete callback test clicked');
-                    try {
-                      // Manually call the onComplete callback logic
-                      console.log('=== MANUAL TIMER COMPLETION TEST ===');
-                      console.log('Current settings:', settings);
-                      console.log('Settings for sound:', {
-                        numberOfBeeps: settings.numberOfBeeps,
-                        volume: settings.volume,
-                        soundType: settings.soundType
-                      });
-                      
-                      console.log('Attempting to play completion sound...');
-                      await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-                      console.log('Manual timer completion sound test successful');
-                      
-                      toast({
-                        title: 'Timer Complete',
-                        description: 'Your timer has finished!',
-                      });
-                      
-                      console.log('=== MANUAL TIMER COMPLETION TEST FINISHED ===');
-                    } catch (error) {
-                      console.error('Manual timer completion test failed:', error);
-                    }
-                  }}
-                  title="Test onComplete Callback"
-                >
-                  🔄
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Audio context test button clicked');
-                    addDebugMessage('Testing audio context...');
-                    try {
-                      // Test audio context state
-                      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-                      addDebugMessage(`Audio context state: ${context.state}`);
-                      
-                      if (context.state === 'suspended') {
-                        addDebugMessage('Resuming audio context...');
-                        await context.resume();
-                        addDebugMessage(`Audio context resumed: ${context.state}`);
-                      }
-                      
-                      // Test simple oscillator
-                      const oscillator = context.createOscillator();
-                      const gainNode = context.createGain();
-                      oscillator.connect(gainNode);
-                      gainNode.connect(context.destination);
-                      
-                      oscillator.frequency.setValueAtTime(440, context.currentTime);
-                      gainNode.gain.setValueAtTime(0.1, context.currentTime);
-                      
-                      addDebugMessage('Playing test tone...');
-                      oscillator.start(context.currentTime);
-                      oscillator.stop(context.currentTime + 0.5);
-                      
-                      addDebugMessage('Audio context test successful');
-                    } catch (error) {
-                      addDebugMessage(`Audio context test failed: ${error}`);
-                    }
-                  }}
-                  title="Test Audio Context"
-                >
-                  🎵
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
                   onClick={handleSettingsClick}
                 >
                   <span className="material-icons">settings</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Device detection test clicked');
-                    addDebugMessage('Testing device detection...');
-                    
-                    // Test basic iOS detection
-                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                    addDebugMessage(`Basic iOS detection: ${isIOS}`);
-                    
-                    // Test iPad detection
-                    const detectIPad = (): boolean => {
-                      if (/iPad/.test(navigator.userAgent)) {
-                        return true;
-                      }
-                      if (/Macintosh/.test(navigator.userAgent)) {
-                        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-                          const minDimension = Math.min(window.screen.width, window.screen.height);
-                          const maxDimension = Math.max(window.screen.width, window.screen.height);
-                          if (minDimension >= 768 && maxDimension >= 1024) {
-                            return true;
-                          }
-                        }
-                      }
-                      return false;
-                    };
-                    
-                    const isIPad = detectIPad();
-                    addDebugMessage(`iPad detection: ${isIPad}`);
-                    
-                    // Show device info
-                    addDebugMessage(`User Agent: ${navigator.userAgent.substring(0, 50)}...`);
-                    addDebugMessage(`Screen: ${window.screen.width}x${window.screen.height}`);
-                    addDebugMessage(`Touch: ${'ontouchstart' in window}, Points: ${navigator.maxTouchPoints}`);
-                  }}
-                  title="Test Device Detection"
-                >
-                  📱
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Simple notification test clicked');
-                    addDebugMessage('Testing simple notification...');
-                    
-                    try {
-                      if (Notification.permission === 'granted') {
-                        addDebugMessage('Creating simple notification...');
-                        const simpleNotification = new Notification('Timer Complete!', {
-                          body: 'Your timer has finished!',
-                          silent: false,
-                        });
-                        addDebugMessage('Simple notification created');
-                        
-                        simpleNotification.onshow = () => addDebugMessage('Simple notification shown');
-                        simpleNotification.onerror = (error) => addDebugMessage(`Simple notification error: ${error}`);
-                        
-                      } else {
-                        addDebugMessage('Requesting permission for simple notification...');
-                        const permission = await Notification.requestPermission();
-                        addDebugMessage(`Simple notification permission: ${permission}`);
-                      }
-                    } catch (error) {
-                      addDebugMessage(`Simple notification error: ${error}`);
-                    }
-                  }}
-                  title="Test Simple Notification"
-                >
-                  📢
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={async () => {
-                    console.log('Notification test clicked');
-                    addDebugMessage('Testing notifications...');
-                    addDebugMessage(`Current permission: ${Notification.permission}`);
-                    addDebugMessage(`Notification supported: ${typeof Notification !== 'undefined'}`);
-                    
-                    try {
-                      if (Notification.permission === 'granted') {
-                        addDebugMessage('Permission granted - testing notification');
-                        const notification = new Notification('Test Notification', {
-                          body: 'This is a test notification',
-                          icon: '/favicon.ico',
-                          badge: '/favicon.ico',
-                          silent: false,
-                        });
-                        addDebugMessage('Test notification created');
-                        
-                        // Add event listeners to track notification behavior
-                        notification.onshow = () => addDebugMessage('Notification shown');
-                        notification.onclick = () => addDebugMessage('Notification clicked');
-                        notification.onclose = () => addDebugMessage('Notification closed');
-                        notification.onerror = (error) => addDebugMessage(`Notification error: ${error}`);
-                        
-                        addDebugMessage('Test notification sent with event listeners');
-                      } else if (Notification.permission === 'denied') {
-                        addDebugMessage('Permission denied - cannot send notifications');
-                      } else {
-                        addDebugMessage('Requesting notification permission...');
-                        const permission = await Notification.requestPermission();
-                        addDebugMessage(`Permission result: ${permission}`);
-                        if (permission === 'granted') {
-                          addDebugMessage('Permission granted - testing notification');
-                          const notification = new Notification('Test Notification', {
-                            body: 'This is a test notification',
-                            icon: '/favicon.ico',
-                            badge: '/favicon.ico',
-                            silent: false,
-                          });
-                          addDebugMessage('Test notification sent');
-                        }
-                      }
-                    } catch (error) {
-                      addDebugMessage(`Notification test error: ${error}`);
-                      console.error('Notification test error:', error);
-                    }
-                  }}
-                  title="Test Notifications"
-                >
-                  🔔
                 </Button>
               </div>
             </div>
@@ -542,16 +285,6 @@ export default function Home() {
                   mode={mode}
                   isRunning={isRunning}
                 />
-
-                {/* Debug Display */}
-                {debugMessages.length > 0 && (
-                  <div className="bg-black/80 text-white p-3 rounded-lg text-xs max-w-sm">
-                    <div className="font-bold mb-1">Debug Messages:</div>
-                    {debugMessages.map((msg, index) => (
-                      <div key={index} className="mb-1">{msg}</div>
-                    ))}
-                  </div>
-                )}
 
                 <TimerControls
                   isRunning={isRunning}
