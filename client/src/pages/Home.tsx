@@ -24,10 +24,17 @@ export default function Home() {
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   
   // Setup notifications and toast
   const { toast } = useToast();
   const { showNotification, showTimerCompletionNotification } = useNotification();
+
+  // Add debug info
+  const addDebugInfo = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugInfo(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
+  }, []);
 
   // Initialize audio context on user interaction
   const initializeAudio = async () => {
@@ -95,9 +102,11 @@ export default function Home() {
     initialSettings: settings,
     onComplete: useCallback(async () => {
       console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
+      addDebugInfo('Timer completed - callback started');
       
       // Add device detection info to debug display
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
       const detectIPad = (): boolean => {
         if (/iPad/.test(navigator.userAgent)) {
           return true;
@@ -116,42 +125,53 @@ export default function Home() {
       const isIPad = detectIPad();
       
       console.log('Timer completed - onComplete callback triggered');
-      console.log('Current settings:', settings);
-      console.log('Settings for sound:', {
-        numberOfBeeps: settings.numberOfBeeps,
-        volume: settings.volume,
-        soundType: settings.soundType
-      });
-
-      // iOS Solution: Use notification sounds for background audio
+      console.log('Device detection:', { isIOS, isAndroid, isIPad });
+      console.log('Screen dimensions:', `${window.screen.width}x${window.screen.height}`);
+      addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
+      addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
+      
       if (isIOS || isIPad) {
         // iOS: Use notification sounds (works in background)
+        console.log('iOS detected - using notification sounds');
+        console.log('Notification permission:', Notification.permission);
+        addDebugInfo(`Notification permission: ${Notification.permission}`);
+        
         try {
           await showTimerCompletionNotification({
             numberOfBeeps: settings.numberOfBeeps,
             volume: settings.volume,
             soundType: settings.soundType
           });
+          console.log('Timer completion notification sent');
+          addDebugInfo('Notification sent successfully');
         } catch (error) {
           console.error(`Notification error: ${error}`);
+          addDebugInfo(`Notification error: ${error}`);
         }
       } else {
         // Non-iOS: Use regular audio
+        console.log('Non-iOS: Playing completion sound');
+        addDebugInfo('Playing completion sound');
         try {
           await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+          console.log('Non-iOS: Completion sound played successfully');
+          addDebugInfo('Sound played successfully');
         } catch (error) {
           console.error(`Non-iOS sound error: ${error}`);
+          addDebugInfo(`Sound error: ${error}`);
         }
       }
       
       console.log('Showing toast notification...');
+      addDebugInfo('Showing toast notification');
       toast({
         title: 'Timer Complete',
         description: 'Your timer has finished!',
       });
       
       console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification])
+      addDebugInfo('Timer completion callback finished');
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo])
   });
 
   // Handle reset all (reset to first iteration)
@@ -178,11 +198,21 @@ export default function Home() {
 
   // Handle start timer
   const handleStart = useCallback(async () => {
-    // Initialize audio context first
-    await initializeAudio();
+    // Initialize audio context first when play button is clicked
+    console.log('Play button clicked - initializing audio for cross-platform compatibility');
+    addDebugInfo('Play button clicked - initializing audio');
+    
+    try {
+      await initializeAudio();
+      addDebugInfo('Audio initialized successfully');
+    } catch (error) {
+      console.error('Error initializing audio on play button:', error);
+      addDebugInfo('Audio initialization failed');
+    }
+    
     // Then start the timer
     startTimer();
-  }, [startTimer, initializeAudio]);
+  }, [startTimer, initializeAudio, addDebugInfo]);
 
   // Handle pause timer
   const handlePause = useCallback(() => {
@@ -309,6 +339,16 @@ export default function Home() {
           </main>
         </div>
       </div>
+      
+      {/* Debug Display */}
+      {debugInfo.length > 0 && (
+        <div className="fixed bottom-4 left-4 bg-black/80 text-white p-3 rounded-lg text-xs max-w-sm z-50">
+          <div className="font-bold mb-1">Debug Info:</div>
+          {debugInfo.map((msg, index) => (
+            <div key={index} className="mb-1">{msg}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
