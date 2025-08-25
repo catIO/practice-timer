@@ -3,6 +3,8 @@ import { TimerState } from '../lib/timerWorkerSingleton';
 
 let workerId: string | null = null;
 let timerInterval: number | null = null;
+let startTime: number | null = null;
+let targetEndTime: number | null = null;
 
 // Worker state
 let state: TimerState = {
@@ -229,11 +231,31 @@ function startTimer() {
       return;
     }
     
+    // Use Date.now() for more reliable timing on iOS
+    startTime = Date.now();
+    targetEndTime = startTime + (state.timeRemaining * 1000);
+    console.log('Worker: Timer started at', startTime, 'target end time:', targetEndTime);
+    
     timerInterval = self.setInterval(() => {
-      console.log('Worker: Interval tick - timeRemaining before decrement:', state.timeRemaining);
-      if (state.timeRemaining > 0) {
-        state.timeRemaining--;
-        console.log('Worker: TICK - timeRemaining after decrement:', state.timeRemaining);
+      if (!state.isRunning || !startTime || !targetEndTime) {
+        console.log('Worker: Timer stopped or invalid state, clearing interval');
+        if (timerInterval) {
+          self.clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        return;
+      }
+      
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - startTime) / 1000);
+      const newTimeRemaining = Math.max(0, state.timeRemaining - elapsedSeconds);
+      
+      console.log('Worker: Interval tick - now:', now, 'elapsed:', elapsedSeconds, 'new timeRemaining:', newTimeRemaining);
+      
+      if (newTimeRemaining > 0) {
+        // Update timeRemaining and send TICK
+        state.timeRemaining = newTimeRemaining;
+        console.log('Worker: TICK - timeRemaining:', state.timeRemaining);
         self.postMessage({ 
           type: 'TICK', 
           payload: { 
@@ -244,8 +266,14 @@ function startTimer() {
             isRunning: state.isRunning
           } 
         });
+        
+        // Update start time for next calculation
+        startTime = now;
+        targetEndTime = startTime + (state.timeRemaining * 1000);
       } else {
+        // Timer has reached zero
         console.log('Worker: Timer reached zero, calling completeTimer()...');
+        state.timeRemaining = 0;
         completeTimer();
       }
     }, 1000);
@@ -262,6 +290,9 @@ function pauseTimer() {
       self.clearInterval(timerInterval);
       timerInterval = null;
     }
+    // Reset timing variables
+    startTime = null;
+    targetEndTime = null;
     console.log('Worker: Timer paused with timeRemaining:', state.timeRemaining);
     self.postMessage({ 
       type: 'PAUSED', 
