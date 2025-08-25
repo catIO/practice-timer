@@ -265,6 +265,24 @@ export default function Home() {
                   variant="ghost"
                   size="icon"
                   className="text-primary hover:text-primary/80"
+                  onClick={async () => {
+                    console.log('Timer completion test button clicked');
+                    try {
+                      // Simulate timer completion
+                      await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+                      console.log('Timer completion sound test successful');
+                    } catch (error) {
+                      console.error('Timer completion sound test failed:', error);
+                    }
+                  }}
+                  title="Test Timer Completion Sound"
+                >
+                  ⏰
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
                   onClick={handleSettingsClick}
                 >
                   <span className="material-icons">settings</span>
