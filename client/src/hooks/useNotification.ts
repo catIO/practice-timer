@@ -28,9 +28,13 @@ export function useNotification() {
       if (Notification.permission === 'granted') {
         new Notification(title, {
           body: options?.body,
-          silent: options?.silent || false,
           tag: options?.tag || 'default',
           requireInteraction: options?.requireInteraction || false,
+          // Add notification sound for iOS background audio
+          icon: '/favicon.ico', // Add icon for better notification
+          badge: '/favicon.ico', // Add badge for iOS
+          // Use default notification sound (works on iOS)
+          silent: false, // Ensure sound plays
         });
       } else {
         console.log('Notifications not granted, requesting permission...');
@@ -38,14 +42,53 @@ export function useNotification() {
         if (granted) {
           new Notification(title, {
             body: options?.body,
-            silent: options?.silent || false,
             tag: options?.tag || 'default',
             requireInteraction: options?.requireInteraction || false,
+            // Add notification sound for iOS background audio
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            // Use default notification sound (works on iOS)
+            silent: false, // Ensure sound plays
           });
         }
       }
     } catch (error) {
       console.error('Error showing notification:', error);
+    }
+  }, [requestNotificationPermission]);
+
+  const showTimerCompletionNotification = useCallback(async (settings: { numberOfBeeps: number; volume: number; soundType: string }) => {
+    try {
+      console.log('Showing timer completion notification with sound...');
+      
+      if (Notification.permission === 'granted') {
+        // Create multiple notifications to simulate multiple beeps
+        const numberOfBeeps = Math.min(settings.numberOfBeeps, 3); // Limit to 3 for notifications
+        
+        for (let i = 0; i < numberOfBeeps; i++) {
+          setTimeout(() => {
+            new Notification('Timer Complete!', {
+              body: i === 0 ? 'Your timer has finished!' : `Beep ${i + 1}`,
+              tag: `timer-complete-${i}`,
+              requireInteraction: false,
+              icon: '/favicon.ico',
+              badge: '/favicon.ico',
+              silent: false, // This will play the default notification sound
+            });
+          }, i * 500); // Space out the beeps
+        }
+        
+        console.log(`Timer completion notification sent with ${numberOfBeeps} beeps`);
+      } else {
+        console.log('Notifications not granted, requesting permission...');
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          // Retry with permission granted
+          showTimerCompletionNotification(settings);
+        }
+      }
+    } catch (error) {
+      console.error('Error showing timer completion notification:', error);
     }
   }, [requestNotificationPermission]);
 
@@ -102,8 +145,9 @@ export function useNotification() {
   }, [toast]);
 
   return {
-    requestNotificationPermission,
     showNotification,
-    playSound
+    showTimerCompletionNotification,
+    requestNotificationPermission,
+    playSound,
   };
 }

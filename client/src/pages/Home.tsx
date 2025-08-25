@@ -28,7 +28,7 @@ export default function Home() {
   
   // Setup notifications and toast
   const { toast } = useToast();
-  const { showNotification } = useNotification();
+  const { showNotification, showTimerCompletionNotification } = useNotification();
 
   // Initialize audio context on user interaction
   const initializeAudio = async () => {
@@ -133,28 +133,30 @@ export default function Home() {
         volume: settings.volume,
         soundType: settings.soundType
       });
-      
-      try {
-        console.log('Attempting to play completion sound...');
-        addDebugMessage('Playing completion sound...');
-        console.log('Calling playSound with:', {
-          effect: 'end',
-          numberOfBeeps: settings.numberOfBeeps,
-          volume: settings.volume,
-          soundType: settings.soundType
-        });
-        
-        // Play the completion sound
-        await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-        console.log('Completion sound played successfully');
-        addDebugMessage('Completion sound played successfully');
-      } catch (error) {
-        console.error('Error playing completion sound:', error);
-        addDebugMessage(`Sound error: ${error instanceof Error ? error.message : String(error)}`);
-        console.error('Error details:', {
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined
-        });
+
+      // iOS Solution: Use notification sounds for background audio
+      if (isIOS || isIPad) {
+        // iOS: Use notification sounds (works in background)
+        addDebugMessage('iOS detected - using notification sounds');
+        try {
+          await showTimerCompletionNotification({
+            numberOfBeeps: settings.numberOfBeeps,
+            volume: settings.volume,
+            soundType: settings.soundType
+          });
+          addDebugMessage('Timer completion notification sent');
+        } catch (error) {
+          addDebugMessage(`Notification error: ${error}`);
+        }
+      } else {
+        // Non-iOS: Use regular audio
+        addDebugMessage('Non-iOS: Playing completion sound');
+        try {
+          await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+          addDebugMessage('Non-iOS: Completion sound played successfully');
+        } catch (error) {
+          addDebugMessage(`Non-iOS sound error: ${error}`);
+        }
       }
       
       console.log('Showing toast notification...');
