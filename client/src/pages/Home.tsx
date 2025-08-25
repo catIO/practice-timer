@@ -246,28 +246,11 @@ export default function Home() {
         addDebugInfo(`Device: iOS=${isIOS}, iPad=${isIPad}`);
         addDebugInfo(`Audio initialized: ${audioInitialized}`);
         
-        // Play sound regardless of device type
+        // Play sound and show notification
         addDebugInfo(`Playing completion sound: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
-        console.log('About to call playSound function...');
-        addDebugInfo('About to call playSound function...');
+        console.log('About to call showTimerCompletionNotification...');
+        addDebugInfo('About to call showTimerCompletionNotification...');
         
-        try {
-          console.log('Calling playSound with params:', {
-            effect: 'end',
-            numberOfBeeps: settings.numberOfBeeps,
-            volume: settings.volume,
-            soundType: settings.soundType
-          });
-          
-          await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-          console.log('playSound function completed successfully');
-          addDebugInfo('playSound function completed successfully');
-        } catch (soundError) {
-          console.error('playSound function failed:', soundError);
-          addDebugInfo(`playSound function failed: ${soundError}`);
-        }
-        
-        // Show notification
         try {
           await showTimerCompletionNotification({
             numberOfBeeps: settings.numberOfBeeps,
