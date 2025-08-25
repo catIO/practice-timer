@@ -248,13 +248,23 @@ export default function Home() {
         
         // Play sound regardless of device type
         addDebugInfo(`Playing completion sound: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
+        console.log('About to call playSound function...');
+        addDebugInfo('About to call playSound function...');
+        
         try {
+          console.log('Calling playSound with params:', {
+            effect: 'end',
+            numberOfBeeps: settings.numberOfBeeps,
+            volume: settings.volume,
+            soundType: settings.soundType
+          });
+          
           await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-          console.log('Completion sound played successfully');
-          addDebugInfo('Completion sound played successfully');
+          console.log('playSound function completed successfully');
+          addDebugInfo('playSound function completed successfully');
         } catch (soundError) {
-          console.error('Sound playback failed:', soundError);
-          addDebugInfo(`Sound playback failed: ${soundError}`);
+          console.error('playSound function failed:', soundError);
+          addDebugInfo(`playSound function failed: ${soundError}`);
         }
         
         // Show notification
