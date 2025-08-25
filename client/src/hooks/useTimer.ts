@@ -125,6 +125,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             setStoreTimeRemaining(timeRemaining);
           },
           onComplete: (state) => {
+            console.log('🔄 iOS Background Timer onComplete called');
             setIsRunning(false);
             setStoreIsRunning(false);
             
@@ -137,11 +138,13 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             );
             
             if (onComplete) {
+              console.log('🔄 iOS Background Timer calling onComplete callback');
               onComplete();
             }
             
             // Use the ref to call completeSession
             if (completeSessionRef.current) {
+              console.log('🔄 iOS Background Timer calling completeSession');
               completeSessionRef.current();
             }
           },
@@ -235,9 +238,10 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     );
     
     // Call onComplete callback if provided
-    if (onComplete) {
-      onComplete();
-    }
+                if (onComplete) {
+              console.log('🔄 useTimer calling onComplete callback (line 141)');
+              onComplete();
+            }
     
     // Complete the current session
     completeSession();

@@ -248,20 +248,26 @@ export default function Home() {
         
         // Play sound and show notification
         addDebugInfo(`Playing completion sound: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
-        console.log('About to call showTimerCompletionNotification...');
-        addDebugInfo('About to call showTimerCompletionNotification...');
+        console.log('🎯 About to call showTimerCompletionNotification...');
+        addDebugInfo('🎯 About to call showTimerCompletionNotification...');
         
         try {
+          console.log('🎯 Calling showTimerCompletionNotification with settings:', {
+            numberOfBeeps: settings.numberOfBeeps,
+            volume: settings.volume,
+            soundType: settings.soundType
+          });
+          
           await showTimerCompletionNotification({
             numberOfBeeps: settings.numberOfBeeps,
             volume: settings.volume,
             soundType: settings.soundType
           });
-          console.log('Timer completion notification sent');
-          addDebugInfo('Notification sent successfully');
+          console.log('🎯 Timer completion notification sent');
+          addDebugInfo('🎯 Notification sent successfully');
         } catch (notificationError) {
-          console.error('Notification failed:', notificationError);
-          addDebugInfo(`Notification failed: ${notificationError}`);
+          console.error('🎯 Notification failed:', notificationError);
+          addDebugInfo(`🎯 Notification failed: ${notificationError}`);
         }
         
         // Show toast notification
