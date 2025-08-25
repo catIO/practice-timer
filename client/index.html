@@ -5,7 +5,10 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
   <link rel="mask-icon" href="/icons/icon-monochrome.svg" color="#000000">
-  <meta name="viewport" content="width=375, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <meta name="description" content="A timer app for practice sessions with work and break intervals" />
@@ -13,6 +16,20 @@
   <title>Practice Timer</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script>
+    // Force mobile website detection on iPad
+    if (navigator.userAgent.includes('iPad')) {
+      // Set mobile-specific properties
+      document.documentElement.style.setProperty('--mobile-layout', 'true');
+      document.body.classList.add('mobile-layout');
+      
+      // Force mobile viewport
+      const viewport = document.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        viewport.setAttribute('content', 'width=375, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+      }
+    }
+  </script>
 </head>
 <body class="font-sans antialiased">
   <div id="root"></div>
