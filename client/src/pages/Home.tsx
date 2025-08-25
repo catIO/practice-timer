@@ -138,6 +138,8 @@ export default function Home() {
       if (isIOS || isIPad) {
         // iOS: Use notification sounds (works in background)
         addDebugMessage('iOS detected - using notification sounds');
+        addDebugMessage(`Notification permission: ${Notification.permission}`);
+        
         try {
           await showTimerCompletionNotification({
             numberOfBeeps: settings.numberOfBeeps,
@@ -439,6 +441,50 @@ export default function Home() {
                   title="Test Device Detection"
                 >
                   📱
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
+                  onClick={async () => {
+                    console.log('Notification test clicked');
+                    addDebugMessage('Testing notifications...');
+                    addDebugMessage(`Current permission: ${Notification.permission}`);
+                    
+                    try {
+                      if (Notification.permission === 'granted') {
+                        addDebugMessage('Permission granted - testing notification');
+                        new Notification('Test Notification', {
+                          body: 'This is a test notification',
+                          icon: '/favicon.ico',
+                          badge: '/favicon.ico',
+                          silent: false,
+                        });
+                        addDebugMessage('Test notification sent');
+                      } else if (Notification.permission === 'denied') {
+                        addDebugMessage('Permission denied - cannot send notifications');
+                      } else {
+                        addDebugMessage('Requesting notification permission...');
+                        const permission = await Notification.requestPermission();
+                        addDebugMessage(`Permission result: ${permission}`);
+                        if (permission === 'granted') {
+                          addDebugMessage('Permission granted - testing notification');
+                          new Notification('Test Notification', {
+                            body: 'This is a test notification',
+                            icon: '/favicon.ico',
+                            badge: '/favicon.ico',
+                            silent: false,
+                          });
+                          addDebugMessage('Test notification sent');
+                        }
+                      }
+                    } catch (error) {
+                      addDebugMessage(`Notification test error: ${error}`);
+                    }
+                  }}
+                  title="Test Notifications"
+                >
+                  🔔
                 </Button>
               </div>
             </div>
