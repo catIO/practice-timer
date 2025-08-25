@@ -283,6 +283,40 @@ export default function Home() {
                   variant="ghost"
                   size="icon"
                   className="text-primary hover:text-primary/80"
+                  onClick={async () => {
+                    console.log('Manual onComplete callback test clicked');
+                    try {
+                      // Manually call the onComplete callback logic
+                      console.log('=== MANUAL TIMER COMPLETION TEST ===');
+                      console.log('Current settings:', settings);
+                      console.log('Settings for sound:', {
+                        numberOfBeeps: settings.numberOfBeeps,
+                        volume: settings.volume,
+                        soundType: settings.soundType
+                      });
+                      
+                      console.log('Attempting to play completion sound...');
+                      await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+                      console.log('Manual timer completion sound test successful');
+                      
+                      toast({
+                        title: 'Timer Complete',
+                        description: 'Your timer has finished!',
+                      });
+                      
+                      console.log('=== MANUAL TIMER COMPLETION TEST FINISHED ===');
+                    } catch (error) {
+                      console.error('Manual timer completion test failed:', error);
+                    }
+                  }}
+                  title="Test onComplete Callback"
+                >
+                  🔄
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
                   onClick={handleSettingsClick}
                 >
                   <span className="material-icons">settings</span>
