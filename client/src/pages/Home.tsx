@@ -12,7 +12,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { resumeAudioContext } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
 import { Settings, Info } from "lucide-react";
-import { iOSBackgroundInstructions } from "@/components/iOSBackgroundInstructions";
+import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
 import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import { cn } from "@/lib/utils";
 
@@ -94,7 +94,9 @@ export default function Home() {
   } = useTimer({
     initialSettings: settings,
     onComplete: useCallback(async () => {
+      console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
       console.log('Timer completed - onComplete callback triggered');
+      console.log('Current settings:', settings);
       console.log('Settings for sound:', {
         numberOfBeeps: settings.numberOfBeeps,
         volume: settings.volume,
@@ -103,18 +105,32 @@ export default function Home() {
       
       try {
         console.log('Attempting to play completion sound...');
+        console.log('Calling playSound with:', {
+          effect: 'end',
+          numberOfBeeps: settings.numberOfBeeps,
+          volume: settings.volume,
+          soundType: settings.soundType
+        });
+        
         // Play the completion sound
         await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
         console.log('Completion sound played successfully');
       } catch (error) {
         console.error('Error playing completion sound:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        });
       }
       
+      console.log('Showing toast notification...');
       toast({
         title: 'Timer Complete',
         description: 'Your timer has finished!',
       });
-    }, [settings, toast])
+      
+      console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast])
   });
 
   // Handle reset all (reset to first iteration)
@@ -235,7 +251,7 @@ export default function Home() {
                     console.log('Audio test button clicked');
                     await initializeAudio();
                     try {
-                      await playSound('beep', 1, 50, 'beep');
+                      await playSound('start', 1, 50, 'beep');
                       console.log('Audio test successful');
                     } catch (error) {
                       console.error('Audio test failed:', error);
