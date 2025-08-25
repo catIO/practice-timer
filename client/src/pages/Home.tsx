@@ -447,20 +447,62 @@ export default function Home() {
                   size="icon"
                   className="text-primary hover:text-primary/80"
                   onClick={async () => {
+                    console.log('Simple notification test clicked');
+                    addDebugMessage('Testing simple notification...');
+                    
+                    try {
+                      if (Notification.permission === 'granted') {
+                        addDebugMessage('Creating simple notification...');
+                        const simpleNotification = new Notification('Timer Complete!', {
+                          body: 'Your timer has finished!',
+                          silent: false,
+                        });
+                        addDebugMessage('Simple notification created');
+                        
+                        simpleNotification.onshow = () => addDebugMessage('Simple notification shown');
+                        simpleNotification.onerror = (error) => addDebugMessage(`Simple notification error: ${error}`);
+                        
+                      } else {
+                        addDebugMessage('Requesting permission for simple notification...');
+                        const permission = await Notification.requestPermission();
+                        addDebugMessage(`Simple notification permission: ${permission}`);
+                      }
+                    } catch (error) {
+                      addDebugMessage(`Simple notification error: ${error}`);
+                    }
+                  }}
+                  title="Test Simple Notification"
+                >
+                  📢
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
+                  onClick={async () => {
                     console.log('Notification test clicked');
                     addDebugMessage('Testing notifications...');
                     addDebugMessage(`Current permission: ${Notification.permission}`);
+                    addDebugMessage(`Notification supported: ${typeof Notification !== 'undefined'}`);
                     
                     try {
                       if (Notification.permission === 'granted') {
                         addDebugMessage('Permission granted - testing notification');
-                        new Notification('Test Notification', {
+                        const notification = new Notification('Test Notification', {
                           body: 'This is a test notification',
                           icon: '/favicon.ico',
                           badge: '/favicon.ico',
                           silent: false,
                         });
-                        addDebugMessage('Test notification sent');
+                        addDebugMessage('Test notification created');
+                        
+                        // Add event listeners to track notification behavior
+                        notification.onshow = () => addDebugMessage('Notification shown');
+                        notification.onclick = () => addDebugMessage('Notification clicked');
+                        notification.onclose = () => addDebugMessage('Notification closed');
+                        notification.onerror = (error) => addDebugMessage(`Notification error: ${error}`);
+                        
+                        addDebugMessage('Test notification sent with event listeners');
                       } else if (Notification.permission === 'denied') {
                         addDebugMessage('Permission denied - cannot send notifications');
                       } else {
@@ -469,7 +511,7 @@ export default function Home() {
                         addDebugMessage(`Permission result: ${permission}`);
                         if (permission === 'granted') {
                           addDebugMessage('Permission granted - testing notification');
-                          new Notification('Test Notification', {
+                          const notification = new Notification('Test Notification', {
                             body: 'This is a test notification',
                             icon: '/favicon.ico',
                             badge: '/favicon.ico',
@@ -480,6 +522,7 @@ export default function Home() {
                       }
                     } catch (error) {
                       addDebugMessage(`Notification test error: ${error}`);
+                      console.error('Notification test error:', error);
                     }
                   }}
                   title="Test Notifications"
