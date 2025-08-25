@@ -280,23 +280,39 @@ const generateWoodpeckerSound = (duration: number): Float32Array => {
 // Resume audio context (compatibility function)
 export const resumeAudioContext = async (): Promise<boolean> => {
   try {
+    console.log('Resuming audio context...');
+    
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
     // Create a new audio context if we don't have one
     if (!audioContext) {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      console.log('Created new audio context, state:', audioContext.state);
     }
     
     // Resume the audio context
     if (audioContext.state === 'suspended') {
-      await audioContext.resume();
+      console.log('Audio context suspended, attempting to resume...');
+      
+      if (isIOS) {
+        // Use iOS-specific unlock for better reliability
+        await initializeAudioForIOS();
+      } else {
+        await audioContext.resume();
+      }
+      
+      console.log('Audio context resumed, new state:', audioContext.state);
       audioContextResumed = true;
-    }
-    
-    // For iOS, we need to ensure the context is running
-    if (audioContext.state === 'running') {
+    } else if (audioContext.state === 'running') {
+      console.log('Audio context already running');
       audioContextResumed = true;
+    } else {
+      console.log('Audio context state:', audioContext.state);
     }
     
     audioContextInitialized = true;
+    console.log('Audio context initialization complete');
     return true;
   } catch (error) {
     console.error('Error resuming audio context:', error);

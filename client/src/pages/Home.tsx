@@ -58,6 +58,28 @@ export default function Home() {
     }
   };
 
+  // Initialize audio on any user interaction
+  useEffect(() => {
+    const handleUserInteraction = async () => {
+      if (!audioInitialized) {
+        console.log('User interaction detected, initializing audio...');
+        await initializeAudio();
+      }
+    };
+
+    // Add listeners for various user interactions
+    const events = ['click', 'touchstart', 'keydown', 'mousedown'];
+    events.forEach(event => {
+      document.addEventListener(event, handleUserInteraction, { once: true, passive: true });
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserInteraction);
+      });
+    };
+  }, [audioInitialized, initializeAudio]);
+
   const {
     timeRemaining,
     totalTime,
@@ -205,6 +227,24 @@ export default function Home() {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
+                  onClick={async () => {
+                    console.log('Audio test button clicked');
+                    await initializeAudio();
+                    try {
+                      await playSound('beep', 1, 50, 'beep');
+                      console.log('Audio test successful');
+                    } catch (error) {
+                      console.error('Audio test failed:', error);
+                    }
+                  }}
+                  title="Test Audio"
+                >
+                  🔊
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
