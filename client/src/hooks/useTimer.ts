@@ -542,7 +542,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             console.log('useTimer: Timer is running, skipping TIME_UPDATED');
           }
         } else if (type === 'COMPLETE') {
-          console.log('useTimer: Received COMPLETE message');
+          console.log('useTimer: Received COMPLETE message from worker');
+          console.log('useTimer: COMPLETE payload:', payload);
           setIsRunning(false);
           setStoreIsRunning(false);
           
@@ -559,7 +560,14 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           // Call onComplete callback if provided
           if (onComplete) {
             console.log('useTimer: Calling onComplete callback');
-            onComplete();
+            try {
+              onComplete();
+              console.log('useTimer: onComplete callback executed successfully');
+            } catch (error) {
+              console.error('useTimer: Error in onComplete callback:', error);
+            }
+          } else {
+            console.log('useTimer: No onComplete callback provided');
           }
           
           // Complete the current session

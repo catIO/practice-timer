@@ -72,15 +72,21 @@ export default function Home() {
   } = useTimer({
     initialSettings: settings,
     onComplete: useCallback(async () => {
-      console.log('Timer completed');
+      console.log('Timer completed - onComplete callback triggered');
       console.log('Settings for sound:', {
         numberOfBeeps: settings.numberOfBeeps,
         volume: settings.volume,
         soundType: settings.soundType
       });
       
-      // Play the completion sound
-      await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+      try {
+        console.log('Attempting to play completion sound...');
+        // Play the completion sound
+        await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+        console.log('Completion sound played successfully');
+      } catch (error) {
+        console.error('Error playing completion sound:', error);
+      }
       
       toast({
         title: 'Timer Complete',
