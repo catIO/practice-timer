@@ -456,9 +456,24 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
 const playSoundFallback = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
   try {
     console.log(`Fallback: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
+    console.log(`Fallback: Audio context state check...`);
     
     // Convert volume from 0-100 to 0-1 range
     const normalizedVolume = Math.min(1, volume / 100);
+    
+    // Test audio context state
+    try {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      console.log(`Fallback: Audio context state: ${context.state}`);
+      
+      if (context.state === 'suspended') {
+        console.log('Fallback: Attempting to resume suspended audio context...');
+        await context.resume();
+        console.log(`Fallback: Audio context state after resume: ${context.state}`);
+      }
+    } catch (contextError) {
+      console.log('Fallback: Audio context creation failed:', contextError);
+    }
     
     // Create a simple beep using oscillator (if available) or fallback to basic audio
     if (effect === 'end') {
@@ -471,6 +486,7 @@ const playSoundFallback = async (effect: SoundEffect, numberOfBeeps: number = 3,
           const context = new (window.AudioContext || (window as any).webkitAudioContext)();
           
           if (context.state === 'suspended') {
+            console.log('Fallback: Resuming audio context for beep...');
             await context.resume();
           }
           
@@ -484,11 +500,14 @@ const playSoundFallback = async (effect: SoundEffect, numberOfBeeps: number = 3,
           gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
           
+          console.log('Fallback: Starting oscillator...');
           oscillator.start(context.currentTime);
           oscillator.stop(context.currentTime + 0.3);
+          console.log('Fallback: Oscillator started and stopped');
           
           // Wait for the beep to finish
           await new Promise(resolve => setTimeout(resolve, 350));
+          console.log(`Fallback: Beep ${i + 1} completed`);
           
         } catch (error) {
           console.log('Fallback: Web Audio failed, trying basic audio element:', error);
@@ -601,63 +620,64 @@ const createWAV = (audioData: Float32Array, sampleRate: number): ArrayBuffer => 
   return buffer;
 };
 
-// Play a sound effect
+// Play a sound effect (main entry point)
 export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
   try {
-    console.log(`Attempting to play ${effect} sound with ${numberOfBeeps} beeps at volume ${volume} with sound type ${soundType}...`);
-    
-    // Check if we're on iOS or iPad
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isIPad = detectIPad();
     
-    console.log('Device detection:', {
-      userAgent: navigator.userAgent,
-      isIOS: isIOS,
-      isIPad: isIPad,
-      hasTouch: 'ontouchstart' in window,
-      maxTouchPoints: navigator.maxTouchPoints,
-      screenSize: `${window.screen.width}x${window.screen.height}`
-    });
-    
+    console.log(`playSound called: effect=${effect}, numberOfBeeps=${numberOfBeeps}, volume=${volume}, soundType=${soundType}`);
+    console.log(`Device detection: isIOS=${isIOS}, isIPad=${isIPad}`);
+
     if (isIOS || isIPad) {
-      console.log('iOS/iPad detected, using hybrid audio approach...');
-      
-      // For iPad, try multiple approaches
+      console.log('iOS device detected, using iOS-specific audio playback');
+      // Hybrid approach for iPad: Web Audio -> HTML5 Audio -> Fallback
       if (isIPad) {
-        try {
-          console.log('iPad detected, trying Web Audio API first...');
-          await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
-          return;
-        } catch (error) {
-          console.log('Web Audio API failed on iPad, trying HTML5 Audio:', error);
-          try {
-            await playSoundIOS(effect, numberOfBeeps, volume, soundType);
-            return;
-          } catch (iosError) {
-            console.log('HTML5 Audio also failed on iPad, trying fallback:', iosError);
-            await playSoundFallback(effect, numberOfBeeps, volume, soundType);
-            return;
+        try { 
+          console.log('iPad: Attempting Web Audio API first...');
+          await playSoundWebAudio(effect, numberOfBeeps, volume, soundType); 
+          console.log('iPad: Web Audio API successful');
+          return; 
+        }
+        catch (error) {
+          console.log('iPad: Web Audio API failed, trying HTML5 Audio...', error);
+          try { 
+            await playSoundIOS(effect, numberOfBeeps, volume, soundType); 
+            console.log('iPad: HTML5 Audio successful');
+            return; 
+          }
+          catch (iosError) { 
+            console.log('iPad: HTML5 Audio failed, using fallback...', iosError);
+            await playSoundFallback(effect, numberOfBeeps, volume, soundType); 
+            console.log('iPad: Fallback successful');
+            return; 
           }
         }
-      } else {
-        // For iPhone/iPod, use iOS-specific approach
-        try {
-          await playSoundIOS(effect, numberOfBeeps, volume, soundType);
-          return;
-        } catch (error) {
-          console.log('iOS audio failed, trying fallback:', error);
-          await playSoundFallback(effect, numberOfBeeps, volume, soundType);
-          return;
+      } else { // iPhone/iPod
+        try { 
+          console.log('iPhone/iPod: Attempting HTML5 Audio...');
+          await playSoundIOS(effect, numberOfBeeps, volume, soundType); 
+          console.log('iPhone/iPod: HTML5 Audio successful');
+          return; 
+        }
+        catch (error) { 
+          console.log('iPhone/iPod: HTML5 Audio failed, using fallback...', error);
+          await playSoundFallback(effect, numberOfBeeps, volume, soundType); 
+          console.log('iPhone/iPod: Fallback successful');
+          return; 
         }
       }
-    }
-    
-    // For non-iOS devices, use Web Audio API
-    try {
-      await playSoundWebAudio(effect, numberOfBeeps, volume, soundType);
-    } catch (error) {
-      console.log('Web Audio failed on desktop, trying fallback:', error);
-      await playSoundFallback(effect, numberOfBeeps, volume, soundType);
+    } else { // Non-iOS devices
+      console.log('Non-iOS device, using Web Audio API');
+      try { 
+        await playSoundWebAudio(effect, numberOfBeeps, volume, soundType); 
+        console.log('Non-iOS: Web Audio API successful');
+      }
+      catch (error) { 
+        console.log('Non-iOS: Web Audio API failed, using fallback...', error);
+        await playSoundFallback(effect, numberOfBeeps, volume, soundType); 
+        console.log('Non-iOS: Fallback successful');
+      }
     }
   } catch (error) {
     console.error('Error playing sound:', error);

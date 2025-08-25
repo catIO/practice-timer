@@ -103,6 +103,29 @@ export default function Home() {
     onComplete: useCallback(async () => {
       console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
       addDebugMessage('Timer completed - callback started');
+      
+      // Add device detection info to debug display
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const detectIPad = (): boolean => {
+        if (/iPad/.test(navigator.userAgent)) {
+          return true;
+        }
+        if (/Macintosh/.test(navigator.userAgent)) {
+          if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            const minDimension = Math.min(window.screen.width, window.screen.height);
+            const maxDimension = Math.max(window.screen.width, window.screen.height);
+            if (minDimension >= 768 && maxDimension >= 1024) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      const isIPad = detectIPad();
+      
+      addDebugMessage(`Device: iOS=${isIOS}, iPad=${isIPad}`);
+      addDebugMessage(`Screen: ${window.screen.width}x${window.screen.height}`);
+      
       console.log('Timer completed - onComplete callback triggered');
       console.log('Current settings:', settings);
       console.log('Settings for sound:', {
@@ -330,9 +353,90 @@ export default function Home() {
                   variant="ghost"
                   size="icon"
                   className="text-primary hover:text-primary/80"
+                  onClick={async () => {
+                    console.log('Audio context test button clicked');
+                    addDebugMessage('Testing audio context...');
+                    try {
+                      // Test audio context state
+                      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+                      addDebugMessage(`Audio context state: ${context.state}`);
+                      
+                      if (context.state === 'suspended') {
+                        addDebugMessage('Resuming audio context...');
+                        await context.resume();
+                        addDebugMessage(`Audio context resumed: ${context.state}`);
+                      }
+                      
+                      // Test simple oscillator
+                      const oscillator = context.createOscillator();
+                      const gainNode = context.createGain();
+                      oscillator.connect(gainNode);
+                      gainNode.connect(context.destination);
+                      
+                      oscillator.frequency.setValueAtTime(440, context.currentTime);
+                      gainNode.gain.setValueAtTime(0.1, context.currentTime);
+                      
+                      addDebugMessage('Playing test tone...');
+                      oscillator.start(context.currentTime);
+                      oscillator.stop(context.currentTime + 0.5);
+                      
+                      addDebugMessage('Audio context test successful');
+                    } catch (error) {
+                      addDebugMessage(`Audio context test failed: ${error}`);
+                    }
+                  }}
+                  title="Test Audio Context"
+                >
+                  🎵
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
                   onClick={handleSettingsClick}
                 >
                   <span className="material-icons">settings</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
+                  onClick={async () => {
+                    console.log('Device detection test clicked');
+                    addDebugMessage('Testing device detection...');
+                    
+                    // Test basic iOS detection
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    addDebugMessage(`Basic iOS detection: ${isIOS}`);
+                    
+                    // Test iPad detection
+                    const detectIPad = (): boolean => {
+                      if (/iPad/.test(navigator.userAgent)) {
+                        return true;
+                      }
+                      if (/Macintosh/.test(navigator.userAgent)) {
+                        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                          const minDimension = Math.min(window.screen.width, window.screen.height);
+                          const maxDimension = Math.max(window.screen.width, window.screen.height);
+                          if (minDimension >= 768 && maxDimension >= 1024) {
+                            return true;
+                          }
+                        }
+                      }
+                      return false;
+                    };
+                    
+                    const isIPad = detectIPad();
+                    addDebugMessage(`iPad detection: ${isIPad}`);
+                    
+                    // Show device info
+                    addDebugMessage(`User Agent: ${navigator.userAgent.substring(0, 50)}...`);
+                    addDebugMessage(`Screen: ${window.screen.width}x${window.screen.height}`);
+                    addDebugMessage(`Touch: ${'ontouchstart' in window}, Points: ${navigator.maxTouchPoints}`);
+                  }}
+                  title="Test Device Detection"
+                >
+                  📱
                 </Button>
               </div>
             </div>
