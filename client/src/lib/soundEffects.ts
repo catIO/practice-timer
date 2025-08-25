@@ -655,15 +655,16 @@ const createWAV = (audioData: Float32Array, sampleRate: number): ArrayBuffer => 
 
 // Play a sound effect (main entry point)
 export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  console.log('=== playSound function called ===');
-  console.log(`playSound called: effect=${effect}, numberOfBeeps=${numberOfBeeps}, volume=${volume}, soundType=${soundType}`);
+  console.log('🎵 === playSound function called === 🎵');
+  console.log(`🎵 playSound called: effect=${effect}, numberOfBeeps=${numberOfBeeps}, volume=${volume}, soundType=${soundType}`);
+  console.log('🎵 Timestamp:', new Date().toISOString());
   
   try {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isIPad = detectIPad();
     
-    console.log(`Device detection: isIOS=${isIOS}, isIPad=${isIPad}`);
-    console.log(`Audio context state: ${audioContext?.state || 'no context'}`);
+    console.log(`🎵 Device detection: isIOS=${isIOS}, isIPad=${isIPad}`);
+    console.log(`🎵 Audio context state: ${audioContext?.state || 'no context'}`);
 
     if (isIOS || isIPad) {
       console.log('iOS device detected, using iOS-specific audio playback');

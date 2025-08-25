@@ -129,15 +129,16 @@ export function useNotification() {
 
   const playSound = useCallback(async (settings: { numberOfBeeps: number; volume: number; soundType: string }) => {
     try {
-      console.log('Playing sound with settings:', settings);
+      console.log('🔔 Notification hook playSound called with settings:', settings);
       
       // For iOS, use the improved audio initialization
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       if (isIOS) {
-        console.log('iOS detected, using iOS-compatible audio initialization');
+        console.log('🔔 iOS detected, using iOS-compatible audio initialization');
         await initializeAudioForIOS();
       } else {
         // Ensure audio context is resumed before playing sound
+        console.log('🔔 Non-iOS device, resuming audio context');
         await resumeAudioContext();
       }
       
@@ -147,12 +148,13 @@ export function useNotification() {
       
       while (retryCount < maxRetries) {
         try {
+          console.log(`🔔 Attempting to play sound (attempt ${retryCount + 1}/${maxRetries})`);
           await playSoundEffect('end', settings.numberOfBeeps, settings.volume, settings.soundType as SoundType);
-          console.log('Sound played successfully');
+          console.log('🔔 Sound played successfully');
           break;
         } catch (soundError) {
           retryCount++;
-          console.error(`Sound playback attempt ${retryCount} failed:`, soundError);
+          console.error(`🔔 Sound playback attempt ${retryCount} failed:`, soundError);
           
           if (retryCount < maxRetries) {
             // Wait a bit before retrying
@@ -169,7 +171,7 @@ export function useNotification() {
         }
       }
     } catch (error) {
-      console.error('Error playing sound after retries:', error);
+      console.error('🔔 Error playing sound after retries:', error);
       toast({
         title: "Sound Playback Issue",
         description: "Failed to play sound. Please check your browser's audio settings.",
