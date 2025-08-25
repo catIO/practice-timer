@@ -262,6 +262,11 @@ export default function Home() {
                     wakeLockActive ? "bg-gray-400 animate-pulse" : "bg-gray-600"
                   )} title={wakeLockActive ? "Wake lock active" : "Wake lock inactive"} />
                 )}
+                {/* Audio Status Indicator */}
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  audioInitialized ? "bg-green-400" : "bg-gray-600"
+                )} title={audioInitialized ? "Audio ready" : "Audio not ready"} />
               </div>
               <div className="flex items-center gap-2">
                 <Button

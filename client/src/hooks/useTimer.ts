@@ -49,6 +49,46 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const backgroundSyncRef = useRef<boolean>(false);
   const isIOSRef = useRef<boolean>(false);
   
+  // Cross-platform audio context management
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [audioArmed, setAudioArmed] = useState(false);
+  
+  // Initialize audio context for cross-platform compatibility
+  const ensureAudioContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass();
+      }
+    }
+    return audioContextRef.current;
+  }, []);
+
+  // Arm audio on user gesture (required for iOS)
+  const armAudio = useCallback(async () => {
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      
+      // Create a silent buffer to satisfy autoplay heuristics
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.00001; // Near silent
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.05);
+      
+      setAudioArmed(true);
+      console.log('Audio armed successfully for cross-platform compatibility');
+    } catch (error) {
+      console.error('Failed to arm audio:', error);
+    }
+  }, [ensureAudioContext]);
+
   const {
     timeRemaining: storeTimeRemaining,
     totalTime: storeTotalTime,
@@ -797,6 +837,12 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   // Start timer
   const startTimer = useCallback(async () => {
     try {
+      // Cross-platform audio arming (required for iOS)
+      if (!audioArmed) {
+        console.log('Arming audio for cross-platform compatibility...');
+        await armAudio();
+      }
+
       // Initialize audio context first
       try {
         await resumeAudioContext();
@@ -921,7 +967,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         variant: "destructive",
       });
     }
-  }, [timeRemaining, mode, currentIteration, totalIterations, onComplete, completeSession, toast, startBackgroundTimer]);
+  }, [timeRemaining, mode, currentIteration, totalIterations, onComplete, completeSession, toast, startBackgroundTimer, armAudio, audioArmed]);
 
   // Manage wake lock based on timer state and visibility
   useEffect(() => {
