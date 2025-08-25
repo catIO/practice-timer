@@ -110,7 +110,24 @@ class iOSBackgroundTimer {
     // Keep audio context alive
     this.keepAudioContextAlive();
     
+    // Store current state for background operation
+    this.persistState();
+    
+    // Request background sync if available
+    this.requestBackgroundSync();
+    
     this.callbacks.onBackground?.();
+  }
+
+  // Request background sync for iOS
+  private requestBackgroundSync(): void {
+    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.sync.register('timer-sync').catch(error => {
+          console.log('Background sync registration failed:', error);
+        });
+      });
+    }
   }
 
   // Handle app coming to foreground
@@ -126,7 +143,19 @@ class iOSBackgroundTimer {
     // Sync timer state with actual elapsed time
     this.syncWithRealTime();
     
+    // Resume audio context if needed
+    this.resumeAudioContext();
+    
     this.callbacks.onForeground?.();
+  }
+
+  // Resume audio context when app becomes active
+  private resumeAudioContext(): void {
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(error => {
+        console.error('Failed to resume audio context:', error);
+      });
+    }
   }
 
   // Keep audio context alive for background operation

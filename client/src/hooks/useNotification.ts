@@ -61,20 +61,55 @@ export function useNotification() {
     try {
       console.log('Showing timer completion notification with sound...');
       
+      // Check if we're on iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isIPad = detectIPad();
+      
       if (Notification.permission === 'granted') {
         // Create multiple notifications to simulate multiple beeps
         const numberOfBeeps = Math.min(settings.numberOfBeeps, 3); // Limit to 3 for notifications
         
         for (let i = 0; i < numberOfBeeps; i++) {
           setTimeout(() => {
-            new Notification('Timer Complete!', {
+            const notification = new Notification('Timer Complete!', {
               body: i === 0 ? 'Your timer has finished!' : `Beep ${i + 1}`,
               tag: `timer-complete-${i}`,
               requireInteraction: false,
               icon: '/favicon.ico',
               badge: '/favicon.ico',
               silent: false, // This will play the default notification sound
+              // iOS-specific options
+              ...(isIOS && {
+                // Add vibration pattern for iOS
+                vibrate: [200, 100, 200],
+                // Add actions for iOS
+                actions: [
+                  {
+                    action: 'start-next',
+                    title: 'Start Next'
+                  },
+                  {
+                    action: 'dismiss',
+                    title: 'Dismiss'
+                  }
+                ]
+              })
             });
+            
+            // Handle notification click for iOS
+            if (isIOS) {
+              notification.onclick = (event) => {
+                event.preventDefault();
+                window.focus();
+                notification.close();
+                
+                // Handle action clicks
+                if ((event as any).action === 'start-next') {
+                  // Trigger next session
+                  window.dispatchEvent(new CustomEvent('timer-next-session'));
+                }
+              };
+            }
           }, i * 500); // Space out the beeps
         }
         
@@ -143,6 +178,23 @@ export function useNotification() {
       });
     }
   }, [toast]);
+
+  // Helper function to detect iPad
+  const detectIPad = (): boolean => {
+    if (/iPad/.test(navigator.userAgent)) {
+      return true;
+    }
+    if (/Macintosh/.test(navigator.userAgent)) {
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        const minDimension = Math.min(window.screen.width, window.screen.height);
+        const maxDimension = Math.max(window.screen.width, window.screen.height);
+        if (minDimension >= 768 && maxDimension >= 1024) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
 
   return {
     showNotification,

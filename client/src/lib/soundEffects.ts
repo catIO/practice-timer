@@ -65,6 +65,25 @@ export const initializeAudioForIOS = async (): Promise<boolean> => {
     // Wait a bit for the sound to play
     await new Promise(resolve => setTimeout(resolve, 150));
     
+    // Additional iPad-specific unlock: Create and play a silent buffer
+    const sampleRate = context.sampleRate;
+    const buffer = context.createBuffer(1, sampleRate * 0.1, sampleRate);
+    const channelData = buffer.getChannelData(0);
+    
+    // Fill with very quiet sine wave
+    for (let i = 0; i < channelData.length; i++) {
+      channelData[i] = Math.sin(i * 0.1) * 0.0001; // Extremely quiet
+    }
+    
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start();
+    source.stop(context.currentTime + 0.1);
+    
+    // Wait for the buffer to play
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
     console.log('iOS: Enhanced audio unlock successful, context state:', context.state);
     userGestureDetected = true;
     return true;
@@ -396,6 +415,10 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
         const beepAudio = new Audio(url);
         beepAudio.volume = normalizedVolume;
         
+        // Set additional properties for better iOS compatibility
+        beepAudio.preload = 'auto';
+        beepAudio.autoplay = false;
+        
         try {
           // Ensure audio is loaded before playing
           await new Promise((resolve, reject) => {
@@ -404,7 +427,12 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
             beepAudio.load();
           });
           
-          await beepAudio.play();
+          // For iPad, try to play with user interaction simulation
+          const playPromise = beepAudio.play();
+          
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
           
           // Wait for the beep to finish
           await new Promise((resolve) => {
@@ -427,6 +455,8 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
       // For other sounds, just play once
       const audio = new Audio(url);
       audio.volume = normalizedVolume;
+      audio.preload = 'auto';
+      audio.autoplay = false;
       
       try {
         // Ensure audio is loaded before playing
@@ -436,7 +466,10 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
           audio.load();
         });
         
-        await audio.play();
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
         console.log('iOS: Sound played successfully');
       } catch (error) {
         console.error('iOS: Error playing sound:', error);
@@ -852,4 +885,37 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
 export const setVolume = (volume: number): void => {
   masterVolume = Math.max(0, Math.min(1, volume));
   console.log(`Master volume set to ${masterVolume}`);
+};
+
+// Test function for iOS audio improvements
+export const testIOSAudio = async (): Promise<boolean> => {
+  try {
+    console.log('Testing iOS audio improvements...');
+    
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isIPad = detectIPad();
+    
+    if (isIOS || isIPad) {
+      console.log('iOS device detected, testing audio initialization...');
+      
+      // Test audio context initialization
+      const audioInitialized = await initializeAudioForIOS();
+      if (!audioInitialized) {
+        console.error('iOS audio initialization failed');
+        return false;
+      }
+      
+      // Test sound playback
+      await playSound('end', 1, 50, 'beep');
+      console.log('iOS audio test successful');
+      return true;
+    } else {
+      console.log('Non-iOS device, testing standard audio...');
+      await playSound('end', 1, 50, 'beep');
+      return true;
+    }
+  } catch (error) {
+    console.error('Audio test failed:', error);
+    return false;
+  }
 };

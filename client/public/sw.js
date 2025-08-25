@@ -17,11 +17,16 @@ let backgroundTimerState = {
   timeRemaining: 0,
   mode: 'work',
   currentIteration: 1,
-  totalIterations: 4
+  totalIterations: 4,
+  lastUpdateTime: Date.now(),
+  driftCorrection: 0
 };
 
 // Background sync registration
 let backgroundSyncRegistered = false;
+
+// iOS-specific background timer interval
+let backgroundTimerInterval = null;
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -50,10 +55,26 @@ self.addEventListener('activate', (event) => {
         );
       }),
       // Register background sync if supported
-      registerBackgroundSync()
+      registerBackgroundSync(),
+      // Start background timer monitoring
+      startBackgroundTimerMonitoring()
     ])
   );
 });
+
+// Start background timer monitoring for iOS
+function startBackgroundTimerMonitoring() {
+  if (backgroundTimerInterval) {
+    clearInterval(backgroundTimerInterval);
+  }
+  
+  // Check timer state every second when running
+  backgroundTimerInterval = setInterval(() => {
+    if (backgroundTimerState.isRunning && backgroundTimerState.startTime) {
+      updateBackgroundTimer();
+    }
+  }, 1000);
+}
 
 // Register background sync for iOS background operation
 async function registerBackgroundSync() {
@@ -106,17 +127,62 @@ async function updateBackgroundTimer() {
   const elapsed = Math.floor((now - backgroundTimerState.startTime) / 1000);
   const newTimeRemaining = Math.max(0, backgroundTimerState.duration - elapsed);
 
+  // Calculate drift correction for accuracy
+  const expectedTimeRemaining = backgroundTimerState.timeRemaining - 1;
+  const drift = newTimeRemaining - expectedTimeRemaining;
+  backgroundTimerState.driftCorrection += drift;
+
   backgroundTimerState.timeRemaining = newTimeRemaining;
+  backgroundTimerState.lastUpdateTime = now;
+
+  // Store updated state
+  await storeTimerState();
 
   // Check if timer is complete
   if (newTimeRemaining <= 0) {
     backgroundTimerState.isRunning = false;
     
-    // Show notification
+    // Show notification with enhanced iOS support
     await showBackgroundNotification();
     
     // Store completion state for when app becomes active
     await storeTimerCompletion();
+    
+    // Notify all clients about timer completion
+    await notifyClients();
+  }
+}
+
+// Store timer state for persistence
+async function storeTimerState() {
+  try {
+    const db = await openDB();
+    await db.put('timerState', {
+      ...backgroundTimerState,
+      storedAt: Date.now()
+    });
+  } catch (error) {
+    console.log('Failed to store timer state:', error);
+  }
+}
+
+// Notify all clients about timer completion
+async function notifyClients() {
+  try {
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'TIMER_COMPLETED',
+        payload: {
+          mode: backgroundTimerState.mode,
+          iteration: backgroundTimerState.currentIteration,
+          totalIterations: backgroundTimerState.totalIterations,
+          completedAt: Date.now()
+        }
+      });
+    });
+  } catch (error) {
+    console.log('Failed to notify clients:', error);
   }
 }
 
@@ -126,13 +192,16 @@ async function showBackgroundNotification() {
   const body = backgroundTimerState.mode === 'work' ? 'Time for a break!' : 'Time to get back to work!';
   
   try {
-    await self.registration.showNotification(title, {
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    const notificationOptions = {
       body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
       tag: 'timer-complete',
       requireInteraction: true,
-      silent: false,
+      silent: false, // Ensure sound plays
       actions: [
         {
           action: 'start-next',
@@ -142,8 +211,41 @@ async function showBackgroundNotification() {
           action: 'dismiss',
           title: 'Dismiss'
         }
-      ]
-    });
+      ],
+      // iOS-specific options
+      ...(isIOS && {
+        vibrate: [200, 100, 200, 100, 200], // Vibration pattern
+        data: {
+          mode: backgroundTimerState.mode,
+          iteration: backgroundTimerState.currentIteration,
+          totalIterations: backgroundTimerState.totalIterations
+        }
+      })
+    };
+    
+    await self.registration.showNotification(title, notificationOptions);
+    
+    // For iOS, also try to play a sound using the Web Audio API if available
+    if (isIOS) {
+      try {
+        // Create a simple beep sound
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (audioError) {
+        console.log('Failed to play background audio:', audioError);
+      }
+    }
   } catch (error) {
     console.log('Failed to show background notification:', error);
   }
@@ -179,6 +281,9 @@ async function openDB() {
       const db = event.target.result;
       if (!db.objectStoreNames.contains('timerCompletions')) {
         db.createObjectStore('timerCompletions', { keyPath: 'completedAt' });
+      }
+      if (!db.objectStoreNames.contains('timerState')) {
+        db.createObjectStore('timerState', { keyPath: 'storedAt' });
       }
     };
   });

@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SettingsType } from "@/lib/timerService";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { resumeAudioContext } from "@/lib/soundEffects";
+import { resumeAudioContext, initializeAudioForIOS } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
 import { Settings, Info } from "lucide-react";
 import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
@@ -25,10 +25,31 @@ export default function Home() {
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   
   // Setup notifications and toast
   const { toast } = useToast();
   const { showNotification, showTimerCompletionNotification } = useNotification();
+
+  // Check if we should show iOS instructions
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isIPad = detectIPad();
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    
+    // Show instructions for iOS devices that haven't been dismissed
+    if ((isIOS || isIPad) && !isStandalone) {
+      const dismissed = localStorage.getItem('ios-instructions-dismissed');
+      if (!dismissed) {
+        setShowIOSInstructions(true);
+      }
+    }
+  }, []);
+
+  const dismissIOSInstructions = () => {
+    setShowIOSInstructions(false);
+    localStorage.setItem('ios-instructions-dismissed', 'true');
+  };
 
   // Add debug info
   const addDebugInfo = useCallback((message: string) => {
@@ -40,18 +61,41 @@ export default function Home() {
   const initializeAudio = async () => {
     if (!audioInitialized) {
       try {
-        const resumed = await resumeAudioContext();
-        if (resumed) {
-          setAudioInitialized(true);
-          console.log('Audio context initialized on user interaction');
+        // Check if we're on iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isIPad = detectIPad();
+        
+        if (isIOS || isIPad) {
+          console.log('iOS device detected, using iOS-specific audio initialization');
+          // Use iOS-specific audio initialization
+          const success = await initializeAudioForIOS();
+          if (success) {
+            setAudioInitialized(true);
+            console.log('iOS audio context initialized successfully');
+          } else {
+            console.error('Failed to initialize iOS audio context');
+            toast({
+              title: "Audio Initialization Failed",
+              description: "Please ensure your browser allows audio playback for this site.",
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
         } else {
-          console.error('Failed to initialize audio context on user interaction');
-          toast({
-            title: "Audio Initialization Failed",
-            description: "Please ensure your browser allows audio playback for this site.",
-            variant: "destructive",
-            duration: 5000,
-          });
+          // Non-iOS devices
+          const resumed = await resumeAudioContext();
+          if (resumed) {
+            setAudioInitialized(true);
+            console.log('Audio context initialized on user interaction');
+          } else {
+            console.error('Failed to initialize audio context on user interaction');
+            toast({
+              title: "Audio Initialization Failed",
+              description: "Please ensure your browser allows audio playback for this site.",
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
         }
       } catch (error) {
         console.error('Error initializing audio:', error);
@@ -63,6 +107,23 @@ export default function Home() {
         });
       }
     }
+  };
+
+  // Enhanced iPad detection
+  const detectIPad = (): boolean => {
+    if (/iPad/.test(navigator.userAgent)) {
+      return true;
+    }
+    if (/Macintosh/.test(navigator.userAgent)) {
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        const minDimension = Math.min(window.screen.width, window.screen.height);
+        const maxDimension = Math.max(window.screen.width, window.screen.height);
+        if (minDimension >= 768 && maxDimension >= 1024) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
 
   // Initialize audio on any user interaction
@@ -330,6 +391,12 @@ export default function Home() {
   return (
     <div className="text-foreground font-sans min-h-screen">
       <div className="max-w-2xl mx-auto pt-8">
+        {/* iOS Background Instructions */}
+        <iOSBackgroundInstructions 
+          isVisible={showIOSInstructions} 
+          onDismiss={dismissIOSInstructions}
+        />
+        
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">

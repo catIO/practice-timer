@@ -63,7 +63,7 @@ export class iOSWakeLock {
         await this.initializeAudioContext();
       }
 
-      // Strategy 3: User activity simulation
+      // Strategy 3: User activity simulation (enhanced for iOS)
       if (this.options.userActivity) {
         this.startUserActivitySimulation();
       }
@@ -72,6 +72,9 @@ export class iOSWakeLock {
       if (this.options.fullscreen) {
         await this.requestFullscreen();
       }
+
+      // Strategy 5: iOS-specific screen wake lock
+      await this.initializeIOSScreenWakeLock();
 
       this.isActive = true;
       // Add data attribute to track wake lock status
@@ -202,6 +205,49 @@ export class iOSWakeLock {
       console.log('Fullscreen mode activated for wake lock');
     } catch (error) {
       console.error('Failed to request fullscreen mode:', error);
+    }
+  }
+
+  // iOS-specific screen wake lock using multiple techniques
+  private async initializeIOSScreenWakeLock(): Promise<void> {
+    try {
+      // Set screen orientation to prevent sleep (iOS specific)
+      if (screen.orientation && screen.orientation.lock) {
+        try {
+          await screen.orientation.lock('portrait');
+          console.log('Screen orientation locked to prevent sleep');
+        } catch (error) {
+          console.log('Failed to lock screen orientation:', error);
+        }
+      }
+
+      // Set document properties to prevent sleep
+      document.documentElement.style.setProperty('--wake-lock-active', 'true');
+      
+      // Add CSS to prevent sleep
+      const style = document.createElement('style');
+      style.textContent = `
+        [data-wake-lock="active"] {
+          animation: wake-lock-pulse 30s infinite;
+        }
+        @keyframes wake-lock-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.999; }
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Set page visibility API to prevent sleep
+      if ('hidden' in document) {
+        Object.defineProperty(document, 'hidden', {
+          get: () => false,
+          configurable: true
+        });
+      }
+
+      console.log('iOS screen wake lock initialized');
+    } catch (error) {
+      console.error('Failed to initialize iOS screen wake lock:', error);
     }
   }
 
