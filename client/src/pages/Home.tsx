@@ -160,6 +160,31 @@ export default function Home() {
             addDebugInfo('Notification API not available, using audio fallback');
             addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
             try {
+              // Add audio context debugging
+              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              addDebugInfo(`Audio context state: ${audioContext.state}`);
+              
+              if (audioContext.state === 'suspended') {
+                addDebugInfo('Resuming suspended audio context...');
+                await audioContext.resume();
+                addDebugInfo(`Audio context resumed: ${audioContext.state}`);
+              }
+              
+              // Test with a simple beep first
+              addDebugInfo('Testing simple audio beep...');
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              oscillator.connect(gainNode);
+              gainNode.connect(audioContext.destination);
+              
+              oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+              gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Louder volume
+              
+              oscillator.start(audioContext.currentTime);
+              oscillator.stop(audioContext.currentTime + 0.5);
+              addDebugInfo('Simple beep test completed');
+              
+              // Now try the actual timer completion sound
               await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
               console.log('iOS fallback audio played successfully');
               addDebugInfo('Fallback audio played successfully');
@@ -368,7 +393,23 @@ export default function Home() {
       {/* Debug Display */}
       {debugInfo.length > 0 && (
         <div className="fixed bottom-4 left-4 bg-black/80 text-white p-3 rounded-lg text-xs max-w-sm z-50">
-          <div className="font-bold mb-1">Debug Info:</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-bold">Debug Info:</div>
+            <button
+              onClick={() => {
+                const debugText = debugInfo.join('\n');
+                navigator.clipboard.writeText(debugText).then(() => {
+                  addDebugInfo('Debug info copied to clipboard');
+                }).catch(() => {
+                  addDebugInfo('Failed to copy debug info');
+                });
+              }}
+              className="text-gray-300 hover:text-white text-xs px-2 py-1 rounded border border-gray-600 hover:border-gray-400"
+              title="Copy debug info"
+            >
+              📋
+            </button>
+          </div>
           {debugInfo.map((msg, index) => (
             <div key={index} className="mb-1">{msg}</div>
           ))}
