@@ -101,76 +101,84 @@ export default function Home() {
   } = useTimer({
     initialSettings: settings,
     onComplete: useCallback(async () => {
-      console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
-      addDebugInfo('Timer completed - callback started');
-      
-      // Add device detection info to debug display
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isAndroid = /Android/.test(navigator.userAgent);
-      const detectIPad = (): boolean => {
-        if (/iPad/.test(navigator.userAgent)) {
-          return true;
-        }
-        if (/Macintosh/.test(navigator.userAgent)) {
-          if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            const minDimension = Math.min(window.screen.width, window.screen.height);
-            const maxDimension = Math.max(window.screen.width, window.screen.height);
-            if (minDimension >= 768 && maxDimension >= 1024) {
-              return true;
+      try {
+        console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
+        addDebugInfo('Timer completed - callback started');
+        
+        // Add device detection info to debug display
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const detectIPad = (): boolean => {
+          if (/iPad/.test(navigator.userAgent)) {
+            return true;
+          }
+          if (/Macintosh/.test(navigator.userAgent)) {
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+              const minDimension = Math.min(window.screen.width, window.screen.height);
+              const maxDimension = Math.max(window.screen.width, window.screen.height);
+              if (minDimension >= 768 && maxDimension >= 1024) {
+                return true;
+              }
             }
           }
-        }
-        return false;
-      };
-      const isIPad = detectIPad();
-      
-      console.log('Timer completed - onComplete callback triggered');
-      console.log('Device detection:', { isIOS, isAndroid, isIPad });
-      console.log('Screen dimensions:', `${window.screen.width}x${window.screen.height}`);
-      addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
-      addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
-      
-      if (isIOS || isIPad) {
-        // iOS: Use notification sounds (works in background)
-        console.log('iOS detected - using notification sounds');
-        console.log('Notification permission:', Notification.permission);
-        addDebugInfo(`Notification permission: ${Notification.permission}`);
+          return false;
+        };
+        const isIPad = detectIPad();
         
-        try {
-          await showTimerCompletionNotification({
-            numberOfBeeps: settings.numberOfBeeps,
-            volume: settings.volume,
-            soundType: settings.soundType
-          });
-          console.log('Timer completion notification sent');
-          addDebugInfo('Notification sent successfully');
-        } catch (error) {
-          console.error(`Notification error: ${error}`);
-          addDebugInfo(`Notification error: ${error}`);
+        console.log('Timer completed - onComplete callback triggered');
+        console.log('Device detection:', { isIOS, isAndroid, isIPad });
+        console.log('Screen dimensions:', `${window.screen.width}x${window.screen.height}`);
+        addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
+        addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
+        
+        if (isIOS || isIPad) {
+          // iOS: Use notification sounds (works in background)
+          console.log('iOS detected - using notification sounds');
+          console.log('Notification permission:', Notification.permission);
+          addDebugInfo(`Notification permission: ${Notification.permission}`);
+          addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
+          
+          try {
+            addDebugInfo('Attempting to send notification...');
+            await showTimerCompletionNotification({
+              numberOfBeeps: settings.numberOfBeeps,
+              volume: settings.volume,
+              soundType: settings.soundType
+            });
+            console.log('Timer completion notification sent');
+            addDebugInfo('Notification sent successfully');
+          } catch (error) {
+            console.error(`Notification error: ${error}`);
+            addDebugInfo(`Notification error: ${error}`);
+          }
+        } else {
+          // Non-iOS: Use regular audio
+          console.log('Non-iOS: Playing completion sound');
+          addDebugInfo('Playing completion sound');
+          addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
+          try {
+            await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+            console.log('Non-iOS: Completion sound played successfully');
+            addDebugInfo('Sound played successfully');
+          } catch (error) {
+            console.error(`Non-iOS sound error: ${error}`);
+            addDebugInfo(`Sound error: ${error}`);
+          }
         }
-      } else {
-        // Non-iOS: Use regular audio
-        console.log('Non-iOS: Playing completion sound');
-        addDebugInfo('Playing completion sound');
-        try {
-          await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-          console.log('Non-iOS: Completion sound played successfully');
-          addDebugInfo('Sound played successfully');
-        } catch (error) {
-          console.error(`Non-iOS sound error: ${error}`);
-          addDebugInfo(`Sound error: ${error}`);
-        }
+        
+        console.log('Showing toast notification...');
+        addDebugInfo('Showing toast notification');
+        toast({
+          title: 'Timer Complete',
+          description: 'Your timer has finished!',
+        });
+        
+        console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
+        addDebugInfo('Timer completion callback finished');
+      } catch (error) {
+        console.error('Error in timer completion callback:', error);
+        addDebugInfo(`Callback error: ${error}`);
       }
-      
-      console.log('Showing toast notification...');
-      addDebugInfo('Showing toast notification');
-      toast({
-        title: 'Timer Complete',
-        description: 'Your timer has finished!',
-      });
-      
-      console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
-      addDebugInfo('Timer completion callback finished');
     }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo])
   });
 

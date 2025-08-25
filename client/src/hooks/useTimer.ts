@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNotification } from '@/hooks/useNotification';
 import { useToast } from '@/hooks/use-toast';
 import { resumeAudioContext } from '@/lib/soundEffects';
-import { useTimerStore } from '@/stores/timerStore';
+import { useTimerStore } from '../stores/timerStore';
 import { SettingsType } from '@/lib/timerService';
 import { getSettings } from '@/lib/localStorage';
 import { getTimerWorker, addMessageHandler, removeMessageHandler, updateWorkerState, terminateTimerWorker } from '@/lib/timerWorkerSingleton';
