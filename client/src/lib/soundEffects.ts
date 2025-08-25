@@ -661,6 +661,7 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
     
     console.log(`playSound called: effect=${effect}, numberOfBeeps=${numberOfBeeps}, volume=${volume}, soundType=${soundType}`);
     console.log(`Device detection: isIOS=${isIOS}, isIPad=${isIPad}`);
+    console.log(`Audio context state: ${audioContext?.state || 'no context'}`);
 
     if (isIOS || isIPad) {
       console.log('iOS device detected, using iOS-specific audio playback');
@@ -724,6 +725,8 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
   // Apply a non-linear curve to increase volume at higher settings
   const normalizedVolume = Math.pow(volume / 100, 0.7) * 1.5;
   
+  console.log(`Web Audio: Starting playback with volume=${volume}, normalizedVolume=${normalizedVolume}`);
+  
   // Get audio context and ensure it's ready
   const context = getAudioContext();
   console.log('Web Audio: Audio context state before playing:', context.state);
@@ -751,6 +754,8 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
     }
   }
   
+  console.log('Web Audio: Audio context ready, state:', context.state);
+  
   // For end sound, play multiple beeps
   if (effect === 'end') {
     console.log(`Web Audio: Playing ${numberOfBeeps} beeps...`);
@@ -761,6 +766,8 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
       // Create oscillator and gain nodes
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
+      
+      console.log(`Web Audio: Created oscillator and gain nodes for beep ${i + 1}`);
       
       // Set up oscillator based on sound type
       oscillator.type = 'sine';
@@ -785,8 +792,11 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
           break;
       }
       
+      console.log(`Web Audio: Set frequency for beep ${i + 1}, soundType=${soundType}`);
+      
       // Set up gain node with the normalized volume
       gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+      console.log(`Web Audio: Set gain to ${normalizedVolume} for beep ${i + 1}`);
       
       // Set decay based on sound type
       switch (soundType) {
@@ -811,17 +821,21 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
       // Connect nodes
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
+      console.log(`Web Audio: Connected nodes for beep ${i + 1}`);
       
       // Start and stop oscillator
       oscillator.start(context.currentTime);
       oscillator.stop(context.currentTime + 1.5);
+      console.log(`Web Audio: Started and stopped oscillator for beep ${i + 1}`);
       
       // Wait for the full duration of the beep before playing the next one
       await new Promise(resolve => setTimeout(resolve, 1200));
+      console.log(`Web Audio: Completed beep ${i + 1}`);
     }
     console.log(`Web Audio: Finished playing all ${numberOfBeeps} beeps`);
   } else {
     // For other sounds, just play once
+    console.log('Web Audio: Playing single sound');
     const oscillator = context.createOscillator();
     const gainNode = context.createGain();
     
@@ -878,6 +892,7 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
     // Start and stop oscillator
     oscillator.start(context.currentTime);
     oscillator.stop(context.currentTime + 1.5);
+    console.log('Web Audio: Single sound completed');
   }
 };
 
