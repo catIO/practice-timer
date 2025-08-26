@@ -132,20 +132,21 @@ export default function Home() {
         addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
         
         if (isIOS || isIPad) {
-          // iOS: Use notification sounds (works in background)
-          console.log('iOS detected - using notification sounds');
+          // iOS: Try notification sounds first, then direct audio as fallback
+          console.log('iOS detected - trying notification sounds first');
           if (typeof Notification !== 'undefined') {
-          console.log('Notification permission:', Notification.permission);
-        } else {
-          console.log('Notification API not available');
-        }
+            console.log('Notification permission:', Notification.permission);
+          } else {
+            console.log('Notification API not available');
+          }
           if (typeof Notification !== 'undefined') {
-          addDebugInfo(`Notification permission: ${Notification.permission}`);
-        } else {
-          addDebugInfo('Notification API not available');
-        }
+            addDebugInfo(`Notification permission: ${Notification.permission}`);
+          } else {
+            addDebugInfo('Notification API not available');
+          }
           addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
           
+          // Try notification first
           try {
             addDebugInfo('Attempting to send notification...');
             await showTimerCompletionNotification({
@@ -158,6 +159,26 @@ export default function Home() {
           } catch (error) {
             console.error(`Notification error: ${error}`);
             addDebugInfo(`Notification error: ${error}`);
+          }
+          
+          // Also try direct audio playback as fallback
+          try {
+            console.log('iOS: Attempting direct audio playback as fallback...');
+            addDebugInfo('iOS: Trying direct audio playback');
+            
+            // Re-initialize audio context if needed
+            if (!audioInitialized) {
+              console.log('iOS: Audio not initialized, re-initializing...');
+              addDebugInfo('iOS: Re-initializing audio context');
+              await initializeAudio();
+            }
+            
+            await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
+            console.log('iOS: Direct audio playback successful');
+            addDebugInfo('iOS: Direct audio playback successful');
+          } catch (audioError) {
+            console.error(`iOS direct audio error: ${audioError}`);
+            addDebugInfo(`iOS direct audio error: ${audioError}`);
           }
         } else {
           // Non-iOS: Use regular audio
@@ -187,7 +208,7 @@ export default function Home() {
         console.error('Error in timer completion callback:', error);
         addDebugInfo(`Callback error: ${error}`);
       }
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo])
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo, audioInitialized, initializeAudio])
   });
 
   // Handle reset all (reset to first iteration)
