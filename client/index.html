@@ -44,33 +44,26 @@
       return false;
     };
 
-    // Force mobile website detection on iPad
+    // Handle iPad consistently across all browsers
     if (detectIPad()) {
-      console.log('iPad detected, forcing mobile layout...');
+      console.log('iPad detected, applying consistent layout...');
       
-      // Override user agent to force mobile detection
-      Object.defineProperty(navigator, 'userAgent', {
-        get: function () {
-          return 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
-        }
-      });
-      
-      // Set mobile-specific properties
+      // Set mobile-specific properties (same for all browsers)
       document.documentElement.style.setProperty('--mobile-layout', 'true');
       document.body.classList.add('mobile-layout');
       
-      // Use responsive viewport instead of forcing mobile width
+      // Use responsive viewport (same for all browsers)
       const viewport = document.querySelector('meta[name="viewport"]');
       if (viewport) {
         viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
       }
       
-      // Add additional mobile indicators
+      // Add additional mobile indicators (same for all browsers)
       document.documentElement.classList.add('mobile-device');
       document.body.classList.add('ipad-mobile');
       
-      // Force mobile user agent for any scripts that check it
-      window.mobileOverride = true;
+      // Set iPad flag for any scripts that need it
+      window.isIPad = true;
     }
   </script>
 </head>
