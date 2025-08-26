@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { playSound as playSoundEffect, resumeAudioContext, initializeAudioForIOS, SoundType, SoundEffect } from '@/lib/soundEffects';
 import { useToast } from '@/hooks/use-toast';
 import { SettingsType } from '@/lib/timerService';
+import { isNotificationSupported, getNotificationPermission } from '@/lib/utils';
 
 export function useNotification() {
   const { toast } = useToast();
@@ -9,13 +10,13 @@ export function useNotification() {
   const requestNotificationPermission = useCallback(async () => {
     try {
       // Check if notifications are supported
-      if (typeof Notification === 'undefined') {
+      if (!isNotificationSupported()) {
         console.log('Notification API not supported in this context');
         return false;
       }
 
       // Check if notifications are already granted
-      if (Notification.permission === 'granted') {
+      if (getNotificationPermission() === 'granted') {
         return true;
       }
 
@@ -31,13 +32,13 @@ export function useNotification() {
   const showNotification = useCallback(async (title: string, options: NotificationOptions = {}) => {
     try {
       // Check if notifications are supported
-      if (typeof Notification === 'undefined') {
+      if (!isNotificationSupported()) {
         console.log('Notification API not supported, skipping notification');
         return;
       }
 
-      console.log('Current notification permission:', Notification.permission);
-      if (Notification.permission === 'granted') {
+      console.log('Current notification permission:', getNotificationPermission());
+      if (getNotificationPermission() === 'granted') {
         new Notification(title, {
           body: options?.body,
           tag: options?.tag || 'default',
@@ -74,12 +75,12 @@ export function useNotification() {
       console.log('Showing timer completion notification with sound...');
       
       // Check if notifications are supported
-      if (typeof Notification === 'undefined') {
+      if (!isNotificationSupported()) {
         console.log('Notification API not supported, skipping timer completion notification');
         return;
       }
       
-      if (Notification.permission === 'granted') {
+      if (getNotificationPermission() === 'granted') {
         // Create multiple notifications to simulate multiple beeps
         const numberOfBeeps = Math.min(settings.numberOfBeeps, 3); // Limit to 3 for notifications
         
