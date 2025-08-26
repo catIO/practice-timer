@@ -3,11 +3,20 @@ import { playSound as playSoundEffect, resumeAudioContext, initializeAudioForIOS
 import { useToast } from '@/hooks/use-toast';
 import { SettingsType } from '@/lib/timerService';
 
+// Check if Notification API is available
+const isNotificationSupported = typeof Notification !== 'undefined';
+
 export function useNotification() {
   const { toast } = useToast();
 
   const requestNotificationPermission = useCallback(async () => {
     try {
+      // Check if notifications are supported
+      if (!isNotificationSupported) {
+        console.log('Notification API not supported in this context');
+        return false;
+      }
+
       // Check if notifications are already granted
       if (Notification.permission === 'granted') {
         return true;
@@ -24,6 +33,12 @@ export function useNotification() {
 
   const showNotification = useCallback(async (title: string, options: NotificationOptions = {}) => {
     try {
+      // Check if notifications are supported
+      if (!isNotificationSupported) {
+        console.log('Notification API not supported, skipping notification');
+        return;
+      }
+
       console.log('Current notification permission:', Notification.permission);
       if (Notification.permission === 'granted') {
         new Notification(title, {
@@ -60,6 +75,12 @@ export function useNotification() {
   const showTimerCompletionNotification = useCallback(async (settings: { numberOfBeeps: number; volume: number; soundType: string }) => {
     try {
       console.log('Showing timer completion notification with sound...');
+      
+      // Check if notifications are supported
+      if (!isNotificationSupported) {
+        console.log('Notification API not supported, skipping timer completion notification');
+        return;
+      }
       
       if (Notification.permission === 'granted') {
         // Create multiple notifications to simulate multiple beeps
