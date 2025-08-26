@@ -9,7 +9,6 @@ export interface SettingsType {
   workDuration: number;
   breakDuration: number;
   iterations: number;
-  darkMode: boolean;
   numberOfBeeps: number;
   mode: string;
   volume: number;
@@ -23,7 +22,6 @@ export const DEFAULT_SETTINGS: SettingsType = {
   iterations: 6,
   soundEnabled: true,
   browserNotificationsEnabled: false,
-  darkMode: true,
   numberOfBeeps: 3,
   mode: 'work',
   volume: 50,

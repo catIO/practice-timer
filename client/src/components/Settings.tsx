@@ -5,7 +5,6 @@ import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
 import { SettingsType } from "@/lib/timerService";
 import { SoundType } from "@/lib/soundEffects";
-import { useDarkMode } from "@/lib/darkModeStore";
 import { useNotification } from "@/hooks/useNotification";
 import { useToast } from "@/hooks/use-toast";
 import { setVolume, playSound } from "@/lib/soundEffects";
@@ -19,7 +18,6 @@ interface SettingsProps {
 export default function Settings({ settings, isLoading, onChange }: SettingsProps) {
   const [localSettings, setLocalSettings] = useState<SettingsType>(settings);
   const [soundVolume, setSoundVolume] = useState(0.5); // Default volume at 50%
-  const setIsDark = useDarkMode(state => state.setIsDark);
   const { requestNotificationPermission } = useNotification();
   const { toast } = useToast();
   
@@ -49,11 +47,6 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
     // Remove userId and id from the settings object
     const { userId, id, ...settingsWithoutIds } = updatedSettings;
     console.log('Updated settings:', settingsWithoutIds);
-    
-    // If dark mode is being toggled, update it immediately
-    if (key === 'darkMode') {
-      setIsDark(value);
-    }
     
     setLocalSettings(updatedSettings);
     onChange(settingsWithoutIds);
@@ -172,18 +165,7 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
           />
         </div>
 
-        {/* Dark Mode toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <span className="material-icons text-muted-foreground mr-3">dark_mode</span>
-            <Label htmlFor="dark-mode-toggle">Dark Mode</Label>
-          </div>
-          <Switch
-            id="dark-mode-toggle"
-            checked={localSettings.darkMode}
-            onCheckedChange={(checked) => handleToggleChange('darkMode', checked)}
-          />
-        </div>
+
 
         {/* Work Duration Slider */}
         <div className="mt-4">
