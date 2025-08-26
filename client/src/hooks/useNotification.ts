@@ -44,7 +44,7 @@ export function useNotification() {
 
       if (typeof Notification !== 'undefined') {
         console.log('Current notification permission:', Notification.permission);
-        if (Notification.permission === 'granted') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(title, {
             body: options?.body,
             tag: options?.tag || 'default',
