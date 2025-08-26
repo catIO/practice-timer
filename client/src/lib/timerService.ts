@@ -18,9 +18,9 @@ export interface SettingsType {
 
 // Default settings from config file
 export const DEFAULT_SETTINGS: SettingsType = {
-  workDuration: 25,
+  workDuration: 20,
   breakDuration: 5,
-  iterations: 4,
+  iterations: 6,
   soundEnabled: true,
   browserNotificationsEnabled: false,
   darkMode: true,
