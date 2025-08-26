@@ -166,16 +166,48 @@ export default function Home() {
             console.log('iOS: Attempting direct audio playback as fallback...');
             addDebugInfo('iOS: Trying direct audio playback');
             
-            // Re-initialize audio context if needed
-            if (!audioInitialized) {
-              console.log('iOS: Audio not initialized, re-initializing...');
-              addDebugInfo('iOS: Re-initializing audio context');
-              await initializeAudio();
-            }
+            // Force re-initialize audio context for iPad
+            console.log('iOS: Force re-initializing audio context for iPad...');
+            addDebugInfo('iOS: Force re-initializing audio context');
+            await initializeAudio();
             
+            // Add a small delay to ensure audio context is ready
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Try the complex audio system first
             await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
             console.log('iOS: Direct audio playback successful');
             addDebugInfo('iOS: Direct audio playback successful');
+            
+            // Also try a simple HTML5 audio fallback for iPad
+            try {
+              console.log('iOS: Trying simple HTML5 audio fallback...');
+              addDebugInfo('iOS: Trying simple HTML5 audio fallback');
+              
+              const audio = new Audio();
+              audio.volume = settings.volume / 100;
+              
+              // Create a simple beep sound using oscillator
+              const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const oscillator = context.createOscillator();
+              const gainNode = context.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(context.destination);
+              
+              oscillator.frequency.setValueAtTime(800, context.currentTime);
+              gainNode.gain.setValueAtTime(settings.volume / 100, context.currentTime);
+              gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+              
+              oscillator.start(context.currentTime);
+              oscillator.stop(context.currentTime + 0.5);
+              
+              console.log('iOS: Simple HTML5 audio fallback successful');
+              addDebugInfo('iOS: Simple HTML5 audio fallback successful');
+            } catch (simpleAudioError) {
+              console.error('iOS: Simple HTML5 audio fallback failed:', simpleAudioError);
+              addDebugInfo(`iOS: Simple HTML5 audio fallback failed: ${simpleAudioError}`);
+            }
           } catch (audioError) {
             console.error(`iOS direct audio error: ${audioError}`);
             addDebugInfo(`iOS direct audio error: ${audioError}`);
@@ -197,10 +229,17 @@ export default function Home() {
         
         console.log('Showing toast notification...');
         addDebugInfo('Showing toast notification');
-        toast({
-          title: 'Timer Complete',
-          description: 'Your timer has finished!',
-        });
+        try {
+          toast({
+            title: 'Timer Complete',
+            description: 'Your timer has finished!',
+          });
+          console.log('Toast notification sent successfully');
+          addDebugInfo('Toast notification sent successfully');
+        } catch (toastError) {
+          console.error('Toast notification failed:', toastError);
+          addDebugInfo(`Toast notification failed: ${toastError}`);
+        }
         
         console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
         addDebugInfo('Timer completion callback finished');
