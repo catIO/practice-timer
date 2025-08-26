@@ -3,31 +3,25 @@ import { playSound as playSoundEffect, resumeAudioContext, initializeAudioForIOS
 import { useToast } from '@/hooks/use-toast';
 import { SettingsType } from '@/lib/timerService';
 
-// Check if Notification API is available
-const isNotificationSupported = typeof Notification !== 'undefined';
-
 export function useNotification() {
   const { toast } = useToast();
 
   const requestNotificationPermission = useCallback(async () => {
     try {
       // Check if notifications are supported
-      if (!isNotificationSupported) {
+      if (typeof Notification === 'undefined') {
         console.log('Notification API not supported in this context');
         return false;
       }
 
       // Check if notifications are already granted
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      if (Notification.permission === 'granted') {
         return true;
       }
 
-      if (typeof Notification !== 'undefined') {
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission status:', permission);
-        return permission === 'granted';
-      }
-      return false;
+      const permission = await Notification.requestPermission();
+      console.log('Notification permission status:', permission);
+      return permission === 'granted';
     } catch (error) {
       console.error('Error requesting notification permission:', error);
       return false;
@@ -37,39 +31,37 @@ export function useNotification() {
   const showNotification = useCallback(async (title: string, options: NotificationOptions = {}) => {
     try {
       // Check if notifications are supported
-      if (!isNotificationSupported) {
+      if (typeof Notification === 'undefined') {
         console.log('Notification API not supported, skipping notification');
         return;
       }
 
-      if (typeof Notification !== 'undefined') {
-        console.log('Current notification permission:', Notification.permission);
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      console.log('Current notification permission:', Notification.permission);
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body: options?.body,
+          tag: options?.tag || 'default',
+          requireInteraction: options?.requireInteraction || false,
+          // Add notification sound for iOS background audio
+          icon: '/favicon.ico', // Add icon for better notification
+          badge: '/favicon.ico', // Add badge for iOS
+          // Use default notification sound (works on iOS)
+          silent: false, // Ensure sound plays
+        });
+      } else {
+        console.log('Notifications not granted, requesting permission...');
+        const granted = await requestNotificationPermission();
+        if (granted) {
           new Notification(title, {
             body: options?.body,
             tag: options?.tag || 'default',
             requireInteraction: options?.requireInteraction || false,
             // Add notification sound for iOS background audio
-            icon: '/favicon.ico', // Add icon for better notification
-            badge: '/favicon.ico', // Add badge for iOS
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
             // Use default notification sound (works on iOS)
             silent: false, // Ensure sound plays
           });
-        } else {
-          console.log('Notifications not granted, requesting permission...');
-          const granted = await requestNotificationPermission();
-          if (granted) {
-            new Notification(title, {
-              body: options?.body,
-              tag: options?.tag || 'default',
-              requireInteraction: options?.requireInteraction || false,
-              // Add notification sound for iOS background audio
-              icon: '/favicon.ico',
-              badge: '/favicon.ico',
-              // Use default notification sound (works on iOS)
-              silent: false, // Ensure sound plays
-            });
-          }
         }
       }
     } catch (error) {
@@ -82,12 +74,12 @@ export function useNotification() {
       console.log('Showing timer completion notification with sound...');
       
       // Check if notifications are supported
-      if (!isNotificationSupported) {
+      if (typeof Notification === 'undefined') {
         console.log('Notification API not supported, skipping timer completion notification');
         return;
       }
       
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      if (Notification.permission === 'granted') {
         // Create multiple notifications to simulate multiple beeps
         const numberOfBeeps = Math.min(settings.numberOfBeeps, 3); // Limit to 3 for notifications
         
