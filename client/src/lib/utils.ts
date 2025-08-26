@@ -12,8 +12,13 @@ export function isNotificationSupported(): boolean {
 
 // Safe Notification permission check
 export function getNotificationPermission(): string {
-  if (!isNotificationSupported()) {
+  try {
+    if (!isNotificationSupported()) {
+      return 'unsupported';
+    }
+    return Notification.permission;
+  } catch (error) {
+    console.log('Error accessing Notification.permission:', error);
     return 'unsupported';
   }
-  return Notification.permission;
 }

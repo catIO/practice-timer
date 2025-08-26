@@ -4,6 +4,32 @@ import { useToast } from '@/hooks/use-toast';
 import { SettingsType } from '@/lib/timerService';
 import { isNotificationSupported, getNotificationPermission } from '@/lib/utils';
 
+// Safe wrapper for Notification.requestPermission
+const safeRequestNotificationPermission = async (): Promise<string> => {
+  try {
+    if (!isNotificationSupported()) {
+      return 'denied';
+    }
+    return await Notification.requestPermission();
+  } catch (error) {
+    console.log('Error requesting notification permission:', error);
+    return 'denied';
+  }
+};
+
+// Safe wrapper for creating new Notification
+const safeCreateNotification = (title: string, options: NotificationOptions = {}): void => {
+  try {
+    if (!isNotificationSupported()) {
+      console.log('Notification API not supported, cannot create notification');
+      return;
+    }
+    new Notification(title, options);
+  } catch (error) {
+    console.log('Error creating notification:', error);
+  }
+};
+
 export function useNotification() {
   const { toast } = useToast();
 
@@ -20,7 +46,7 @@ export function useNotification() {
         return true;
       }
 
-      const permission = await Notification.requestPermission();
+      const permission = await safeRequestNotificationPermission();
       console.log('Notification permission status:', permission);
       return permission === 'granted';
     } catch (error) {
@@ -39,7 +65,7 @@ export function useNotification() {
 
       console.log('Current notification permission:', getNotificationPermission());
       if (getNotificationPermission() === 'granted') {
-        new Notification(title, {
+        safeCreateNotification(title, {
           body: options?.body,
           tag: options?.tag || 'default',
           requireInteraction: options?.requireInteraction || false,
@@ -53,7 +79,7 @@ export function useNotification() {
         console.log('Notifications not granted, requesting permission...');
         const granted = await requestNotificationPermission();
         if (granted) {
-          new Notification(title, {
+          safeCreateNotification(title, {
             body: options?.body,
             tag: options?.tag || 'default',
             requireInteraction: options?.requireInteraction || false,
@@ -86,7 +112,7 @@ export function useNotification() {
         
         for (let i = 0; i < numberOfBeeps; i++) {
           setTimeout(() => {
-            new Notification('Timer Complete!', {
+            safeCreateNotification('Timer Complete!', {
               body: i === 0 ? 'Your timer has finished!' : `Beep ${i + 1}`,
               tag: `timer-complete-${i}`,
               requireInteraction: false,
