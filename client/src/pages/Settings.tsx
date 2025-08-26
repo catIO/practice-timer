@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useNotification } from "@/hooks/useNotification";
-import { useSettingsStore } from '@/stores/settingsStore';
 import { playSound, initializeAudioForIOS } from "@/lib/soundEffects";
 import { SoundType } from "@/lib/soundEffects";
 
@@ -29,7 +28,6 @@ export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { requestNotificationPermission } = useNotification();
-  const { setSettings: updateGlobalSettings } = useSettingsStore();
   const [localSettings, setLocalSettings] = useState<SettingsType>(getSettings() || DEFAULT_SETTINGS);
   const [isVolumeChanging, setIsVolumeChanging] = useState(false);
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
@@ -47,7 +45,7 @@ export default function Settings() {
     saveSettings(newSettings);
     
     // Then update global settings
-    updateGlobalSettings(newSettings);
+    // updateGlobalSettings(newSettings); // This line is removed as per the edit hint
     
     // Ensure dark mode is always applied
     document.documentElement.classList.add('dark');
@@ -130,7 +128,7 @@ export default function Settings() {
   // Save volume setting when slider interaction ends
   const handleVolumeChangeComplete = () => {
     saveSettings(localSettings);
-    updateGlobalSettings(localSettings);
+    // updateGlobalSettings(localSettings); // This line is removed as per the edit hint
   };
 
   // Handle sound type change with preview
@@ -187,7 +185,7 @@ export default function Settings() {
   // Save sound type setting when selection is made
   const handleSoundTypeChangeComplete = () => {
     saveSettings(localSettings);
-    updateGlobalSettings(localSettings);
+    // updateGlobalSettings(localSettings); // This line is removed as per the edit hint
   };
 
   return (

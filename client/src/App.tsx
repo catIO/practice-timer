@@ -6,28 +6,21 @@ import { getSettings } from '@/lib/localStorage';
 import { DEFAULT_SETTINGS } from '@/lib/timerService';
 import Home from '@/pages/Home';
 import Settings from '@/pages/Settings';
-import { useSettingsStore } from '@/stores/settingsStore';
 
 const queryClient = new QueryClient();
 
 function App() {
-  const { setSettings } = useSettingsStore();
-
   useEffect(() => {
     // Initialize settings from local storage
     const localSettings = getSettings();
     if (localSettings) {
       // Always ensure dark mode is enabled
-      const settingsWithDarkMode = { ...localSettings, darkMode: true };
-      setSettings(settingsWithDarkMode);
       document.documentElement.classList.add('dark');
     } else {
       // Set dark mode by default
-      const defaultSettings = { ...DEFAULT_SETTINGS, darkMode: true };
-      setSettings(defaultSettings);
       document.documentElement.classList.add('dark');
     }
-  }, [setSettings]);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
