@@ -314,29 +314,33 @@ class iOSBackgroundTimer {
     }, 1000);
   }
 
-  // Start background interval (more frequent updates when backgrounded)
+  // Start background interval for more frequent updates when app is backgrounded
   private startBackgroundInterval(): void {
     this.stopBackgroundInterval();
 
+    // Use more frequent updates when backgrounded (every 1 second instead of 1 second)
     this.backgroundIntervalId = window.setInterval(() => {
-      if (!this.isActive || !this.state.isRunning || !this.isBackgrounded) return;
+      if (!this.isActive || !this.state.isRunning) return;
 
-      // More frequent updates when backgrounded to maintain accuracy
+      // Use timestamp-based calculation for more accuracy in background
       const now = Date.now();
       const elapsed = Math.floor((now - this.state.startTime!) / 1000);
       const newTimeRemaining = Math.max(0, this.state.duration - elapsed);
       
-      this.state.timeRemaining = newTimeRemaining;
+      // Apply drift correction
+      const correctedTimeRemaining = Math.max(0, newTimeRemaining - this.state.driftCorrection);
+      
+      this.state.timeRemaining = correctedTimeRemaining;
       this.state.lastUpdateTime = now;
       
-      // Persist state more frequently when backgrounded
-      this.persistState();
+      // Call onTick callback
+      this.callbacks.onTick?.(correctedTimeRemaining);
       
-      // Check if timer is complete
-      if (newTimeRemaining <= 0) {
+      // Check if timer should be complete
+      if (correctedTimeRemaining <= 0) {
         this.complete();
       }
-    }, 500); // Update every 500ms when backgrounded
+    }, 1000); // Update every second when backgrounded
   }
 
   // Stop the main interval
