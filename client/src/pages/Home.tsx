@@ -134,8 +134,16 @@ export default function Home() {
         if (isIOS || isIPad) {
           // iOS: Use notification sounds (works in background)
           console.log('iOS detected - using notification sounds');
+          if (typeof Notification !== 'undefined') {
           console.log('Notification permission:', Notification.permission);
+        } else {
+          console.log('Notification API not available');
+        }
+          if (typeof Notification !== 'undefined') {
           addDebugInfo(`Notification permission: ${Notification.permission}`);
+        } else {
+          addDebugInfo('Notification API not available');
+        }
           addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
           
           try {
