@@ -18,13 +18,16 @@ export function useNotification() {
       }
 
       // Check if notifications are already granted
-      if (Notification.permission === 'granted') {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         return true;
       }
 
-      const permission = await Notification.requestPermission();
-      console.log('Notification permission status:', permission);
-      return permission === 'granted';
+      if (typeof Notification !== 'undefined') {
+        const permission = await Notification.requestPermission();
+        console.log('Notification permission status:', permission);
+        return permission === 'granted';
+      }
+      return false;
     } catch (error) {
       console.error('Error requesting notification permission:', error);
       return false;
@@ -39,32 +42,34 @@ export function useNotification() {
         return;
       }
 
-      console.log('Current notification permission:', Notification.permission);
-      if (Notification.permission === 'granted') {
-        new Notification(title, {
-          body: options?.body,
-          tag: options?.tag || 'default',
-          requireInteraction: options?.requireInteraction || false,
-          // Add notification sound for iOS background audio
-          icon: '/favicon.ico', // Add icon for better notification
-          badge: '/favicon.ico', // Add badge for iOS
-          // Use default notification sound (works on iOS)
-          silent: false, // Ensure sound plays
-        });
-      } else {
-        console.log('Notifications not granted, requesting permission...');
-        const granted = await requestNotificationPermission();
-        if (granted) {
+      if (typeof Notification !== 'undefined') {
+        console.log('Current notification permission:', Notification.permission);
+        if (Notification.permission === 'granted') {
           new Notification(title, {
             body: options?.body,
             tag: options?.tag || 'default',
             requireInteraction: options?.requireInteraction || false,
             // Add notification sound for iOS background audio
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
+            icon: '/favicon.ico', // Add icon for better notification
+            badge: '/favicon.ico', // Add badge for iOS
             // Use default notification sound (works on iOS)
             silent: false, // Ensure sound plays
           });
+        } else {
+          console.log('Notifications not granted, requesting permission...');
+          const granted = await requestNotificationPermission();
+          if (granted) {
+            new Notification(title, {
+              body: options?.body,
+              tag: options?.tag || 'default',
+              requireInteraction: options?.requireInteraction || false,
+              // Add notification sound for iOS background audio
+              icon: '/favicon.ico',
+              badge: '/favicon.ico',
+              // Use default notification sound (works on iOS)
+              silent: false, // Ensure sound plays
+            });
+          }
         }
       }
     } catch (error) {
@@ -82,7 +87,7 @@ export function useNotification() {
         return;
       }
       
-      if (Notification.permission === 'granted') {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         // Create multiple notifications to simulate multiple beeps
         const numberOfBeeps = Math.min(settings.numberOfBeeps, 3); // Limit to 3 for notifications
         
