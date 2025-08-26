@@ -59,10 +59,10 @@
       document.documentElement.style.setProperty('--mobile-layout', 'true');
       document.body.classList.add('mobile-layout');
       
-      // Force mobile viewport
+      // Use responsive viewport instead of forcing mobile width
       const viewport = document.querySelector('meta[name="viewport"]');
       if (viewport) {
-        viewport.setAttribute('content', 'width=375, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
       }
       
       // Add additional mobile indicators

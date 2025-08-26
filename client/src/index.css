@@ -58,4 +58,19 @@
     margin: 0;
     padding: 0;
   }
+
+  /* Ensure consistent dark mode across browsers */
+  .dark {
+    color-scheme: dark;
+  }
+
+  /* Force dark background for better cross-browser compatibility */
+  .dark body {
+    background: linear-gradient(135deg, #111827 0%, #1f2937 50%, #000000 100%);
+  }
+
+  /* Ensure text colors are consistent */
+  .dark * {
+    color-scheme: dark;
+  }
 }
