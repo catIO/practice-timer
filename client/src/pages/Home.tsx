@@ -102,7 +102,7 @@ export default function Home() {
     initialSettings: settings,
     onComplete: useCallback(async () => {
       try {
-        console.log('=== TIMER COMPLETION CALLBACK STARTED ===');
+
         addDebugInfo('Timer completed - callback started');
         
         // Add device detection info to debug display
@@ -125,20 +125,14 @@ export default function Home() {
         };
         const isIPad = detectIPad();
         
-        console.log('Timer completed - onComplete callback triggered');
-        console.log('Device detection:', { isIOS, isAndroid, isIPad });
-        console.log('Screen dimensions:', `${window.screen.width}x${window.screen.height}`);
+
         addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
         addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
         
         if (isIOS || isIPad) {
           // iOS: Try notification sounds first, then direct audio as fallback
-          console.log('iOS detected - trying notification sounds first');
-          if (typeof Notification !== 'undefined') {
-            console.log('Notification permission:', Notification.permission);
-          } else {
-            console.log('Notification API not available');
-          }
+
+
           if (typeof Notification !== 'undefined') {
             addDebugInfo(`Notification permission: ${Notification.permission}`);
           } else {
@@ -154,21 +148,19 @@ export default function Home() {
               volume: settings.volume,
               soundType: settings.soundType
             });
-            console.log('Timer completion notification sent');
+
             addDebugInfo('Notification sent successfully');
           } catch (error) {
-            console.error(`Notification error: ${error}`);
+
             addDebugInfo(`Notification error: ${error}`);
           }
           
           // Also try direct audio playback as fallback
           try {
-            console.log('iOS: Attempting direct audio playback as fallback...');
+
             addDebugInfo('iOS: Trying direct audio playback');
             
             // Force re-initialize audio context for iPad
-            console.log('iOS: Force re-initializing audio context for iPad...');
-            addDebugInfo('iOS: Force re-initializing audio context');
             await initializeAudio();
             
             // Add a small delay to ensure audio context is ready
@@ -176,12 +168,12 @@ export default function Home() {
             
             // Try the complex audio system first
             await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-            console.log('iOS: Direct audio playback successful');
+
             addDebugInfo('iOS: Direct audio playback successful');
             
             // Also try a simple HTML5 audio fallback for iPad
             try {
-              console.log('iOS: Trying simple HTML5 audio fallback...');
+
               addDebugInfo('iOS: Trying simple HTML5 audio fallback');
               
               const audio = new Audio();
@@ -202,49 +194,49 @@ export default function Home() {
               oscillator.start(context.currentTime);
               oscillator.stop(context.currentTime + 0.5);
               
-              console.log('iOS: Simple HTML5 audio fallback successful');
+
               addDebugInfo('iOS: Simple HTML5 audio fallback successful');
             } catch (simpleAudioError) {
-              console.error('iOS: Simple HTML5 audio fallback failed:', simpleAudioError);
+
               addDebugInfo(`iOS: Simple HTML5 audio fallback failed: ${simpleAudioError}`);
             }
           } catch (audioError) {
-            console.error(`iOS direct audio error: ${audioError}`);
+
             addDebugInfo(`iOS direct audio error: ${audioError}`);
           }
         } else {
           // Non-iOS: Use regular audio
-          console.log('Non-iOS: Playing completion sound');
+
           addDebugInfo('Playing completion sound');
           addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
           try {
             await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-            console.log('Non-iOS: Completion sound played successfully');
+
             addDebugInfo('Sound played successfully');
           } catch (error) {
-            console.error(`Non-iOS sound error: ${error}`);
+
             addDebugInfo(`Sound error: ${error}`);
           }
         }
         
-        console.log('Showing toast notification...');
+
         addDebugInfo('Showing toast notification');
         try {
           toast({
             title: 'Timer Complete',
             description: 'Your timer has finished!',
           });
-          console.log('Toast notification sent successfully');
+
           addDebugInfo('Toast notification sent successfully');
         } catch (toastError) {
-          console.error('Toast notification failed:', toastError);
+
           addDebugInfo(`Toast notification failed: ${toastError}`);
         }
         
-        console.log('=== TIMER COMPLETION CALLBACK FINISHED ===');
+
         addDebugInfo('Timer completion callback finished');
       } catch (error) {
-        console.error('Error in timer completion callback:', error);
+
         addDebugInfo(`Callback error: ${error}`);
       }
     }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo, audioInitialized, initializeAudio])

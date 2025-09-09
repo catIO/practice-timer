@@ -50,7 +50,7 @@ export const useTimerStore = create<TimerStore>((set, get) => {
             mode: payload.mode,
             currentIteration: payload.currentIteration,
             totalIterations: payload.totalIterations,
-            timeRemaining: payload.mode === 'work' ? get().settings.workDuration : get().settings.breakDuration
+            timeRemaining: payload.mode === 'work' ? get().settings.workDuration * 60 : get().settings.breakDuration * 60
           });
           break;
       }

@@ -617,6 +617,22 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           setIsRunning(false);
           setStoreIsRunning(false);
           
+          // Update state from worker's payload
+          if (payload.mode) {
+            setMode(payload.mode);
+            setStoreMode(payload.mode);
+          }
+          if (payload.currentIteration !== undefined) {
+            setCurrentIteration(payload.currentIteration);
+            setStoreCurrentIteration(payload.currentIteration);
+          }
+          if (payload.timeRemaining !== undefined) {
+            setTimeRemaining(payload.timeRemaining);
+            setStoreTimeRemaining(payload.timeRemaining);
+            setTotalTime(payload.timeRemaining);
+            setStoreTotalTime(payload.timeRemaining);
+          }
+          
           // Show notification immediately when timer completes
           showNotification(
             'Timer Complete!',
@@ -640,8 +656,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             console.log('useTimer: No onComplete callback provided');
           }
           
-          // Complete the current session
-          completeSession();
+          // Note: completeSession() is not called here because the worker has already
+          // handled the session completion and sent the updated state in the COMPLETE message
         }
       };
       

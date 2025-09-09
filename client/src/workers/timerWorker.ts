@@ -318,7 +318,7 @@ function completeTimer() {
   }
   
   state.mode = newMode;
-  state.timeRemaining = state.mode === 'work' ? state.settings.workDuration : state.settings.breakDuration;
+  state.timeRemaining = state.mode === 'work' ? state.settings.workDuration * 60 : state.settings.breakDuration * 60;
 
   // Check if all iterations are complete
   if (state.currentIteration > state.totalIterations) {
