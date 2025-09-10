@@ -70,7 +70,23 @@ self.addEventListener('message', (event: MessageEvent) => {
       break;
 
     case 'START':
-      console.log('Worker: Starting timer');
+      console.log('Worker: Starting timer with payload:', payload);
+      // Update state from payload before starting
+      if (payload) {
+        if (payload.timeRemaining !== undefined) {
+          state.timeRemaining = payload.timeRemaining;
+        }
+        if (payload.mode) {
+          state.mode = payload.mode;
+        }
+        if (payload.currentIteration !== undefined) {
+          state.currentIteration = payload.currentIteration;
+        }
+        if (payload.totalIterations !== undefined) {
+          state.totalIterations = payload.totalIterations;
+        }
+        console.log('Worker: Updated state before starting:', state);
+      }
       startTimer();
       break;
 
