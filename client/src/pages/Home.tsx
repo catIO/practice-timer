@@ -24,17 +24,9 @@ export default function Home() {
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-  
   // Setup notifications and toast
   const { toast } = useToast();
   const { showNotification, showTimerCompletionNotification } = useNotification();
-
-  // Add debug info
-  const addDebugInfo = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setDebugInfo(prev => [...prev.slice(-4), `${timestamp}: ${message}`]);
-  }, []);
 
   // Initialize audio context on user interaction
   const initializeAudio = async () => {
@@ -103,9 +95,7 @@ export default function Home() {
     onComplete: useCallback(async () => {
       try {
 
-        addDebugInfo('Timer completed - callback started');
-        
-        // Add device detection info to debug display
+        // Timer completion callback
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
         const detectIPad = (): boolean => {
@@ -126,40 +116,26 @@ export default function Home() {
         const isIPad = detectIPad();
         
 
-        addDebugInfo(`Device: iOS=${isIOS}, Android=${isAndroid}, iPad=${isIPad}`);
-        addDebugInfo(`Screen: ${window.screen.width}x${window.screen.height}`);
         
         if (isIOS || isIPad) {
           // iOS: Try notification sounds first, then direct audio as fallback
 
 
-          if (typeof Notification !== 'undefined') {
-            addDebugInfo(`Notification permission: ${Notification.permission}`);
-          } else {
-            addDebugInfo('Notification API not available');
-          }
-          addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
           
           // Try notification first
           try {
-            addDebugInfo('Attempting to send notification...');
             await showTimerCompletionNotification({
               numberOfBeeps: settings.numberOfBeeps,
               volume: settings.volume,
               soundType: settings.soundType
             });
-
-            addDebugInfo('Notification sent successfully');
           } catch (error) {
-
-            addDebugInfo(`Notification error: ${error}`);
+            // Notification error
           }
           
           // Also try direct audio playback as fallback
           try {
 
-            addDebugInfo('iOS: Trying direct audio playback');
-            
             // Force re-initialize audio context for iPad
             await initializeAudio();
             
@@ -169,12 +145,10 @@ export default function Home() {
             // Try the complex audio system first
             await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
 
-            addDebugInfo('iOS: Direct audio playback successful');
             
             // Also try a simple HTML5 audio fallback for iPad
             try {
 
-              addDebugInfo('iOS: Trying simple HTML5 audio fallback');
               
               const audio = new Audio();
               audio.volume = settings.volume / 100;
@@ -195,51 +169,39 @@ export default function Home() {
               oscillator.stop(context.currentTime + 0.5);
               
 
-              addDebugInfo('iOS: Simple HTML5 audio fallback successful');
             } catch (simpleAudioError) {
 
-              addDebugInfo(`iOS: Simple HTML5 audio fallback failed: ${simpleAudioError}`);
             }
           } catch (audioError) {
 
-            addDebugInfo(`iOS direct audio error: ${audioError}`);
           }
         } else {
           // Non-iOS: Use regular audio
 
-          addDebugInfo('Playing completion sound');
-          addDebugInfo(`Settings: beeps=${settings.numberOfBeeps}, volume=${settings.volume}`);
           try {
             await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
 
-            addDebugInfo('Sound played successfully');
           } catch (error) {
 
-            addDebugInfo(`Sound error: ${error}`);
           }
         }
         
 
-        addDebugInfo('Showing toast notification');
         try {
           toast({
             title: 'Timer Complete',
             description: 'Your timer has finished!',
           });
 
-          addDebugInfo('Toast notification sent successfully');
         } catch (toastError) {
 
-          addDebugInfo(`Toast notification failed: ${toastError}`);
         }
         
 
-        addDebugInfo('Timer completion callback finished');
       } catch (error) {
 
-        addDebugInfo(`Callback error: ${error}`);
       }
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, addDebugInfo, audioInitialized, initializeAudio])
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, audioInitialized, initializeAudio])
   });
 
   // Handle reset all (reset to first iteration)
@@ -268,19 +230,16 @@ export default function Home() {
   const handleStart = useCallback(async () => {
     // Initialize audio context first when play button is clicked
     console.log('Play button clicked - initializing audio for cross-platform compatibility');
-    addDebugInfo('Play button clicked - initializing audio');
     
     try {
       await initializeAudio();
-      addDebugInfo('Audio initialized successfully');
     } catch (error) {
       console.error('Error initializing audio on play button:', error);
-      addDebugInfo('Audio initialization failed');
     }
     
     // Then start the timer
     startTimer();
-  }, [startTimer, initializeAudio, addDebugInfo]);
+  }, [startTimer, initializeAudio]);
 
   // Handle pause timer
   const handlePause = useCallback(() => {
@@ -407,16 +366,6 @@ export default function Home() {
           </main>
         </div>
       </div>
-      
-      {/* Debug Display */}
-      {debugInfo.length > 0 && (
-        <div className="fixed bottom-4 left-4 bg-black/80 text-white p-3 rounded-lg text-xs max-w-sm z-50">
-          <div className="font-bold mb-1">Debug Info:</div>
-          {debugInfo.map((msg, index) => (
-            <div key={index} className="mb-1">{msg}</div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
