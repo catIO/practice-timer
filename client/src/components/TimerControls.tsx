@@ -6,6 +6,7 @@ interface TimerControlsProps {
   onPause: () => void;
   onReset: () => void;
   onSkip: () => void;
+  skipDisabled?: boolean;
 }
 
 export default function TimerControls({ 
@@ -13,7 +14,8 @@ export default function TimerControls({
   onStart, 
   onPause, 
   onReset, 
-  onSkip 
+  onSkip,
+  skipDisabled = false
 }: TimerControlsProps) {
   return (
     <div className="flex items-center justify-center space-x-6 mb-6">
@@ -46,8 +48,9 @@ export default function TimerControls({
       <Button
         variant="outline"
         size="icon"
-        className="w-12 h-12 rounded-full bg-muted text-foreground hover:bg-blue-100 hover:text-blue-500 transition-colors"
+        className="w-12 h-12 rounded-full bg-muted text-foreground hover:bg-blue-100 hover:text-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         onClick={onSkip}
+        disabled={skipDisabled}
         aria-label="Skip to next phase"
         title="Skip to next work/break session"
       >

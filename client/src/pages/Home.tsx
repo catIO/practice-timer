@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import Timer from "@/components/Timer";
 import TimerControls from "@/components/TimerControls";
 import IterationTracker from "@/components/IterationTracker";
+import PracticeComplete from "@/components/PracticeComplete";
 import { useTimer } from "@/hooks/useTimer";
 import { useNotification } from "@/hooks/useNotification";
 import { playSound } from "@/lib/soundEffects";
@@ -15,6 +16,7 @@ import { Settings, Info } from "lucide-react";
 import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
 import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import { cn } from "@/lib/utils";
+import { useTimerStore } from "@/stores/timerStore";
 
 import "@/assets/headerBlur.css";
 
@@ -57,27 +59,8 @@ export default function Home() {
     }
   };
 
-  // Initialize audio on any user interaction
-  useEffect(() => {
-    const handleUserInteraction = async () => {
-      if (!audioInitialized) {
-        console.log('User interaction detected, initializing audio...');
-        await initializeAudio();
-      }
-    };
-
-    // Add listeners for various user interactions
-    const events = ['click', 'touchstart', 'keydown', 'mousedown'];
-    events.forEach(event => {
-      document.addEventListener(event, handleUserInteraction, { once: true, passive: true });
-    });
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleUserInteraction);
-      });
-    };
-  }, [audioInitialized, initializeAudio]);
+  // Audio will be initialized only when the play button is clicked
+  // This prevents unnecessary audio initialization on other interactions like skip, reset, etc.
 
   const {
     timeRemaining,
@@ -89,7 +72,9 @@ export default function Home() {
     resetTimer,
     skipTimer,
     currentIteration,
-    totalIterations
+    totalIterations,
+    isPracticeComplete,
+    startNewSession
   } = useTimer({
     initialSettings: settings,
     onComplete: useCallback(async () => {
@@ -214,10 +199,16 @@ export default function Home() {
     resetTimer();
   }, [resetTimer]);
 
-  // Handle skip current session
+  // Handle skip current session - disable button while skipping to prevent rapid clicks
+  const { isSkipping } = useTimerStore();
   const handleSkip = useCallback(() => {
+    // Don't allow skip if already skipping
+    if (isSkipping) {
+      console.log('Skip already in progress, ignoring click');
+      return;
+    }
     skipTimer();
-  }, [skipTimer]);
+  }, [skipTimer, isSkipping]);
 
   // Cleanup wake locks when component unmounts
   useEffect(() => {
@@ -340,28 +331,37 @@ export default function Home() {
 
           <main className="p-6">
             <div className="space-y-8">
-              <div className="flex flex-col items-center space-y-6">
-                <Timer
-                  timeRemaining={timeRemaining}
-                  totalTime={totalTime}
-                  mode={mode}
-                  isRunning={isRunning}
-                />
-
-                <TimerControls
-                  isRunning={isRunning}
-                  onStart={handleStart}
-                  onPause={handlePause}
-                  onReset={handleResetAll}
-                  onSkip={handleSkip}
-                />
-
-                <IterationTracker
+              {isPracticeComplete ? (
+                <PracticeComplete
                   currentIteration={currentIteration}
                   totalIterations={totalIterations}
-                  mode={mode}
+                  onStartNewSession={startNewSession}
                 />
-              </div>
+              ) : (
+                <div className="flex flex-col items-center space-y-6">
+                  <Timer
+                    timeRemaining={timeRemaining}
+                    totalTime={totalTime}
+                    mode={mode}
+                    isRunning={isRunning}
+                  />
+
+                  <TimerControls
+                    isRunning={isRunning}
+                    onStart={handleStart}
+                    onPause={handlePause}
+                    onReset={handleResetAll}
+                    onSkip={handleSkip}
+                    skipDisabled={isSkipping}
+                  />
+
+                  <IterationTracker
+                    currentIteration={currentIteration}
+                    totalIterations={totalIterations}
+                    mode={mode}
+                  />
+                </div>
+              )}
             </div>
           </main>
         </div>

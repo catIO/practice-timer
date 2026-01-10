@@ -63,10 +63,12 @@ export class iOSWakeLock {
         await this.initializeAudioContext();
       }
 
-      // Strategy 3: User activity simulation
-      if (this.options.userActivity) {
-        this.startUserActivitySimulation();
-      }
+      // Strategy 3: User activity simulation (disabled for battery optimization)
+      // User activity simulation drains battery significantly
+      // Only enable if absolutely necessary
+      // if (this.options.userActivity) {
+      //   this.startUserActivitySimulation();
+      // }
 
       // Strategy 4: Fullscreen mode (if requested)
       if (this.options.fullscreen) {
@@ -111,20 +113,9 @@ export class iOSWakeLock {
         this.silentOscillator.start();
         this.silentOscillator.stop(this.audioContext.currentTime + 0.1);
         
-        // Schedule periodic silent sounds to keep context alive
-        this.audioKeepAliveInterval = window.setInterval(() => {
-          if (this.audioContext && this.audioContext.state === 'running') {
-            const oscillator = this.audioContext.createOscillator();
-            const gain = this.audioContext.createGain();
-            
-            oscillator.connect(gain);
-            gain.connect(this.audioContext.destination);
-            gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-            
-            oscillator.start();
-            oscillator.stop(this.audioContext.currentTime + 0.01);
-          }
-        }, 30000); // Every 30 seconds
+        // Don't schedule periodic silent sounds - they drain battery
+        // The initial oscillator is sufficient to keep the context alive
+        // Periodic sounds every 30 seconds are unnecessary and waste energy
         
         console.log('Audio context initialized for wake lock');
       }
@@ -190,11 +181,14 @@ export class iOSWakeLock {
   private async requestFullscreen(): Promise<void> {
     try {
       if (document.documentElement.requestFullscreen) {
-        this.fullscreenElement = await document.documentElement.requestFullscreen();
+        await document.documentElement.requestFullscreen();
+        this.fullscreenElement = document.fullscreenElement;
       } else if ((document.documentElement as any).webkitRequestFullscreen) {
-        this.fullscreenElement = await (document.documentElement as any).webkitRequestFullscreen();
+        await (document.documentElement as any).webkitRequestFullscreen();
+        this.fullscreenElement = (document as any).webkitFullscreenElement;
       } else if ((document.documentElement as any).mozRequestFullScreen) {
-        this.fullscreenElement = await (document.documentElement as any).mozRequestFullScreen();
+        await (document.documentElement as any).mozRequestFullScreen();
+        this.fullscreenElement = (document as any).mozFullScreenElement;
       } else if ((document.documentElement as any).msRequestFullscreen) {
         this.fullscreenElement = await (document.documentElement as any).msRequestFullscreen();
       }

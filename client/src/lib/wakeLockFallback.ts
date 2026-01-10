@@ -4,6 +4,7 @@
 export class WakeLockFallback {
   private intervalId: number | null = null;
   private isActive = false;
+  private silentOscillator: OscillatorNode | null = null;
 
   constructor() {
     this.isActive = false;
@@ -40,50 +41,14 @@ export class WakeLockFallback {
     }
 
     try {
-      // Method 1: Simulate user activity periodically (more frequent for better prevention)
-      this.intervalId = window.setInterval(() => {
-        // Simulate a small mouse movement or touch event
-        const event = new MouseEvent('mousemove', {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-          clientX: Math.random() * 10,
-          clientY: Math.random() * 10
-        });
-        
-        document.dispatchEvent(event);
-        
-        // Also simulate a touch event for mobile devices
-        const touchEvent = new TouchEvent('touchstart', {
-          bubbles: true,
-          cancelable: true,
-          touches: [new Touch({
-            identifier: 0,
-            target: document.body,
-            clientX: Math.random() * 10,
-            clientY: Math.random() * 10,
-            pageX: Math.random() * 10,
-            pageY: Math.random() * 10,
-            radiusX: 1,
-            radiusY: 1,
-            rotationAngle: 0,
-            force: 1
-          })]
-        });
-        
-        document.dispatchEvent(touchEvent);
-      }, 15000); // Every 15 seconds for better prevention
-
-      // Method 2: Keep audio context alive (if available)
+      // Only use minimal audio context approach - no user activity simulation
+      // User activity simulation drains battery significantly
       this.keepAudioContextAlive();
-
-      // Method 3: Use requestAnimationFrame to keep the page active
-      this.keepPageActive();
 
       this.isActive = true;
       // Add data attribute to track wake lock status
       document.documentElement.setAttribute('data-wake-lock', 'active');
-      console.log('Fallback wake lock started');
+      console.log('Fallback wake lock started (minimal mode)');
       return true;
     } catch (error) {
       console.error('Failed to start fallback wake lock:', error);
@@ -91,48 +56,49 @@ export class WakeLockFallback {
     }
   }
 
-  // Keep audio context alive to prevent screen timeout
+  // Keep audio context alive to prevent screen timeout (minimal approach)
   private keepAudioContextAlive(): void {
     try {
-      // Create a silent audio context if one doesn't exist
+      // Only create audio context if native wake lock is not available
+      // This is a minimal approach that doesn't drain battery
       if (!window.audioContext) {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
         if (AudioContext) {
           window.audioContext = new AudioContext();
-          
-          // Create a silent oscillator to keep the context alive
-          const oscillator = window.audioContext.createOscillator();
-          const gainNode = window.audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(window.audioContext.destination);
-          
-          // Set volume to 0 (silent)
-          gainNode.gain.setValueAtTime(0, window.audioContext.currentTime);
-          
-          oscillator.start();
-          oscillator.stop(window.audioContext.currentTime + 0.1);
         }
       }
       
-      // Also try to keep the audio context active with periodic silent sounds
+      // Create or recreate silent oscillator if needed
+      if (window.audioContext && !this.silentOscillator) {
+        // Create a silent oscillator to keep the context alive
+        // This helps with iOS background support without draining battery
+        const oscillator = window.audioContext.createOscillator();
+        const gainNode = window.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(window.audioContext.destination);
+        
+        // Set volume to 0 (silent)
+        gainNode.gain.setValueAtTime(0, window.audioContext.currentTime);
+        
+        // Start a very long-running silent oscillator (hours) to keep context alive
+        // This is more efficient than periodic sounds
+        oscillator.start();
+        // Store reference so we can stop it when releasing
+        this.silentOscillator = oscillator;
+        // Don't stop it - let it run to keep the context alive
+        // It's silent so it won't drain battery
+      }
+      
+      // Resume if suspended to ensure context stays active
       if (window.audioContext && window.audioContext.state === 'suspended') {
-        window.audioContext.resume();
+        window.audioContext.resume().catch(() => {
+          // Ignore errors - audio context may not be needed
+        });
       }
     } catch (error) {
-      console.log('Audio context fallback not available:', error);
+      // Silently fail - audio context is optional
     }
-  }
-
-  // Use requestAnimationFrame to keep the page active
-  private keepPageActive(): void {
-    const keepAlive = () => {
-      if (this.isActive) {
-        requestAnimationFrame(keepAlive);
-      }
-    };
-    
-    requestAnimationFrame(keepAlive);
   }
 
   // Additional method: Use fullscreen API if available
@@ -162,19 +128,33 @@ export class WakeLockFallback {
       this.intervalId = null;
     }
 
+    // Stop silent oscillator if running
+    if (this.silentOscillator) {
+      try {
+        // Stop the oscillator at the current time
+        if (window.audioContext && window.audioContext.state !== 'closed') {
+          this.silentOscillator.stop(window.audioContext.currentTime);
+        } else {
+          this.silentOscillator.stop();
+        }
+      } catch (error) {
+        // Ignore errors - oscillator may have already stopped
+      }
+      this.silentOscillator = null;
+    }
+
     // Release audio context if we created one
     try {
       if (window.audioContext && window.audioContext.state !== 'closed') {
         await window.audioContext.close();
-        window.audioContext = null;
+        window.audioContext = undefined;
       }
     } catch (error) {
-      console.log('Error closing audio context:', error);
+      // Silently fail - audio context cleanup is optional
     }
 
     // Remove data attribute
     document.documentElement.removeAttribute('data-wake-lock');
-    console.log('Fallback wake lock released');
   }
 
   // Check if wake lock is active

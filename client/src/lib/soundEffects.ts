@@ -687,9 +687,11 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
 
 // Web Audio API implementation
 const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  // Convert volume from 0-100 to 0-1 range with increased maximum volume
-  // Apply a non-linear curve to increase volume at higher settings
-  const normalizedVolume = Math.pow(volume / 100, 0.7) * 1.5;
+  // Convert volume from 0-100 to 0-1 range, respecting user's volume setting
+  // Ensure volume is in 0-100 range first (handle cases where it might be 0-1)
+  const volumeInRange = volume <= 1 ? volume * 100 : volume;
+  // Convert to 0-1 range for Web Audio API, capped at 1.0
+  const normalizedVolume = Math.min(1.0, volumeInRange / 100);
   
   // Get audio context and ensure it's ready
   const context = getAudioContext();

@@ -139,30 +139,14 @@ class iOSBackgroundTimer {
         this.audioContext.resume();
       }
 
-      // Start silent oscillator if not already running
-      if (this.silentOscillator.state !== 'running') {
-        this.silentOscillator.start();
-        this.silentOscillator.stop(this.audioContext.currentTime + 0.1);
-      }
+      // Start silent oscillator (OscillatorNode doesn't have a state property, so we just start it)
+      // The stop() call will handle cleanup, and start() is safe to call multiple times
+      this.silentOscillator.start();
+      this.silentOscillator.stop(this.audioContext.currentTime + 0.1);
 
-      // Schedule periodic silent sounds to keep context alive
-      const scheduleSilentSound = () => {
-        if (this.audioContext && this.isBackgrounded) {
-          const oscillator = this.audioContext.createOscillator();
-          const gain = this.audioContext.createGain();
-          
-          oscillator.connect(gain);
-          gain.connect(this.audioContext.destination);
-          gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-          
-          oscillator.start();
-          oscillator.stop(this.audioContext.currentTime + 0.01);
-          
-          setTimeout(scheduleSilentSound, 30000); // Every 30 seconds
-        }
-      };
-      
-      scheduleSilentSound();
+      // Don't schedule periodic silent sounds - they drain battery
+      // The initial oscillator and context resume is sufficient
+      // Periodic sounds every 30 seconds are unnecessary and waste energy
     } catch (error) {
       console.error('Error keeping audio context alive:', error);
     }

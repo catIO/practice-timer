@@ -5,6 +5,8 @@ let workerId: string | null = null;
 let timerInterval: number | null = null;
 
 // Worker state
+// NOTE: Settings durations are stored in MINUTES, not seconds
+// When using durations, always multiply by 60 to convert to seconds
 let state: TimerState = {
   timeRemaining: 0,
   isRunning: false,
@@ -12,8 +14,8 @@ let state: TimerState = {
   currentIteration: 1,
   totalIterations: 4,
   settings: {
-    workDuration: 25 * 60,
-    breakDuration: 5 * 60,
+    workDuration: 25, // Minutes (will be converted to seconds when used)
+    breakDuration: 5, // Minutes (will be converted to seconds when used)
     iterations: 4,
     soundEnabled: true,
     browserNotificationsEnabled: true,
@@ -28,37 +30,56 @@ let state: TimerState = {
 // Log when worker is created
 console.log('Timer Worker created');
 
+// Sequence counter for outgoing messages
+let messageSequence = 0;
+
 function updateTimer() {
-  console.log('Worker: updateTimer called, timeRemaining:', state.timeRemaining);
   if (state.timeRemaining > 0) {
     state.timeRemaining--;
-    console.log('Worker: Sending TICK with timeRemaining:', state.timeRemaining);
+    messageSequence++;
     self.postMessage({ 
       type: 'TICK', 
-      payload: state
+      payload: state,
+      sequence: messageSequence
     });
   } else {
-    console.log('Worker: Timer complete');
     state.isRunning = false;
     if (timerInterval) {
       self.clearInterval(timerInterval);
       timerInterval = null;
     }
+    messageSequence++;
     self.postMessage({ 
       type: 'COMPLETE',
-      payload: state
+      payload: state,
+      sequence: messageSequence
     });
   }
 }
 
+// Message sequence tracking
+let lastReceivedSequence = 0;
+
 // Handle messages from the main thread
 self.addEventListener('message', (event: MessageEvent) => {
-  const { type, payload } = event.data;
-  console.log('Worker received message:', type, payload);
+  const { type, payload, sequence } = event.data;
+  
+  // Validate sequence number (ignore stale/duplicate messages)
+  if (sequence !== undefined) {
+    if (sequence <= lastReceivedSequence) {
+      // Stale message, ignore but acknowledge
+      self.postMessage({ 
+        type: 'ACK', 
+        sequence,
+        payload: { ignored: true, reason: 'stale' }
+      });
+      return;
+    }
+    lastReceivedSequence = sequence;
+  }
 
   switch (type) {
     case 'INIT':
-      console.log('Worker: Initializing with settings:', payload);
       workerId = payload.workerId;
       self.postMessage({
         type: 'INIT_COMPLETE',
@@ -70,7 +91,6 @@ self.addEventListener('message', (event: MessageEvent) => {
       break;
 
     case 'START':
-      console.log('Worker: Starting timer with payload:', payload);
       // Update state from payload before starting
       if (payload) {
         if (payload.timeRemaining !== undefined) {
@@ -85,43 +105,35 @@ self.addEventListener('message', (event: MessageEvent) => {
         if (payload.totalIterations !== undefined) {
           state.totalIterations = payload.totalIterations;
         }
-        console.log('Worker: Updated state before starting:', state);
       }
       startTimer();
       break;
 
     case 'PAUSE':
-      console.log('Worker: Pausing timer');
       pauseTimer();
       break;
 
     case 'RESET':
-      console.log('Worker: Resetting timer');
       resetTimer();
       break;
 
     case 'UPDATE_STATE':
-      console.log('Worker: Updating state:', payload);
       updateState(payload);
       break;
 
     case 'UPDATE_SETTINGS':
-      console.log('Worker: Updating settings:', payload);
       updateSettings(payload);
       break;
 
     case 'UPDATE_TIME':
-      console.log('Worker: Updating time to:', payload.timeRemaining);
       updateTime(payload.timeRemaining);
       break;
 
     case 'UPDATE_MODE':
-      console.log('Worker: Updating mode to:', payload.mode);
       updateMode(payload.mode, payload.timeRemaining, payload.currentIteration, payload.totalIterations);
       break;
 
     case 'SYNC_STATE':
-      console.log('Worker: Syncing state from main thread:', payload);
       // Sync state without interfering with running timer
       if (!state.isRunning) {
         state.timeRemaining = payload.timeRemaining;
@@ -129,29 +141,20 @@ self.addEventListener('message', (event: MessageEvent) => {
         state.currentIteration = payload.currentIteration;
         state.totalIterations = payload.totalIterations;
         state.isRunning = payload.isRunning;
-      } else {
-        console.log('Worker: Timer is running, preserving current state');
       }
       break;
 
     default:
-      console.warn('Worker: Unknown message type:', type);
+      // Unknown message type - silently ignore
+      break;
   }
-
-  // Log current state after handling message
-  console.log('Worker: Current state:', state);
 });
 
 // Update the worker's state
 function updateState(newState: Partial<TimerState>) {
-  console.log('Worker: Updating state:', newState);
-  
   // Don't update timeRemaining if timer is running to prevent interference
   if (newState.timeRemaining !== undefined && !state.isRunning) {
-    console.log('Worker: Updating timeRemaining from', state.timeRemaining, 'to', newState.timeRemaining);
     state.timeRemaining = newState.timeRemaining;
-  } else if (newState.timeRemaining !== undefined && state.isRunning) {
-    console.log('Worker: Timer is running, skipping timeRemaining update to prevent interference');
   }
   
   if (newState.isRunning !== undefined) {
@@ -178,16 +181,16 @@ function updateState(newState: Partial<TimerState>) {
   }
   
   // Send updated state back to main thread
+  messageSequence++;
   self.postMessage({
     type: 'STATE_UPDATED',
-    payload: state
+    payload: state,
+    sequence: messageSequence
   });
 }
 
 // Update the timer mode
 function updateMode(mode: 'work' | 'break', timeRemaining: number, currentIteration: number, totalIterations: number) {
-  console.log('Worker: Updating mode with:', { mode, timeRemaining, currentIteration, totalIterations });
-  
   // Update state
   state = {
     ...state,
@@ -205,69 +208,93 @@ function updateMode(mode: 'work' | 'break', timeRemaining: number, currentIterat
   }
   
   // Send updated state back to main thread
+  messageSequence++;
   self.postMessage({
     type: 'UPDATE_MODE',
-    payload: state
+    payload: state,
+    sequence: messageSequence
   });
-  
-  console.log('Worker: State updated to:', state);
 }
 
 // Update the timer
 function updateTime(timeRemaining: number) {
-  console.log('Worker: Updating time to:', timeRemaining);
-  
   // Don't update if timer is running to prevent interference
   if (state.isRunning) {
-    console.log('Worker: Timer is running, skipping time update to prevent interference');
     return;
   }
   
   state.timeRemaining = timeRemaining;
   
   // Send updated state back to main thread (not as TICK to avoid confusion)
+  messageSequence++;
   self.postMessage({
     type: 'TIME_UPDATED',
-    payload: state
+    payload: state,
+    sequence: messageSequence
   });
 }
 
 // Start the timer
 function startTimer() {
-  if (!state.isRunning) {
-    state.isRunning = true;
-    console.log('Worker: Starting timer with timeRemaining:', state.timeRemaining);
-    
-    // Validate timeRemaining before starting
-    if (state.timeRemaining <= 0) {
-      console.error('Worker: Cannot start timer with invalid timeRemaining:', state.timeRemaining);
-      state.isRunning = false;
-      return;
-    }
-    
-    timerInterval = self.setInterval(() => {
-      console.log('Worker: Interval tick - timeRemaining before decrement:', state.timeRemaining);
-      if (state.timeRemaining > 0) {
-        state.timeRemaining--;
-        console.log('Worker: TICK - timeRemaining after decrement:', state.timeRemaining);
-        self.postMessage({ 
-          type: 'TICK', 
-          payload: { 
-            timeRemaining: state.timeRemaining,
-            mode: state.mode,
-            currentIteration: state.currentIteration,
-            totalIterations: state.totalIterations,
-            isRunning: state.isRunning
-          } 
-        });
-      } else {
-        console.log('Worker: Timer reached zero, calling completeTimer()...');
-        completeTimer();
-      }
-    }, 1000);
-  } else {
-    console.log('Worker: Timer is already running');
+  if (state.isRunning) {
+    // Already running, don't start again
+    console.log('Worker: Timer already running, ignoring start request');
+    return;
   }
+  
+  // Validate timeRemaining before starting
+  if (state.timeRemaining <= 0) {
+    console.log('Worker: Cannot start timer - timeRemaining is 0 or negative:', state.timeRemaining);
+    return;
+  }
+  
+  console.log('Worker: Starting timer with timeRemaining:', state.timeRemaining, 'mode:', state.mode);
+  
+  // Clear any existing interval first
+  if (timerInterval) {
+    console.log('Worker: Clearing existing interval before starting');
+    self.clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  
+  state.isRunning = true;
+  
+  // Send initial state update
+  messageSequence++;
+  self.postMessage({ 
+    type: 'TICK', 
+    payload: { 
+      timeRemaining: state.timeRemaining,
+      mode: state.mode,
+      currentIteration: state.currentIteration,
+      totalIterations: state.totalIterations,
+      isRunning: state.isRunning
+    },
+    sequence: messageSequence
+  });
+  
+  // Start the interval
+  timerInterval = self.setInterval(() => {
+    if (state.timeRemaining > 0) {
+      state.timeRemaining--;
+      messageSequence++;
+      self.postMessage({ 
+        type: 'TICK', 
+        payload: { 
+          timeRemaining: state.timeRemaining,
+          mode: state.mode,
+          currentIteration: state.currentIteration,
+          totalIterations: state.totalIterations,
+          isRunning: state.isRunning
+        },
+        sequence: messageSequence
+      });
+    } else {
+      completeTimer();
+    }
+  }, 1000);
+  
+  console.log('Worker: Timer interval started');
 }
 
 // Pause the timer
@@ -278,7 +305,7 @@ function pauseTimer() {
       self.clearInterval(timerInterval);
       timerInterval = null;
     }
-    console.log('Worker: Timer paused with timeRemaining:', state.timeRemaining);
+    messageSequence++;
     self.postMessage({ 
       type: 'PAUSED', 
       payload: { 
@@ -287,7 +314,8 @@ function pauseTimer() {
         currentIteration: state.currentIteration,
         totalIterations: state.totalIterations,
         isRunning: state.isRunning
-      } 
+      },
+      sequence: messageSequence
     });
   }
 }
@@ -295,8 +323,16 @@ function pauseTimer() {
 // Reset the timer
 function resetTimer() {
   pauseTimer();
-  state.timeRemaining = state.mode === 'work' ? state.settings.workDuration : state.settings.breakDuration;
-  self.postMessage({ type: 'RESET', payload: { timeRemaining: state.timeRemaining } });
+  // Settings are in minutes, convert to seconds
+  state.timeRemaining = state.mode === 'work' 
+    ? state.settings.workDuration * 60 
+    : state.settings.breakDuration * 60;
+  messageSequence++;
+  self.postMessage({ 
+    type: 'RESET', 
+    payload: { timeRemaining: state.timeRemaining },
+    sequence: messageSequence
+  });
 }
 
 // Complete the timer
@@ -306,14 +342,52 @@ function completeTimer() {
   
   pauseTimer();
   
-  // Play sound if enabled
-  if (state.settings.soundEnabled) {
+  // Check if this is the last work session - if so, practice is complete
+  // For practice completion, don't play sound here - it will be played in handlePracticeComplete
+  const isPracticeComplete = state.mode === 'work' && state.currentIteration === state.totalIterations;
+  
+  // Play sound if enabled (but not for practice completion - that's handled separately)
+  if (state.settings.soundEnabled && !isPracticeComplete) {
     console.log('Worker: Sending PLAY_SOUND message');
+    // Ensure volume is in 0-100 range for playSound function
+    // Store might have volume in 0-100 range, worker might store as 0-1, normalize to 0-100
+    let volume = state.settings.volume;
+    if (volume <= 1) {
+      // Volume is in 0-1 range, convert to 0-100
+      volume = volume * 100;
+    }
+    // Ensure volume is within valid range
+    volume = Math.min(100, Math.max(0, volume));
     self.postMessage({ type: 'PLAY_SOUND', payload: { 
       numberOfBeeps: state.settings.numberOfBeeps,
-      volume: state.settings.volume,
+      volume: volume,
       soundType: state.settings.soundType
     }});
+  }
+
+  if (isPracticeComplete) {
+    console.log('Worker: Last work session complete, practice is finished!');
+    
+    // Show notification if enabled
+    if (state.settings.browserNotificationsEnabled) {
+      console.log('Worker: Sending SHOW_NOTIFICATION message for practice completion');
+      self.postMessage({ type: 'SHOW_NOTIFICATION', payload: { 
+        title: 'Practice Complete!',
+        body: `You've completed all ${state.totalIterations} work sessions!`
+      }});
+    }
+    
+    // Send PRACTICE_COMPLETE message
+    messageSequence++;
+    self.postMessage({ 
+      type: 'PRACTICE_COMPLETE', 
+      payload: { 
+        currentIteration: state.currentIteration,
+        totalIterations: state.totalIterations
+      },
+      sequence: messageSequence
+    });
+    return;
   }
 
   // Show notification if enabled
@@ -336,30 +410,43 @@ function completeTimer() {
   state.mode = newMode;
   state.timeRemaining = state.mode === 'work' ? state.settings.workDuration * 60 : state.settings.breakDuration * 60;
 
-  // Check if all iterations are complete
+  // Check if all iterations are complete (shouldn't happen after last work session check above, but safety check)
   if (state.currentIteration > state.totalIterations) {
-    console.log('Worker: All iterations complete, sending COMPLETE message');
-    self.postMessage({ type: 'COMPLETE', payload: { 
-      mode: state.mode,
-      currentIteration: state.currentIteration,
-      totalIterations: state.totalIterations
-    }});
+    messageSequence++;
+    self.postMessage({ 
+      type: 'COMPLETE', 
+      payload: { 
+        mode: state.mode,
+        currentIteration: state.currentIteration,
+        totalIterations: state.totalIterations,
+        timeRemaining: state.timeRemaining
+      },
+      sequence: messageSequence
+    });
     return;
   }
 
-  // Send COMPLETE message without starting the next timer
-  console.log('Worker: Timer session complete, sending COMPLETE message');
-  self.postMessage({ type: 'COMPLETE', payload: { 
-    mode: state.mode,
-    currentIteration: state.currentIteration,
-    totalIterations: state.totalIterations
-  }});
-  
-  console.log('Worker: completeTimer() finished, final state:', state);
+  // Send COMPLETE message with updated state (mode switched, ready for next session)
+  messageSequence++;
+  self.postMessage({ 
+    type: 'COMPLETE', 
+    payload: { 
+      mode: state.mode,
+      currentIteration: state.currentIteration,
+      totalIterations: state.totalIterations,
+      timeRemaining: state.timeRemaining
+    },
+    sequence: messageSequence
+  });
 }
 
 // Update settings
 function updateSettings(settings: Partial<TimerState['settings']>) {
   state.settings = { ...state.settings, ...settings };
-  self.postMessage({ type: 'SETTINGS_UPDATED', payload: state.settings });
+  messageSequence++;
+  self.postMessage({ 
+    type: 'SETTINGS_UPDATED', 
+    payload: state.settings,
+    sequence: messageSequence
+  });
 } 
