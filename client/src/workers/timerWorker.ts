@@ -114,7 +114,7 @@ self.addEventListener('message', (event: MessageEvent) => {
       break;
 
     case 'RESET':
-      resetTimer();
+      resetTimer(payload);
       break;
 
     case 'UPDATE_STATE':
@@ -320,17 +320,34 @@ function pauseTimer() {
   }
 }
 
-// Reset the timer
-function resetTimer() {
+// Reset the timer - always goes to first work session
+function resetTimer(payload?: { timeRemaining?: number; mode?: string; currentIteration?: number; totalIterations?: number }) {
   pauseTimer();
-  // Settings are in minutes, convert to seconds
-  state.timeRemaining = state.mode === 'work' 
-    ? state.settings.workDuration * 60 
-    : state.settings.breakDuration * 60;
+  // Use payload from store (reset always targets first work session)
+  const workDurationSeconds = state.settings.workDuration * 60;
+  const timeRemaining = payload?.timeRemaining ?? workDurationSeconds;
+  const currentIteration = payload?.currentIteration ?? 1;
+  const totalIterations = payload?.totalIterations ?? state.totalIterations;
+  
+  state = {
+    ...state,
+    mode: 'work',
+    timeRemaining,
+    currentIteration,
+    totalIterations,
+    isRunning: false
+  };
+  
   messageSequence++;
   self.postMessage({ 
     type: 'RESET', 
-    payload: { timeRemaining: state.timeRemaining },
+    payload: { 
+      timeRemaining: state.timeRemaining, 
+      totalTime: state.timeRemaining,
+      mode: state.mode,
+      currentIteration: state.currentIteration,
+      totalIterations: state.totalIterations
+    },
     sequence: messageSequence
   });
 }

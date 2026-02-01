@@ -387,6 +387,39 @@ export default function Settings() {
                   </p>
                 </div>
               </div>
+
+              {/* Display Settings */}
+              <div>
+                <h2 className="text-lg font-medium mb-4">Display</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="material-icons text-muted-foreground mr-3">calendar_view_week</span>
+                      <Label htmlFor="week-starts">Week starts on</Label>
+                    </div>
+                    <div className="w-32">
+                      <Select
+                        value={localSettings.weekStartsOn ?? 'monday'}
+                        onValueChange={(value) => handleSettingsUpdate({
+                          ...localSettings,
+                          weekStartsOn: value as 'monday' | 'sunday'
+                        })}
+                      >
+                        <SelectTrigger id="week-starts">
+                          <SelectValue placeholder="Week start" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monday">Monday</SelectItem>
+                          <SelectItem value="sunday">Sunday</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Affects how practice time is grouped by week.
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
         </div>

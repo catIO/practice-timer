@@ -9,10 +9,9 @@ import { playSound } from "@/lib/soundEffects";
 import { useToast } from "@/hooks/use-toast";
 import { SettingsType } from "@/lib/timerService";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { resumeAudioContext } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
-import { Settings, Info } from "lucide-react";
 import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
 import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import { cn } from "@/lib/utils";
@@ -239,18 +238,19 @@ export default function Home() {
 
   // Handle settings navigation
   const handleSettingsClick = useCallback(() => {
-    console.log('Navigating to settings, current timer state:', {
-      timeRemaining,
-      totalTime,
-      mode,
-      isRunning
-    });
-    
     if (isRunning) {
       pauseTimer();
     }
     navigate('/settings');
-  }, [isRunning, pauseTimer, navigate, timeRemaining, totalTime, mode]);
+  }, [isRunning, pauseTimer, navigate]);
+
+  // Handle practice log navigation
+  const handlePracticeLogClick = useCallback(() => {
+    if (isRunning) {
+      pauseTimer();
+    }
+    navigate('/practice-log');
+  }, [isRunning, pauseTimer, navigate]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -302,7 +302,7 @@ export default function Home() {
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
+                <h1 className="text-2xl font-bold text-primary">Practice Timer</h1>
                 {/* Wake Lock Status Indicator */}
                 {isRunning && (
                   <div className={cn(
@@ -317,6 +317,16 @@ export default function Home() {
                 )} title={audioInitialized ? "Audio ready" : "Audio not ready"} />
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
+                  onClick={handlePracticeLogClick}
+                  aria-label="View practice time log"
+                  title="Practice time"
+                >
+                  <span className="material-icons">bar_chart</span>
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

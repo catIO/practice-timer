@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS } from '@/lib/timerService';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Home from '@/pages/Home';
 import Settings from '@/pages/Settings';
+import PracticeLog from '@/pages/PracticeLog';
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/practice-log" element={<PracticeLog />} />
           </Routes>
           <Toaster />
         </Router>

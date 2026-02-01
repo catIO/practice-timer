@@ -1,6 +1,8 @@
 import { config } from '../../../config';
 
 // Types for settings
+export type WeekStartsOn = 'monday' | 'sunday';
+
 export interface SettingsType {
   id?: number;
   userId?: number;
@@ -13,6 +15,7 @@ export interface SettingsType {
   mode: string;
   volume: number;
   soundType: string;
+  weekStartsOn: WeekStartsOn;
 }
 
 // Default settings from config file
@@ -25,5 +28,6 @@ export const DEFAULT_SETTINGS: SettingsType = {
   numberOfBeeps: 3,
   mode: 'work',
   volume: 50,
-  soundType: 'beep'
+  soundType: 'beep',
+  weekStartsOn: 'monday'
 };

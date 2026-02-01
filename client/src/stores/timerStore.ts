@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { SettingsType, DEFAULT_SETTINGS } from '@/lib/timerService';
 import { getSettings } from '@/lib/localStorage';
+import { addPracticeTime } from '@/lib/practiceLog';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
@@ -210,8 +211,14 @@ export const useTimerStore = create<TimerState>((set, get) => {
               }
               set({ lastMessageSequence: sequence });
             }
+            // Worker confirms reset - ensure totalTime matches timeRemaining for correct circle animation
+            const resetTotalTime = payload.totalTime ?? payload.timeRemaining;
             set({ 
               timeRemaining: payload.timeRemaining,
+              totalTime: resetTotalTime,
+              mode: payload.mode ?? 'work',
+              currentIteration: payload.currentIteration ?? 1,
+              totalIterations: payload.totalIterations ?? get().totalIterations,
               isRunning: false
             });
             break;
@@ -348,6 +355,11 @@ export const useTimerStore = create<TimerState>((set, get) => {
                 pendingMessages.delete(sequence);
               }
             }
+            // Log practice time when we complete a work session (new mode is 'break' = we came from work)
+            if (payload.mode === 'break') {
+              const workSeconds = get().settings.workDuration * 60;
+              addPracticeTime(workSeconds);
+            }
             const newTimeRemaining = payload.timeRemaining || (
               payload.mode === 'work' 
                 ? get().settings.workDuration * 60 
@@ -387,6 +399,9 @@ export const useTimerStore = create<TimerState>((set, get) => {
               }
               set({ lastMessageSequence: sequence });
             }
+            // Log practice time for the last work session
+            const workSeconds = get().settings.workDuration * 60;
+            addPracticeTime(workSeconds);
             // Don't set isPracticeComplete immediately - wait for sound to finish
             // The practice-complete event handler will play sound first, then set isPracticeComplete
             // Trigger completion callback via custom event (will handle sound first)
@@ -520,18 +535,23 @@ export const useTimerStore = create<TimerState>((set, get) => {
       const state = get();
       if (!worker) return;
       
+      // Reset always goes to first work session (not "reset current session")
+      const workDurationSeconds = state.settings.workDuration * 60;
+      const totalIterations = state.settings.iterations ?? 4;
+      
       await sendMessage('RESET', {
-        timeRemaining: state.mode === 'work' 
-          ? state.settings.workDuration * 60 
-          : state.settings.breakDuration * 60
+        timeRemaining: workDurationSeconds,
+        mode: 'work',
+        currentIteration: 1,
+        totalIterations
       });
       
       set({
         isRunning: false,
         mode: 'work',
         currentIteration: 1,
-        timeRemaining: state.settings.workDuration * 60,
-        totalTime: state.settings.workDuration * 60,
+        timeRemaining: workDurationSeconds,
+        totalTime: workDurationSeconds,
         isPracticeComplete: false
       });
     },
