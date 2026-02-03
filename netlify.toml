@@ -21,6 +21,17 @@
   [headers.values]
     Content-Type = "application/javascript"
 
+# Don't cache SW or HTML so users get latest app after deploy (SW and app use their own caching)
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
 [dev]
   base = "."
   command = "npm run dev"

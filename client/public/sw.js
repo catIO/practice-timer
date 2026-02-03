@@ -23,24 +23,26 @@ let backgroundTimerState = {
 // Background sync registration
 let backgroundSyncRegistered = false;
 
-// Install event - cache static assets
+// Install event - cache static assets; skipWaiting so new SW activates without closing tabs
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         return cache.addAll(STATIC_ASSETS).catch(error => {
           console.error('Failed to cache resources:', error);
-          // Continue installation even if caching fails
           return Promise.resolve();
         });
       })
   );
 });
 
-// Activate event - clean up old caches and register background sync
+// Activate event - take control immediately, clean old caches, register background sync
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
+      // Take control of all clients so new SW handles fetches right away
+      self.clients.claim(),
       // Clean up old caches
       caches.keys().then((cacheNames) => {
         return Promise.all(
@@ -49,7 +51,6 @@ self.addEventListener('activate', (event) => {
             .map((name) => caches.delete(name))
         );
       }),
-      // Register background sync if supported
       registerBackgroundSync()
     ])
   );
@@ -231,9 +232,14 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network-first for app (HTML/JS/CSS) so updates load without hard refresh
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  
+  // Never cache the service worker script - browser must get fresh sw.js to update
+  if (url.pathname === '/sw.js') {
+    return;
+  }
   
   // Skip caching for:
   // 1. Vite's development server requests
@@ -248,35 +254,42 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const isAppRequest = event.request.mode === 'navigate' ||
+    event.request.destination === 'document' ||
+    event.request.destination === 'script' ||
+    event.request.destination === 'style' ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html' ||
+    /\/assets\/.*\.(js|css)$/.test(url.pathname);
+
+  // Network-first for app: try network, fall back to cache (so updates load without hard refresh)
+  if (isAppRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (icons, manifest, etc.)
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request)
-          .then(response => {
-            // Check if we received a valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
+        if (response) return response;
+        return fetch(event.request).then(response => {
+          if (response && response.status === 200 && response.type === 'basic') {
             const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              })
-              .catch(error => {
-                console.error('Failed to cache response:', error);
-              });
-
-            return response;
-          })
-          .catch(error => {
-            console.error('Fetch failed:', error);
-            // Return a fallback response or let the error propagate
-            throw error;
-          });
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+          }
+          return response;
+        });
       })
   );
 }); 
