@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getDailyBreakdownByWeek,
-  getTotalSeconds,
+  getTodaySeconds,
+  getThisWeekSeconds,
   formatDuration,
   formatDate,
 } from "@/lib/practiceLog";
@@ -14,7 +15,8 @@ export default function PracticeLog() {
   const settings = getSettings();
   const weekStartsOn = settings?.weekStartsOn ?? "monday";
   const weekGroups = getDailyBreakdownByWeek(weekStartsOn);
-  const totalSeconds = getTotalSeconds();
+  const todaySeconds = getTodaySeconds();
+  const thisWeekSeconds = getThisWeekSeconds(weekStartsOn);
 
   return (
     <div className="text-foreground font-sans min-h-screen">
@@ -35,13 +37,30 @@ export default function PracticeLog() {
 
           <section className="p-6">
             <div className="space-y-6">
-              <div className="rounded-lg border bg-muted/50 p-4">
-                <p className="text-sm font-medium text-muted-foreground">
+              <div>
+                <h2 className="mb-3 text-xl font-semibold text-foreground">
                   Total practice time
-                </p>
-                <p className="text-3xl font-bold text-primary">
-                  {formatDuration(totalSeconds)}
-                </p>
+                </h2>
+                <div className="rounded-lg border bg-muted/50 p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Today
+                    </p>
+                    <p className="text-2xl font-bold text-primary">
+                      {formatDuration(todaySeconds)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      This week
+                    </p>
+                    <p className="text-2xl font-bold text-primary">
+                      {formatDuration(thisWeekSeconds)}
+                    </p>
+                  </div>
+                </div>
+                </div>
               </div>
               <div>
                 <h2 className="mb-3 text-xl font-semibold text-foreground">

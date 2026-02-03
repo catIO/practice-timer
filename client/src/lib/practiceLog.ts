@@ -94,6 +94,26 @@ export function getTotalSeconds(): number {
   return Object.values(log).reduce((sum, s) => sum + s, 0);
 }
 
+/** Get practice time for today (YYYY-MM-DD) in seconds */
+export function getTodaySeconds(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const log = getPracticeLog();
+  return log[today] ?? 0;
+}
+
+/** Get practice time for the current week in seconds (week boundaries from weekStartsOn) */
+export function getThisWeekSeconds(weekStartsOn: WeekStartsOn = 'monday'): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const currentWeekStart = getWeekStart(today, weekStartsOn);
+  const log = getPracticeLog();
+  return Object.entries(log).reduce((sum, [date, seconds]) => {
+    if (getWeekStart(date, weekStartsOn) === currentWeekStart) {
+      return sum + seconds;
+    }
+    return sum;
+  }, 0);
+}
+
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
