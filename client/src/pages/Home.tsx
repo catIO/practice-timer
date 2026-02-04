@@ -16,6 +16,7 @@ import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstruction
 import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import { cn } from "@/lib/utils";
 import { useTimerStore } from "@/stores/timerStore";
+import { PracticePlanPane } from "@/components/PracticePlanPane";
 
 import "@/assets/headerBlur.css";
 
@@ -25,6 +26,7 @@ export default function Home() {
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [planPaneOpen, setPlanPaneOpen] = useState(false);
   // Setup notifications and toast
   const { toast } = useToast();
   const { showNotification, showTimerCompletionNotification } = useNotification();
@@ -321,6 +323,16 @@ export default function Home() {
                   variant="ghost"
                   size="icon"
                   className="text-primary hover:text-primary/80"
+                  onClick={() => setPlanPaneOpen(true)}
+                  aria-label="Practice plan"
+                  title="Practice plan"
+                >
+                  <span className="material-icons">list</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:text-primary/80"
                   onClick={handlePracticeLogClick}
                   aria-label="View practice time log"
                   title="Practice time"
@@ -338,6 +350,7 @@ export default function Home() {
               </div>
             </div>
           </header>
+          <PracticePlanPane open={planPaneOpen} onOpenChange={setPlanPaneOpen} />
 
           <main className="p-6">
             <div className="space-y-8">
