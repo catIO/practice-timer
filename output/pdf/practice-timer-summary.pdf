@@ -1,0 +1,190 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /Helvetica 4 0 R /Helvetica-Bold 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 2967 >>
+stream
+BT
+/Helvetica-Bold 18 Tf
+1 0 0 1 54 738 Tm
+(Practice Timer - App Summary) Tj
+ET
+BT
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 716 Tm
+(What it is) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 700 Tm
+(Practice Timer is a React/Vite web app for running practice sessions with Pomodoro-style) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 686 Tm
+(work and break cycles, notifications, and PWA support. It focuses on reliable timing) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 672 Tm
+(across desktop and mobile browsers, including iOS.) Tj
+ET
+BT
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 654 Tm
+(Who it's for) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 638 Tm
+(Not found in repo.) Tj
+ET
+BT
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 620 Tm
+(What it does) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 604 Tm
+(- Pomodoro-style work and break timer with customizable durations) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 590 Tm
+(- Iteration tracking across multiple work/break cycles) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 576 Tm
+(- Sound alerts when sessions complete) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 562 Tm
+(- Browser notifications for completion events) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 548 Tm
+(- PWA install support with service worker caching) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 534 Tm
+(- iOS background optimizations \(background timer and wake-lock strategies\)) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 520 Tm
+(- Dark mode and responsive layout for desktop and mobile) Tj
+ET
+BT
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 502 Tm
+(How it works) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 486 Tm
+(- UI: React app in `client/src` styled with Tailwind; entry point in) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 472 Tm
+(  `client/src/main.tsx`.) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 458 Tm
+(- State: Zustand store in `client/src/stores/timerStore.ts` holds timer state and) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 444 Tm
+(  settings.) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 430 Tm
+(- Timing: Web Worker in `client/src/workers/timerWorker.ts` drives ticks and completion) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 416 Tm
+(  messages.) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 402 Tm
+(- Background: Service worker `client/public/sw.js` caches assets and runs background) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 388 Tm
+(  sync/notifications; registered in `client/src/main.tsx`.) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 374 Tm
+(- Persistence: Settings stored in localStorage via `client/src/lib/localStorage.ts`.) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 360 Tm
+(- Data flow: UI -> Zustand store -> Web Worker -> store -> UI; store posts updates to) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 346 Tm
+(  service worker for background handling.) Tj
+ET
+BT
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 328 Tm
+(How to run) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 312 Tm
+(- Install Node.js v16+ \(prerequisite from README\).) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 298 Tm
+(- Run `npm install` from the repo root.) Tj
+ET
+BT
+/Helvetica 11 Tf
+1 0 0 1 54 284 Tm
+(- Run `npm run dev` to start the Vite dev server.) Tj
+ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000270 00000 n 
+0000000340 00000 n 
+0000000415 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3433
+%%EOF

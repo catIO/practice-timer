@@ -23,6 +23,22 @@ import {
   practicePlanApi,
 } from "@/lib/practicePlan";
 import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface PracticePlanPaneProps {
   open: boolean;
@@ -168,6 +184,23 @@ function PlanItem({
   onMergeWithPrevious,
   onInputFocus,
 }: PlanItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : undefined, // Ensure dragged item is on top
+    position: 'relative' as const, // Fix for z-index
+  };
+
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(item.text);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -318,13 +351,13 @@ function PlanItem({
   }, [item.id, onInputFocus]);
 
   return (
-    <div>
+    <div ref={setNodeRef} style={style}>
       <div
         ref={rowRef}
         tabIndex={0}
         role="button"
         className={cn(
-          "group flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none focus-visible:ring-2 focus-visible:ring-ring",
           depth !== 0 && !isHeader && "ml-4",
           isHeader && "first:mt-0 ml-0",
           "my-0.5" // Minimal vertical margin
@@ -345,7 +378,9 @@ function PlanItem({
           if (!editing) setEditing(true);
         }}
       >
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground">
+        <div className={cn(
+          "flex shrink-0 items-center gap-0.1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground relative -left-0 top-0 z-10"
+        )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -373,46 +408,47 @@ function PlanItem({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 rounded hover:bg-muted"
-                title="Line options"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="material-icons text-base">drag_indicator</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDelete(item.id)}
-              >
-                <span className="material-icons mr-2 text-base">delete_outline</span>
-                Remove
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+            title="Drag handle"
+            // Start of drag handle configuration
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              // Prevent drag when clicking menu... handled by preventDefault in menu?
+              // DND-Kit handles this via sensors if configured correctly.
+              // But we need to make sure we don't block other clicks.
+              listeners?.onPointerDown?.(e);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') return; // Don't trigger drag on Enter if it conflicts
+              listeners?.onKeyDown?.(e);
+            }}
+          >
+            <span className="material-icons text-base">drag_indicator</span>
+          </Button>
         </div>
         {showCheckbox ? (
           <Checkbox
             id={item.id}
             checked={item.checked}
             onCheckedChange={() => onToggle(item.id)}
-            className="mt-0.5 shrink-0"
+            className="mt-1 shrink-0"
           />
         ) : blockType === "bullet" ? (
-          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/70" aria-hidden />
+          <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/70" aria-hidden />
         ) : blockType === "number" ? (
-          <span className="mt-1 shrink-0 text-sm text-muted-foreground" aria-hidden />
-        ) : (
+          <span className="mt-2 shrink-0 text-sm text-muted-foreground" aria-hidden />
+        ) : !isHeader ? (
           <span className="w-0 shrink-0" aria-hidden />
-        )}
+        ) : null}
         <div
-          className={cn("min-w-0 flex-1", isHeader && "flex items-center", "cursor-text")}
+          className={cn("min-w-0 flex-1", isHeader && "flex items-center -ml-1", "cursor-text")}
           onClick={(e) => {
             // Single click does NOT enter edit mode anymore (user requested double click)
             // But we should stop propagation so row doesn't lose focus or anything weird?
@@ -468,38 +504,56 @@ function PlanItem({
           )}
         </div>
         <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={() => onDelete(item.id)}
-            title="Remove"
-          >
-            <span className="material-icons text-base">close</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={(e) => e.stopPropagation()}
+                title="Options"
+              >
+                <span className="material-icons text-base">delete_outline</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive cursor-pointer"
+                onClick={() => onDelete(item.id)}
+              >
+                <span className="material-icons mr-2 text-base">delete_outline</span>
+                Delete item
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {hasChildren && (
         <div className="border-l border-border/60 pl-2 ml-2 mt-0">
-          {item.children.map((child) => (
-            <PlanItem
-              key={child.id}
-              item={child}
-              depth={depth + 1}
-              focusRequest={focusRequest}
-              onToggle={onToggle}
-              onUpdateText={onUpdateText}
-              onUpdateType={onUpdateType}
-              onDelete={onDelete}
-              onIndent={onIndent}
-              onUnindent={onUnindent}
-              onInsertBelow={onInsertBelow}
-              onInsertBefore={onInsertBefore}
-              onNavigate={onNavigate}
-              onMergeWithPrevious={onMergeWithPrevious}
-              onInputFocus={onInputFocus}
-            />
-          ))}
+          <SortableContext
+            items={item.children.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {item.children.map((child) => (
+              <PlanItem
+                key={child.id}
+                item={child}
+                depth={depth + 1}
+                focusRequest={focusRequest}
+                onToggle={onToggle}
+                onUpdateText={onUpdateText}
+                onUpdateType={onUpdateType}
+                onDelete={onDelete}
+                onIndent={onIndent}
+                onUnindent={onUnindent}
+                onInsertBelow={onInsertBelow}
+                onInsertBefore={onInsertBefore}
+                onNavigate={onNavigate}
+                onMergeWithPrevious={onMergeWithPrevious}
+                onInputFocus={onInputFocus}
+              />
+            ))}
+          </SortableContext>
         </div>
       )}
     </div>
@@ -525,6 +579,17 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   // Maintain a flat list of IDs for navigation
   const flatList = useMemo(() => flattenItems(items), [items]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts to prevent accidental drags on click
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (open) {
@@ -687,52 +752,68 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
     // no-op or tracking
   }, []);
 
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setItems((prev) => practicePlanApi.reorder(prev, active.id as string, over.id as string));
+    }
+  }, []);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
-        <SheetHeader>
+        <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <SheetTitle>Practice plan</SheetTitle>
+          <Button variant="ghost" size="sm" className="h-8 -mr-2 text-muted-foreground hover:text-foreground" onClick={handleReset}>
+            Reset
+          </Button>
         </SheetHeader>
         <div className="mt-4 flex flex-col flex-1 min-h-0">
-          <div className="flex flex-wrap gap-2 mb-3">
-            <Button variant="outline" size="sm" onClick={handleReset}>
-              Reset all
-            </Button>
-          </div>
           <ScrollArea className="flex-1 pr-4 -mr-4">
-            <ul className="space-y-0 pr-2">
-              {items.map((item, index) => (
-                <li key={item.id}>
-                  <EmptyLineSlot
-                    index={index}
-                    onInsert={handleInsertBlock}
-                  />
-                  <PlanItem
-                    item={item}
-                    depth={0}
-                    focusRequest={focusRequest}
-                    onToggle={handleToggle}
-                    onUpdateText={handleUpdateText}
-                    onUpdateType={handleUpdateType}
-                    onDelete={handleDelete}
-                    onIndent={handleIndent}
-                    onUnindent={handleUnindent}
-                    onInsertBelow={handleInsertBelow}
-                    onInsertBefore={handleInsertBefore}
-                    onNavigate={handleNavigate}
-                    onMergeWithPrevious={handleMergeWithPrevious}
-                    onInputFocus={handleInputFocus}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <ul className="space-y-0 pr-2">
+                <SortableContext
+                  items={items.map(i => i.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {items.map((item, index) => (
+                    <li key={item.id}>
+                      <EmptyLineSlot
+                        index={index}
+                        onInsert={handleInsertBlock}
+                      />
+                      <PlanItem
+                        item={item}
+                        depth={0}
+                        focusRequest={focusRequest}
+                        onToggle={handleToggle}
+                        onUpdateText={handleUpdateText}
+                        onUpdateType={handleUpdateType}
+                        onDelete={handleDelete}
+                        onIndent={handleIndent}
+                        onUnindent={handleUnindent}
+                        onInsertBelow={handleInsertBelow}
+                        onInsertBefore={handleInsertBefore}
+                        onNavigate={handleNavigate}
+                        onMergeWithPrevious={handleMergeWithPrevious}
+                        onInputFocus={handleInputFocus}
+                      />
+                    </li>
+                  ))}
+                </SortableContext>
+                <li>
+                  {/* Keep placeholder at bottom for easy adding */}
+                  <AddLinePlaceholder
+                    index={items.length}
+                    onAddLine={handleAddLineAtSlot}
                   />
                 </li>
-              ))}
-              <li>
-                {/* Keep placeholder at bottom for easy adding */}
-                <AddLinePlaceholder
-                  index={items.length}
-                  onAddLine={handleAddLineAtSlot}
-                />
-              </li>
-            </ul>
+              </ul>
+            </DndContext>
           </ScrollArea>
         </div>
       </SheetContent>

@@ -28,71 +28,21 @@ function generateId(): string {
   return `plan-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const DEFAULT_PLAN: PracticePlanItem[] = [
-  { id: "1", text: "C major scales", checked: false, children: [] },
-  {
-    id: "2",
-    text: "G and C keeping fingers down",
-    checked: false,
-    children: [
-      {
-        id: "2a",
-        text: "Do I collapse fingers to get the F# and G?",
-        checked: false,
-        children: [],
-      },
-    ],
-  },
-  {
-    id: "3",
-    text: "All scales (GEA) - fingers down on each string",
+import { getSettings } from "./localStorage";
+
+function generateDefaultPlan(): PracticePlanItem[] {
+  const settings = getSettings();
+  const iterations = settings.iterations;
+
+  return Array.from({ length: iterations }, (_, i) => ({
+    id: generateId(),
+    text: `Work session ${i + 1}`,
     checked: false,
     children: [],
-  },
-  { id: "4", text: "All scales - 80 bpm", checked: false, children: [] },
-  {
-    id: "5",
-    text: "Finger independence",
-    checked: false,
-    children: [
-      { id: "5a", text: "#2", checked: false, children: [] },
-      { id: "5b", text: "#3", checked: false, children: [] },
-    ],
-  },
-  {
-    id: "6",
-    text: "Slurs - fixed finger",
-    checked: false,
-    children: [
-      { id: "6a", text: "Fifth position: 1434", checked: false, children: [] },
-      {
-        id: "6b",
-        text: "CGC Fixed fingers: 1-5 (CGC Cornerstone Method - Unit 8.2)",
-        checked: false,
-        children: [],
-      },
-    ],
-  },
-  {
-    id: "7",
-    text: "RC Arpeggio Patterns Level 1 😣",
-    checked: false,
-    children: [
-      {
-        id: "7a",
-        text: "Still working on left hand",
-        checked: false,
-        children: [],
-      },
-    ],
-  },
-  {
-    id: "8",
-    text: "Sight reading (optional - testing app)",
-    checked: false,
-    children: [],
-  },
-];
+    blockType: "heading1",
+    isHeader: true,
+  }));
+}
 
 function cloneItem(item: PracticePlanItem): PracticePlanItem {
   return {
@@ -119,13 +69,16 @@ export function getPracticePlan(): PracticePlanItem[] {
     let raw: PracticePlanItem[];
     if (stored) {
       const parsed = JSON.parse(stored);
-      raw = Array.isArray(parsed) ? parsed : DEFAULT_PLAN.map(cloneItem);
+      // Fallback to dynamic default if stored array is empty (optional edge case)
+      // but usually we trust what's stored unless we want to force reset logic.
+      // For now, respect stored value if valid.
+      raw = Array.isArray(parsed) ? parsed : generateDefaultPlan().map(cloneItem);
     } else {
-      raw = DEFAULT_PLAN.map(cloneItem);
+      raw = generateDefaultPlan();
     }
     return raw.map(normalizeItem);
   } catch {
-    return DEFAULT_PLAN.map(cloneItem).map(normalizeItem);
+    return generateDefaultPlan().map(normalizeItem);
   }
 }
 
@@ -378,6 +331,30 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
+  reorder: (items: PracticePlanItem[], activeId: string, overId: string): PracticePlanItem[] => {
+    const activePath = findPathToId(items, activeId);
+    const overPath = findPathToId(items, overId);
+
+    if (!activePath || !overPath) return items;
+
+    // Check if siblings by comparing parent paths
+    const activeParentPath = activePath.slice(0, -1);
+    const overParentPath = overPath.slice(0, -1);
+
+    const isSiblings =
+      activeParentPath.length === overParentPath.length &&
+      activeParentPath.every((val, index) => val === overParentPath[index]);
+
+    if (isSiblings) {
+      const oldIndex = activePath[activePath.length - 1];
+      const newIndex = overPath[overPath.length - 1];
+      const next = moveItemInTree(items, activeParentPath, oldIndex, newIndex);
+      savePracticePlan(next);
+      return next;
+    }
+
+    return items;
+  },
 };
 
 function createBlock(blockType: BlockType, initialText?: string): PracticePlanItem {
@@ -480,4 +457,31 @@ function insertRootAfter(
 ): PracticePlanItem[] {
   const i = Math.max(0, Math.min(afterIndex + 1, items.length));
   return [...items.slice(0, i), toInsert, ...items.slice(i)];
+}
+
+function moveItemInTree(
+  items: PracticePlanItem[],
+  parentPath: number[],
+  fromIndex: number,
+  toIndex: number
+): PracticePlanItem[] {
+  if (parentPath.length === 0) {
+    return arrayMove(items, fromIndex, toIndex);
+  }
+  const [index, ...rest] = parentPath;
+  return items.map((item, i) => {
+    if (i === index) {
+      return {
+        ...item,
+        children: moveItemInTree(item.children, rest, fromIndex, toIndex),
+      };
+    }
+    return item;
+  });
+}
+
+function arrayMove<T>(array: T[], from: number, to: number): T[] {
+  const newArray = array.slice();
+  newArray.splice(to < 0 ? newArray.length + to : to, 0, newArray.splice(from, 1)[0]);
+  return newArray;
 }
