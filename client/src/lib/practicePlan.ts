@@ -34,14 +34,27 @@ function generateDefaultPlan(): PracticePlanItem[] {
   const settings = getSettings();
   const iterations = settings.iterations;
 
-  return Array.from({ length: iterations }, (_, i) => ({
-    id: generateId(),
-    text: `Work session ${i + 1}`,
-    checked: false,
-    children: [],
-    blockType: "heading1",
-    isHeader: true,
-  }));
+  const items: PracticePlanItem[] = [];
+  for (let i = 0; i < iterations; i++) {
+    items.push({
+      id: generateId(),
+      text: `Practice Session ${i + 1}`,
+      checked: false,
+      children: [],
+      blockType: "heading1",
+      isHeader: true,
+    });
+    // Add empty text line after header
+    items.push({
+      id: generateId(),
+      text: "",
+      checked: false,
+      children: [],
+      blockType: "text",
+      isHeader: false,
+    });
+  }
+  return items;
 }
 
 function cloneItem(item: PracticePlanItem): PracticePlanItem {
@@ -69,9 +82,6 @@ export function getPracticePlan(): PracticePlanItem[] {
     let raw: PracticePlanItem[];
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Fallback to dynamic default if stored array is empty (optional edge case)
-      // but usually we trust what's stored unless we want to force reset logic.
-      // For now, respect stored value if valid.
       raw = Array.isArray(parsed) ? parsed : generateDefaultPlan().map(cloneItem);
     } else {
       raw = generateDefaultPlan();
@@ -152,6 +162,13 @@ function addChildToItem(
   });
 }
 
+function getHeadingLevel(blockType?: BlockType): number {
+  if (blockType === "heading1") return 1;
+  if (blockType === "heading2") return 2;
+  if (blockType === "heading3") return 3;
+  return 99; // Not a header
+}
+
 export const practicePlanApi = {
   get: getPracticePlan,
   save: savePracticePlan,
@@ -205,7 +222,6 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
-  /** Add a header at the top or bottom of the root list */
   addRootHeaderAt: (
     items: PracticePlanItem[],
     position: "top" | "bottom",
@@ -229,7 +245,6 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
-  /** Insert a block at a specific root index. Index 0 = before first, items.length = after last. */
   insertRootAt: (
     items: PracticePlanItem[],
     index: number,
@@ -279,7 +294,6 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
-  /** Insert a new block of the given type immediately after the item with id. */
   insertBlockAfter: (
     items: PracticePlanItem[],
     afterItemId: string,
@@ -301,7 +315,6 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
-  /** Insert a new block of the given type immediately before the item with id. */
   insertBlockBefore: (
     items: PracticePlanItem[],
     beforeItemId: string,
@@ -348,7 +361,38 @@ export const practicePlanApi = {
     if (isSiblings) {
       const oldIndex = activePath[activePath.length - 1];
       const newIndex = overPath[overPath.length - 1];
-      const next = moveItemInTree(items, activeParentPath, oldIndex, newIndex);
+
+      // NEW SECTION MOVE LOGIC
+      // Get the list containing these siblings
+      const parentList = getParamsAt(items, activeParentPath);
+
+      const activeItem = parentList[oldIndex];
+      const activeHeadingLevel = getHeadingLevel(activeItem.blockType);
+
+      // If active item is a header, we want to move it AND its "section" (subsequent non-header items)
+      // Section ends at next item with same or higher (lower number) heading level
+      let count = 1;
+      if (activeHeadingLevel < 99) {
+        for (let i = oldIndex + 1; i < parentList.length; i++) {
+          const sibling = parentList[i];
+          const siblingLevel = getHeadingLevel(sibling.blockType);
+          // Stop if sibling is a header of same or higher importance (smaller number)
+          // e.g. if we are H2 (lev 2), stop at H1 (lev 1) or H2 (lev 2).
+          // Continue if H3 (lev 3) or Text (lev 99).
+          if (siblingLevel <= activeHeadingLevel) {
+            break;
+          }
+          count++;
+        }
+      }
+
+      // If count > 1, we are moving a range.
+      // DND-Kit gives us a simple 'oldIndex' and 'newIndex' assuming single item swap.
+      // If we move a block, we need to treat newIndex carefully.
+      // Usually dragging DOWN: insert AFTER newIndex.
+      // Dragging UP: insert BEFORE newIndex.
+
+      const next = moveRangeInTree(items, activeParentPath, oldIndex, newIndex, count);
       savePracticePlan(next);
       return next;
     }
@@ -459,29 +503,141 @@ function insertRootAfter(
   return [...items.slice(0, i), toInsert, ...items.slice(i)];
 }
 
-function moveItemInTree(
+/** Get the array at the given path */
+function getParamsAt(items: PracticePlanItem[], path: number[]): PracticePlanItem[] {
+  let current = items;
+  for (const i of path) {
+    current = current[i].children;
+  }
+  return current;
+}
+
+function moveRangeInTree(
   items: PracticePlanItem[],
   parentPath: number[],
   fromIndex: number,
-  toIndex: number
+  toIndex: number,
+  count: number
 ): PracticePlanItem[] {
   if (parentPath.length === 0) {
-    return arrayMove(items, fromIndex, toIndex);
+    return arrayMoveRange(items, fromIndex, toIndex, count);
   }
   const [index, ...rest] = parentPath;
   return items.map((item, i) => {
     if (i === index) {
       return {
         ...item,
-        children: moveItemInTree(item.children, rest, fromIndex, toIndex),
+        children: moveRangeInTree(item.children, rest, fromIndex, toIndex, count)
       };
     }
     return item;
   });
 }
 
-function arrayMove<T>(array: T[], from: number, to: number): T[] {
+/** 
+ * Move a range of items from `from` index to `to` index.
+ * Note: `to` is the index we want the *first* item of the group to land at, 
+ * OR it's the index we dropped ONTO.
+ * dnd-kit assumes "swap" or "place before/after". 
+ * 
+ * If we drag group A (idx 2-4) to loose item B (idx 8). `to` will be 8.
+ * We want A to appear at 8?
+ */
+function arrayMoveRange<T>(array: T[], from: number, to: number, count: number): T[] {
   const newArray = array.slice();
-  newArray.splice(to < 0 ? newArray.length + to : to, 0, newArray.splice(from, 1)[0]);
+
+  // Extract the chunk
+  const chunk = newArray.splice(from, count);
+
+  // Adjust insertion point: 
+  // If we removed items BEFORE the target, the indices shifted down by 'count'.
+
+  // But Dnd-kit `to` is based on the *original* indices usually?
+  // Actually dnd-kit `over` is the item we are over.
+
+  // Let's assume standard behavior:
+  // If moving down (from < to): Insert after. The gap left by 'from' shifts 'to' down? 
+  // No, if I remove at 2, item at 8 becomes 8-count?
+
+  // `dnd-kit/sortable` `arrayMove` uses:
+  // newArray.splice(to < 0 ? newArray.length + to : to, 0, newArray.splice(from, 1)[0]);
+
+  // If moving DOWN: from=0, to=2. Remove 0. Item at 2 is now at 1. Insert at 2.
+  // Result: 1, 2, 0. (Original 0 moved to end of 2).
+
+  // With ranges:
+  // Remove chunk at `from`.
+  // If `to` > `from`, `to` index needs to shift down by `count`?
+
+  // Wait, if I drag Item 0 (size 3) to Item 5.
+  // array: 0, 1, 2, 3, 4, 5, 6
+  // chunk: 0, 1, 2. Remainder: 3, 4, 5, 6.
+  // I dropped "0" onto "5". Target is "5".
+  // Index of 5 in remainder is 2.
+  // Insert at 2? -> 3, 4, 0, 1, 2, 5, 6.
+  // That places it BEFORE 5.
+
+  // Usually we expect it to swap positions.
+
+  let insertAt = to;
+  if (from < to) {
+    // Moving down. We removed `count` items before `to`.
+    // So the target index in the `newArray` (after splice) is `to - count`?
+    // BUT `to` might be INSIDE the chunk if we aren't careful? 
+    // No, `to` is `over.id`. `over` cannot be dragged item (active.id). 
+    // Can `over` be a child of dragged item? No, assuming reduced siblings list.
+
+    insertAt -= count;
+
+    // Also, we usually want to insert AFTER the target when moving down?
+    // arrayMove behavior: splice(to, 0, item).
+    // Example: [A, B, C]. Move A(0) to C(2).
+    // Remove A. [B, C]. C is at 1.
+    // Insert at 2?? [B, C, A]. Yes.
+    // So if (from < to), we insert at `to`?
+    // Wait. If remove A. C is at 1. To=2.
+    // So we insert at 2.
+
+    // With range: [A, A2, B, C]. Move A(0, count 2) to C(3).
+    // Remove A, A2. [B, C]. C is at 1.
+    // To=3. 
+    // If we insert at 3? [B, C, undefined, A, A2]. Index out of bounds.
+
+    // We need to map `to` to the new array coordinates.
+    // logic: `to` is index in OLD array.
+    // items UP TO `to` are shifted by `count` if they were after `from`.
+
+    // Simple logic:
+    // If we move DOWN, we want to place it AFTER the `to` item.
+    // If we move UP, we want to place it BEFORE the `to` item.
+
+    // Actually standard dnd-kit arrayMove logic:
+    // return [...array.slice(0, from), ...array.slice(from + 1, to + 1), item, ...array.slice(to + 1)];
+    // (Simplified logic)
+
+    insertAt = to - count + 1; // Basic guess
+  }
+
+  // Let's use simpler index math:
+  // If dragging Down (from < to):
+  // We want to insert AFTER the item that was at `to`.
+  // Since `to` was > `from`, the item at `to` has shifted down by `count`.
+  // index in new array = `to - count`.
+  // We want to insert AFTER it, so `to - count + 1`.
+
+  // If dragging Up (from > to):
+  // Checks out?
+  // [A, B, C, D]. Drag C(2) to A(0).
+  // Remove C. [A, B, D].
+  // Insert at 0. [C, A, B, D].
+  // so insertAt = to.
+
+  if (from < to) {
+    insertAt = to - count + 1;
+  } else {
+    insertAt = to;
+  }
+
+  newArray.splice(insertAt, 0, ...chunk);
   return newArray;
 }

@@ -1,6 +1,7 @@
 /**
  * Practice log - tracks total practice time per day
  * Stored in localStorage: { [date: string]: number } where date is YYYY-MM-DD, value is seconds
+ * NOTE: Dates are stored in LOCAL TIME (YYYY-MM-DD), not UTC.
  */
 
 const PRACTICE_LOG_KEY = 'practice-timer-log';
@@ -30,8 +31,23 @@ export function getPracticeLog(): Record<string, number> {
   }
 }
 
+/** Get today's date in local YYYY-MM-DD format */
+function getLocalTodayDate(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Create a Date object from a YYYY-MM-DD string treating it as LOCAL midnight */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function addPracticeTime(seconds: number): void {
-  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const date = getLocalTodayDate();
   const log = getPracticeLog();
   log[date] = (log[date] ?? 0) + seconds;
   try {
@@ -50,18 +66,22 @@ export function getDailyBreakdown(): DailyLog[] {
 
 /** Get the week start date (YYYY-MM-DD) for a given date based on weekStartsOn */
 function getWeekStart(dateStr: string, weekStartsOn: WeekStartsOn): string {
-  const d = new Date(dateStr + 'T12:00:00');
+  const d = parseLocalDate(dateStr);
   const day = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   const daysSinceWeekStart =
     weekStartsOn === 'monday' ? (day + 6) % 7 : day;
-  const weekStart = new Date(d);
-  weekStart.setDate(d.getDate() - daysSinceWeekStart);
-  return weekStart.toISOString().slice(0, 10);
+  const derivedDate = new Date(d);
+  derivedDate.setDate(d.getDate() - daysSinceWeekStart);
+
+  const year = derivedDate.getFullYear();
+  const month = String(derivedDate.getMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(derivedDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${dayOfMonth}`;
 }
 
 /** Format week start date for display, e.g. "Week of Mon Jan 6" */
 function formatWeekLabel(weekStartStr: string): string {
-  const d = new Date(weekStartStr + 'T12:00:00');
+  const d = parseLocalDate(weekStartStr);
   const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
   const monthDay = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   return `Week of ${weekday} ${monthDay}`;
@@ -96,14 +116,14 @@ export function getTotalSeconds(): number {
 
 /** Get practice time for today (YYYY-MM-DD) in seconds */
 export function getTodaySeconds(): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalTodayDate();
   const log = getPracticeLog();
   return log[today] ?? 0;
 }
 
 /** Get practice time for the current week in seconds (week boundaries from weekStartsOn) */
 export function getThisWeekSeconds(weekStartsOn: WeekStartsOn = 'monday'): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalTodayDate();
   const currentWeekStart = getWeekStart(today, weekStartsOn);
   const log = getPracticeLog();
   return Object.entries(log).reduce((sum, [date, seconds]) => {
@@ -124,11 +144,15 @@ export function formatDuration(seconds: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (dateStr === today.toISOString().slice(0, 10)) return 'Today';
-  if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Yesterday';
+  const d = parseLocalDate(dateStr);
+  const today = parseLocalDate(getLocalTodayDate());
+
+  // Compare timestamps for accurate day diff
+  const oneDay = 24 * 60 * 60 * 1000;
+  const diffTime = today.getTime() - d.getTime();
+
+  if (diffTime === 0) return 'Today';
+  if (diffTime === oneDay) return 'Yesterday';
+
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }

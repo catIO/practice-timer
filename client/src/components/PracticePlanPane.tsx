@@ -31,6 +31,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -127,6 +128,24 @@ function AddLinePlaceholder({
       <span className="text-muted-foreground text-sm">
         Add a block...
       </span>
+    </div>
+  );
+}
+
+function BottomDropZone({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "bottom-drop-zone",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-md transition-colors",
+        isOver && "bg-accent/30 ring-2 ring-primary/20"
+      )}
+    >
+      {children}
     </div>
   );
 }
@@ -754,7 +773,21 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
+    if (!over) return;
+
+    if (over.id === "bottom-drop-zone") {
+      // Move to end of list
+      // We pass the ID of the last item as the "target" to move "over" (or "after").
+      setItems((prev) => {
+        if (prev.length === 0) return prev;
+        const lastItemId = prev[prev.length - 1].id;
+        if (active.id === lastItemId) return prev; // Already at end
+        return practicePlanApi.reorder(prev, active.id as string, lastItemId);
+      });
+      return;
+    }
+
+    if (active.id !== over.id) {
       setItems((prev) => practicePlanApi.reorder(prev, active.id as string, over.id as string));
     }
   }, []);
@@ -807,10 +840,12 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
                 </SortableContext>
                 <li>
                   {/* Keep placeholder at bottom for easy adding */}
-                  <AddLinePlaceholder
-                    index={items.length}
-                    onAddLine={handleAddLineAtSlot}
-                  />
+                  <BottomDropZone>
+                    <AddLinePlaceholder
+                      index={items.length}
+                      onAddLine={handleAddLineAtSlot}
+                    />
+                  </BottomDropZone>
                 </li>
               </ul>
             </DndContext>
