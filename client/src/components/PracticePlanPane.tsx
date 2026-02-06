@@ -24,6 +24,7 @@ import {
   generateId,
 } from "@/lib/practicePlan";
 import { cn } from "@/lib/utils";
+import { RichLink } from "./RichLink";
 import {
   DndContext,
   closestCenter,
@@ -248,7 +249,7 @@ function PlanItem({
   const saveEdit = useCallback(() => {
     setEditing(false);
     const trimmed = editValue.trim();
-    if (trimmed && trimmed !== item.text) {
+    if (trimmed !== item.text) {
       onUpdateText(item.id, trimmed);
     } else {
       setEditValue(item.text);
@@ -351,6 +352,8 @@ function PlanItem({
           const isListType = blockType === "bullet" || blockType === "number" || blockType === "todo";
           if (isListType) {
             onUpdateType(item.id, "text");
+            // If we convert to text, we might lose focus if visual structure changes heavily. 
+            // But usually this works.
             return;
           }
 
@@ -500,18 +503,17 @@ function PlanItem({
                 blockType === "heading3" && "text-base font-semibold"
               )}
             >
-              {item.text}
+              <TextWithLinks text={item.text} />
             </span>
           ) : (
-            <label
-              // Removed htmlFor to prevent selection from checking bucket (user requested)
+            <span
               className={cn(
                 "cursor-pointer text-sm block min-h-[1.5rem] flex items-center",
                 item.checked && "text-muted-foreground line-through"
               )}
             >
-              {item.text}
-            </label>
+              <TextWithLinks text={item.text} />
+            </span>
           )}
         </div>
         <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100">
@@ -603,6 +605,23 @@ function countTodos(items: PracticePlanItem[]): { total: number; checked: number
   return { total, checked };
 }
 
+function TextWithLinks({ text }: { text: string }) {
+  // Regex to match URLs (starting with http:// or https://)
+  // We split by the regex, which includes the capturing group in the result array
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.match(/^https?:\/\//)) {
+          return <RichLink key={i} url={part} />;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) {
   const [items, setItems] = useState<PracticePlanItem[]>([]);
   // Dismissed slots concept removed for cleaner UI
@@ -646,6 +665,8 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   const handleUpdateType = useCallback((id: string, type: BlockType) => {
     setItems((prev) => practicePlanApi.updateBlockType(prev, id, type));
+    // Request focus back to ensure editing continues smoothly
+    setFocusRequest({ id, type: "edit", cursorPosition: "start" }); // Or keep current? Start is safe for "just deleted bullet".
   }, []);
 
   const handleDelete = useCallback((id: string) => {
