@@ -24,7 +24,7 @@ export interface PracticePlanItem {
   blockType?: BlockType;
 }
 
-function generateId(): string {
+export function generateId(): string {
   return `plan-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
@@ -234,9 +234,10 @@ export const practicePlanApi = {
     items: PracticePlanItem[],
     index: number,
     blockType: BlockType,
-    initialText?: string
+    initialText?: string,
+    newId?: string
   ): PracticePlanItem[] => {
-    const newItem = createBlock(blockType, initialText);
+    const newItem = createBlock(blockType, initialText, newId);
     const i = Math.max(0, Math.min(index, items.length));
     const next = [...items.slice(0, i), newItem, ...items.slice(i)];
     savePracticePlan(next);
@@ -284,11 +285,12 @@ export const practicePlanApi = {
     items: PracticePlanItem[],
     afterItemId: string,
     blockType: BlockType,
-    initialText?: string
+    initialText?: string,
+    newId?: string
   ): PracticePlanItem[] => {
     const path = findPathToId(items, afterItemId);
     if (path == null || path.length === 0) return items;
-    const newItem = createBlock(blockType, initialText);
+    const newItem = createBlock(blockType, initialText, newId);
     if (path.length === 1) {
       const rootIndex = path[0];
       const next = insertRootAfter(items, rootIndex, newItem);
@@ -306,11 +308,12 @@ export const practicePlanApi = {
     items: PracticePlanItem[],
     beforeItemId: string,
     blockType: BlockType,
-    initialText?: string
+    initialText?: string,
+    newId?: string
   ): PracticePlanItem[] => {
     const path = findPathToId(items, beforeItemId);
     if (path == null || path.length === 0) return items;
-    const newItem = createBlock(blockType, initialText);
+    const newItem = createBlock(blockType, initialText, newId);
     if (path.length === 1) {
       const rootIndex = path[0];
       const next = [...items.slice(0, rootIndex), newItem, ...items.slice(rootIndex)];
@@ -357,7 +360,7 @@ export const practicePlanApi = {
   },
 };
 
-function createBlock(blockType: BlockType, initialText?: string): PracticePlanItem {
+function createBlock(blockType: BlockType, initialText?: string, id?: string): PracticePlanItem {
   const isHeader =
     blockType === "heading1" || blockType === "heading2" || blockType === "heading3";
   const defaultText: Record<BlockType, string> = {
@@ -370,7 +373,7 @@ function createBlock(blockType: BlockType, initialText?: string): PracticePlanIt
     todo: "To-do",
   };
   return {
-    id: generateId(),
+    id: id || generateId(),
     text: initialText !== undefined ? initialText : defaultText[blockType],
     checked: false,
     children: [],

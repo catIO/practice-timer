@@ -21,6 +21,7 @@ import {
   type BlockType,
   getPracticePlan,
   practicePlanApi,
+  generateId,
 } from "@/lib/practicePlan";
 import { cn } from "@/lib/utils";
 import {
@@ -297,12 +298,18 @@ function PlanItem({
         const isListType = blockType === "bullet" || blockType === "number" || blockType === "todo";
         const isEmpty = editValue.trim() === "";
 
-        // Priority 1: Break list on empty list item (highest priority)
-        // This converts the current empty list item to text, allowing "space" creation
-        if (isEmpty && isListType) {
-          onUpdateType(item.id, "text");
-          // DO NOT insert new line. Just transform this one.
-          return;
+        // Priority 1: Handle empty items (Break list / Unindent)
+        if (isEmpty) {
+          // If indented, unindent first (move out of nested list)
+          if (depth > 0) {
+            onUnindent(item.id);
+            return;
+          }
+          // If at root and is a list type, convert to text (break out of list mode)
+          if (isListType) {
+            onUpdateType(item.id, "text");
+            return;
+          }
         }
 
         // Priority 2: Insert before if at start (and not empty handled above)
@@ -337,12 +344,22 @@ function PlanItem({
         // If cursor is at start
         if (e.currentTarget.selectionStart === 0 && e.currentTarget.selectionEnd === 0) {
           e.preventDefault();
-          // Attempt merge or delete
+
+          // Notion-like Backspace:
+          // 1. If it's a list item (bullet, number, todo) and at start -> Convert to text
+          // This allows "deleting the checkbox" to make it a text line
+          const isListType = blockType === "bullet" || blockType === "number" || blockType === "todo";
+          if (isListType) {
+            onUpdateType(item.id, "text");
+            return;
+          }
+
+          // 2. If it is already text (or header), try to merge with previous
           onMergeWithPrevious(item.id);
         }
       }
     },
-    [item.id, blockType, editValue, saveEdit, onUpdateType, onInsertBelow, onInsertBefore, onNavigate, onMergeWithPrevious]
+    [item.id, blockType, depth, editValue, saveEdit, onUpdateType, onInsertBelow, onInsertBefore, onNavigate, onMergeWithPrevious, onUnindent]
   );
 
   const focusRow = useCallback(() => {
@@ -357,7 +374,7 @@ function PlanItem({
         tabIndex={0}
         role="button"
         className={cn(
-          "group relative flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none",
           depth !== 0 && !isHeader && "ml-4",
           isHeader && "first:mt-0 ml-0",
           "my-0.5" // Minimal vertical margin
@@ -450,17 +467,11 @@ function PlanItem({
         <div
           className={cn("min-w-0 flex-1", isHeader && "flex items-center -ml-1", "cursor-text")}
           onClick={(e) => {
-            // Single click does NOT enter edit mode anymore (user requested double click)
-            // But we should stop propagation so row doesn't lose focus or anything weird?
-            // Actually, standard behavior: click focuses row.
+            // Single click enters edit mode (Notion-like)
             if (!editing) {
               e.stopPropagation();
-              focusRow();
+              setEditing(true);
             }
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            setEditing(true);
           }}
         >
           {editing ? (
@@ -471,7 +482,7 @@ function PlanItem({
               onBlur={saveEdit}
               onKeyDown={handleInputKeyDown}
               className={cn(
-                "h-8 text-sm",
+                "h-auto py-0 px-0 border-none shadow-none focus-visible:ring-0 text-sm bg-transparent",
                 blockType === "heading1" && "text-xl font-semibold",
                 blockType === "heading2" && "text-lg font-semibold",
                 blockType === "heading3" && "text-base font-semibold"
@@ -572,6 +583,26 @@ function flattenItems(items: PracticePlanItem[], parentId: string | null = null)
   return result;
 }
 
+
+
+// Helper to count todos
+function countTodos(items: PracticePlanItem[]): { total: number; checked: number } {
+  let total = 0;
+  let checked = 0;
+  for (const item of items) {
+    if (item.blockType === "todo") {
+      total++;
+      if (item.checked) checked++;
+    }
+    if (item.children.length > 0) {
+      const childrenCount = countTodos(item.children);
+      total += childrenCount.total;
+      checked += childrenCount.checked;
+    }
+  }
+  return { total, checked };
+}
+
 export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) {
   const [items, setItems] = useState<PracticePlanItem[]>([]);
   // Dismissed slots concept removed for cleaner UI
@@ -579,6 +610,14 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   // Maintain a flat list of IDs for navigation
   const flatList = useMemo(() => flattenItems(items), [items]);
+
+  // Calculate progress
+  const { totalTodos, checkedTodos } = useMemo(() => {
+    const { total, checked } = countTodos(items);
+    return { totalTodos: total, checkedTodos: checked };
+  }, [items]);
+
+  const progressPercentage = totalTodos === 0 ? 0 : Math.round((checkedTodos / totalTodos) * 100);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -626,45 +665,55 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   const handleInsertBlock = useCallback(
     (index: number, blockType: BlockType, initialText?: string) => {
+      const newId = generateId();
       setItems((prev) =>
-        practicePlanApi.insertRootAt(prev, index, blockType, initialText)
+        practicePlanApi.insertRootAt(prev, index, blockType, initialText, newId)
       );
+      setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
     },
     []
   );
 
   const handleInsertBelow = useCallback(
     (afterId: string, blockType: BlockType, empty?: boolean) => {
+      const newId = generateId();
       setItems((prev) =>
         practicePlanApi.insertBlockAfter(
           prev,
           afterId,
           blockType,
-          empty ? "" : undefined
+          empty ? "" : undefined,
+          newId
         )
       );
+      setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
     },
     []
   );
 
   const handleInsertBefore = useCallback(
     (beforeId: string, blockType: BlockType, empty?: boolean) => {
+      const newId = generateId();
       setItems((prev) =>
         practicePlanApi.insertBlockBefore(
           prev,
           beforeId,
           blockType,
-          empty ? "" : undefined
+          empty ? "" : undefined,
+          newId
         )
       );
+      setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
     },
     []
   );
 
   const handleAddLineAtSlot = useCallback((index: number) => {
+    const newId = generateId();
     setItems((prev) =>
-      practicePlanApi.insertRootAt(prev, index, "text", "")
+      practicePlanApi.insertRootAt(prev, index, "text", "", newId)
     );
+    setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
   }, []);
 
   const handleIndent = useCallback((id: string) => {
@@ -762,11 +811,35 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
-        <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <SheetHeader className="space-y-4 pb-4">
           <SheetTitle>Practice plan</SheetTitle>
-          <Button variant="ghost" size="sm" className="h-8 -mr-2 text-muted-foreground hover:text-foreground" onClick={handleReset}>
-            Reset
-          </Button>
+
+          {/* Progress Bar Row */}
+          {totalTodos > 0 && (
+            <div className="flex flex-col gap-1 w-full">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>{Math.round(progressPercentage)}% ({checkedTodos}/{totalTodos})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-500 ease-in-out"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={handleReset}
+                  title="Reset all checks"
+                >
+                  <span className="material-icons text-base">refresh</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </SheetHeader>
         <div className="mt-4 flex flex-col flex-1 min-h-0">
           <ScrollArea className="flex-1 pr-4 -mr-4">
@@ -817,6 +890,6 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
           </ScrollArea>
         </div>
       </SheetContent>
-    </Sheet>
+    </Sheet >
   );
 }
