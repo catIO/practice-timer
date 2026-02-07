@@ -1,8 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly PROD: boolean;
-  readonly DEV: boolean;
+  // Add env variables here
 }
 
 interface ImportMeta {

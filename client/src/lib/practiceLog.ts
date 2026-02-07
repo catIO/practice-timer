@@ -18,6 +18,17 @@ export interface WeekGroup {
   days: DailyLog[];
 }
 
+/**
+ * Helper to get local date string YYYY-MM-DD
+ * This avoids the UTC shift from toISOString()
+ */
+function getLocalYMD(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function getPracticeLog(): Record<string, number> {
   try {
     const stored = localStorage.getItem(PRACTICE_LOG_KEY);
@@ -31,7 +42,7 @@ export function getPracticeLog(): Record<string, number> {
 }
 
 export function addPracticeTime(seconds: number): void {
-  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const date = getLocalYMD(); // Use local date
   const log = getPracticeLog();
   log[date] = (log[date] ?? 0) + seconds;
   try {
@@ -50,13 +61,17 @@ export function getDailyBreakdown(): DailyLog[] {
 
 /** Get the week start date (YYYY-MM-DD) for a given date based on weekStartsOn */
 function getWeekStart(dateStr: string, weekStartsOn: WeekStartsOn): string {
+  // Parse as local noon to avoid midnight offsets
   const d = new Date(dateStr + 'T12:00:00');
   const day = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   const daysSinceWeekStart =
     weekStartsOn === 'monday' ? (day + 6) % 7 : day;
+
   const weekStart = new Date(d);
   weekStart.setDate(d.getDate() - daysSinceWeekStart);
-  return weekStart.toISOString().slice(0, 10);
+
+  // Return local YMD, not UTC
+  return getLocalYMD(weekStart);
 }
 
 /** Format week start date for display, e.g. "Week of Mon Jan 6" */
@@ -81,7 +96,7 @@ export function getDailyBreakdownByWeek(
   }
 
   return Array.from(weekMap.entries())
-    .sort(([a], [b]) => b.localeCompare(a))
+    .sort(([a], [b]) => b.localeCompare(a)) // Sort weeks descending
     .map(([weekStart, days]) => ({
       weekStart,
       weekLabel: formatWeekLabel(weekStart),
@@ -96,17 +111,18 @@ export function getTotalSeconds(): number {
 
 /** Get practice time for today (YYYY-MM-DD) in seconds */
 export function getTodaySeconds(): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalYMD(); // Local
   const log = getPracticeLog();
   return log[today] ?? 0;
 }
 
 /** Get practice time for the current week in seconds (week boundaries from weekStartsOn) */
 export function getThisWeekSeconds(weekStartsOn: WeekStartsOn = 'monday'): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalYMD(); // Local
   const currentWeekStart = getWeekStart(today, weekStartsOn);
   const log = getPracticeLog();
   return Object.entries(log).reduce((sum, [date, seconds]) => {
+    // Compare week starts (grouping logic)
     if (getWeekStart(date, weekStartsOn) === currentWeekStart) {
       return sum + seconds;
     }
@@ -126,9 +142,17 @@ export function formatDuration(seconds: number): string {
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   const today = new Date();
+
+  // To verify "Today" vs "Yesterday", we must generate local strings for comparison
+  // because "d" is a generic date object.
+  const todayStr = getLocalYMD(today);
+
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (dateStr === today.toISOString().slice(0, 10)) return 'Today';
-  if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Yesterday';
+  const yesterdayStr = getLocalYMD(yesterday);
+
+  if (dateStr === todayStr) return 'Today';
+  if (dateStr === yesterdayStr) return 'Yesterday';
+
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
