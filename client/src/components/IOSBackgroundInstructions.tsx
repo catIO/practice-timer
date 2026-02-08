@@ -17,7 +17,7 @@ export function iOSBackgroundInstructions({ isVisible, onDismiss }: IOSBackgroun
         <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2">
             <span className="text-2xl">📱</span>
-            iOS Practice Timer Setup
+            iOS Practice Mate Setup
           </CardTitle>
           <CardDescription>
             Optimize your iPad for background timer operation while practicing music
@@ -86,7 +86,7 @@ export function iOSBackgroundInstructions({ isVisible, onDismiss }: IOSBackgroun
                 <span className="text-sm font-bold">!</span>
               </div>
               <div>
-                <h4 className="font-semibold text-orange-600">Practice Timer Tips</h4>
+                <h4 className="font-semibold text-orange-600">Practice Mate Tips</h4>
                 <p className="text-sm text-muted-foreground">
                   • Start the timer, then switch to your music app or score viewer<br/>
                   • The timer will continue running in the background<br/>

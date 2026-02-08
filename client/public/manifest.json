@@ -1,6 +1,6 @@
 {
-  "name": "Practice Timer",
-  "short_name": "Practice",
+  "name": "Practice Mate",
+  "short_name": "Mate",
   "description": "To keep you practicing",
   "start_url": "/",
   "display": "standalone",

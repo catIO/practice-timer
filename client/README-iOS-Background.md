@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how the Practice Timer app works on iOS devices and provides solutions for reliable background operation.
+This guide explains how the Practice Mate app works on iOS devices and provides solutions for reliable background operation.
 
 ## iOS Background Limitations
 

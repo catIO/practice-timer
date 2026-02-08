@@ -14,7 +14,7 @@ export const config = {
   
   // App configuration
   app: {
-    name: "Practice Timer",
+    name: "Practice Mate",
     version: "1.0.0",
     saveSettingsToLocalStorage: true,
     saveSessionsToLocalStorage: true

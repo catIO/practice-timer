@@ -304,7 +304,7 @@ export default function Home() {
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-primary">Practice Timer</h1>
+                <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
                 {/* Wake Lock Status Indicator */}
                 {isRunning && (
                   <div className={cn(
@@ -327,7 +327,7 @@ export default function Home() {
                   aria-label="Practice plan"
                   title="Practice plan"
                 >
-                  <span className="material-icons">list</span>
+                  <span className="material-icons">assignment_add</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -337,7 +337,7 @@ export default function Home() {
                   aria-label="View practice time log"
                   title="Practice time"
                 >
-                  <span className="material-icons">bar_chart</span>
+                  <span className="material-icons font-semibold">history</span>
                 </Button>
                 <Button
                   variant="ghost"

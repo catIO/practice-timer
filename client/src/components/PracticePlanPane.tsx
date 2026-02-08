@@ -831,9 +831,9 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col" closeIcon="back">
         <SheetHeader className="space-y-4 pb-4">
-          <SheetTitle>Practice plan</SheetTitle>
+          <SheetTitle className="text-2xl font-bold text-primary">Practice plan</SheetTitle>
 
           {/* Progress Bar Row */}
           {totalTodos > 0 && (

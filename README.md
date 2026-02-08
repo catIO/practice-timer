@@ -1,6 +1,6 @@
-# Practice Timer
+# Practice Mate
 
-A practice timer application built with React, TypeScript, and Vite.
+A practice mate application built with React, TypeScript, and Vite.
 
 ## Features
 
