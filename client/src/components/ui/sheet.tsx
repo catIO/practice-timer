@@ -67,7 +67,7 @@ const SheetContent = React.forwardRef<
       {children}
       <SheetPrimitive.Close
         className={cn(
-          "absolute right-4 top-4 rounded-md ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary flex h-10 w-10 items-center justify-center",
+          "absolute right-4 top-4 z-20 rounded-md ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary flex h-10 w-10 items-center justify-center",
           closeIcon === "back"
             ? "text-primary hover:bg-accent hover:text-primary/80 transition-colors"
             : "opacity-70 transition-opacity hover:opacity-100"

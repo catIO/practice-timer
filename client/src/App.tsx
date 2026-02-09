@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Home from '@/pages/Home';
 import Settings from '@/pages/Settings';
 import PracticeLog from '@/pages/PracticeLog';
+import Report from '@/pages/Report';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/practice-log" element={<PracticeLog />} />
+            <Route path="/report" element={<Report />} />
+            <Route path="/report/:token" element={<Report />} />
           </Routes>
           <Toaster />
         </Router>

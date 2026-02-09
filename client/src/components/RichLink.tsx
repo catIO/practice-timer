@@ -63,10 +63,10 @@ export function RichLink({ url }: RichLinkProps) {
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-                "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded",
+                "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded shrink-0",
                 "bg-[rgba(135,131,120,0.15)] hover:bg-[rgba(135,131,120,0.25)]",
                 "transition-colors no-underline text-foreground align-middle",
-                "max-w-full -ml-1.5"
+                "-ml-1.5"
             )}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -84,7 +84,7 @@ export function RichLink({ url }: RichLinkProps) {
             ) : (
                 <span className="material-icons text-[16px] text-muted-foreground">public</span>
             )}
-            <span className="text-sm font-medium truncate max-w-[240px] leading-tight">
+            <span className="text-sm font-medium leading-tight whitespace-nowrap">
                 {metadata.title || url}
             </span>
         </a>

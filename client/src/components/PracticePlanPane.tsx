@@ -23,8 +23,10 @@ import {
   practicePlanApi,
   generateId,
 } from "@/lib/practicePlan";
+import { createReportSnapshot, getReportShareUrl } from "@/lib/reportShare";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { RichLink } from "./RichLink";
+import { TextWithLinks } from "./TextWithLinks";
 import {
   DndContext,
   closestCenter,
@@ -460,15 +462,15 @@ function PlanItem({
             onCheckedChange={() => onToggle(item.id)}
             className="mt-1 shrink-0"
           />
-        ) : blockType === "bullet" ? (
+        ) : blockType === "bullet" && item.text.trim() ? (
           <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/70" aria-hidden />
-        ) : blockType === "number" ? (
+        ) : blockType === "number" && item.text.trim() ? (
           <span className="mt-2 shrink-0 text-sm text-muted-foreground" aria-hidden />
         ) : !isHeader ? (
           <span className="w-0 shrink-0" aria-hidden />
         ) : null}
         <div
-          className={cn("min-w-0 flex-1", isHeader && "flex items-center -ml-1", "cursor-text")}
+          className={cn("min-w-0 flex-1 overflow-x-auto", isHeader && "flex items-center -ml-1", "cursor-text")}
           onClick={(e) => {
             // Single click enters edit mode (Notion-like)
             if (!editing) {
@@ -605,25 +607,9 @@ function countTodos(items: PracticePlanItem[]): { total: number; checked: number
   return { total, checked };
 }
 
-function TextWithLinks({ text }: { text: string }) {
-  // Regex to match URLs (starting with http:// or https://)
-  // We split by the regex, which includes the capturing group in the result array
-  const parts = text.split(/(https?:\/\/[^\s]+)/g);
-
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (part.match(/^https?:\/\//)) {
-          return <RichLink key={i} url={part} />;
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-}
-
 export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) {
   const [items, setItems] = useState<PracticePlanItem[]>([]);
+  const { toast } = useToast();
   // Dismissed slots concept removed for cleaner UI
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
 
@@ -749,6 +735,27 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
     setItems((prev) => practicePlanApi.resetChecks(prev));
   }, []);
 
+  const handleShareProgress = useCallback(() => {
+    const snapshot = createReportSnapshot(items);
+    const url = getReportShareUrl(snapshot);
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        toast({
+          title: "Link copied",
+          description: "Share this link so others can view your practice plan progress. The page is not indexed by search engines.",
+        });
+      })
+      .catch(() => {
+        toast({
+          variant: "destructive",
+          title: "Could not copy",
+          description: "Copy the link manually from the address bar after opening the report.",
+        });
+        window.open(url, "_blank", "noopener");
+      });
+  }, [items, toast]);
+
   // Navigation Logic
   const handleNavigate = useCallback(
     (id: string, direction: "up" | "down", fromEdit: boolean) => {
@@ -831,9 +838,20 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col" closeIcon="back">
+      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col" closeIcon="back">
         <SheetHeader className="space-y-4 pb-4">
-          <SheetTitle className="text-2xl font-bold text-primary">Practice plan</SheetTitle>
+          <div className="flex items-center gap-2">
+            <SheetTitle className="text-2xl font-bold text-primary">Practice plan</SheetTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+              onClick={handleShareProgress}
+              title="Copy link"
+            >
+              <span className="material-icons text-lg">content_copy</span>
+            </Button>
+          </div>
 
           {/* Progress Bar Row */}
           {totalTodos > 0 && (

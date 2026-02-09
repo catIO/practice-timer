@@ -5,6 +5,7 @@ import {
   getDailyBreakdownByWeek,
   getTodaySeconds,
   getThisWeekSeconds,
+  getLastWeekSeconds,
   formatDuration,
   formatDate,
 } from "@/lib/practiceLog";
@@ -14,9 +15,11 @@ import "@/assets/headerBlur.css";
 export default function PracticeLog() {
   const settings = getSettings();
   const weekStartsOn = settings?.weekStartsOn ?? "monday";
-  const weekGroups = getDailyBreakdownByWeek(weekStartsOn);
+  const allWeekGroups = getDailyBreakdownByWeek(weekStartsOn);
+  const weekGroups = allWeekGroups.slice(0, 2); // Current week and last week only
   const todaySeconds = getTodaySeconds();
   const thisWeekSeconds = getThisWeekSeconds(weekStartsOn);
+  const lastWeekSeconds = getLastWeekSeconds(weekStartsOn);
 
   return (
     <div className="text-foreground font-sans min-h-screen">
@@ -42,24 +45,32 @@ export default function PracticeLog() {
                   Total practice time
                 </h2>
                 <div className="rounded-lg border bg-muted/50 p-4">
-                  <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Today
-                    </p>
-                    <p className="text-2xl font-bold text-primary">
-                      {formatDuration(todaySeconds)}
-                    </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Today
+                      </p>
+                      <p className="text-2xl font-bold text-primary">
+                        {formatDuration(todaySeconds)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        This week
+                      </p>
+                      <p className="text-2xl font-bold text-primary">
+                        {formatDuration(thisWeekSeconds)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Last week
+                      </p>
+                      <p className="text-2xl font-bold text-primary">
+                        {formatDuration(lastWeekSeconds)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      This week
-                    </p>
-                    <p className="text-2xl font-bold text-primary">
-                      {formatDuration(thisWeekSeconds)}
-                    </p>
-                  </div>
-                </div>
                 </div>
               </div>
               <div>

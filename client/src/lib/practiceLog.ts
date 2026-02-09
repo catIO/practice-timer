@@ -122,8 +122,24 @@ export function getThisWeekSeconds(weekStartsOn: WeekStartsOn = 'monday'): numbe
   const currentWeekStart = getWeekStart(today, weekStartsOn);
   const log = getPracticeLog();
   return Object.entries(log).reduce((sum, [date, seconds]) => {
-    // Compare week starts (grouping logic)
     if (getWeekStart(date, weekStartsOn) === currentWeekStart) {
+      return sum + seconds;
+    }
+    return sum;
+  }, 0);
+}
+
+/** Get practice time for the week before the current week in seconds */
+export function getLastWeekSeconds(weekStartsOn: WeekStartsOn = 'monday'): number {
+  const today = getLocalYMD();
+  const currentWeekStart = getWeekStart(today, weekStartsOn);
+  const currentStart = new Date(currentWeekStart + 'T12:00:00');
+  const lastWeekStart = new Date(currentStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const lastWeekStartStr = getLocalYMD(lastWeekStart);
+  const log = getPracticeLog();
+  return Object.entries(log).reduce((sum, [date, seconds]) => {
+    if (getWeekStart(date, weekStartsOn) === lastWeekStartStr) {
       return sum + seconds;
     }
     return sum;
