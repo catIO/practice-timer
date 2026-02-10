@@ -303,6 +303,29 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
+  /**
+   * Insert an existing block (with its children) immediately after the item with id.
+   * Used for copy/paste operations where we already have a full PracticePlanItem subtree.
+   */
+  insertExistingAfter: (
+    items: PracticePlanItem[],
+    afterItemId: string,
+    toInsert: PracticePlanItem
+  ): PracticePlanItem[] => {
+    const path = findPathToId(items, afterItemId);
+    if (path == null || path.length === 0) return items;
+    if (path.length === 1) {
+      const rootIndex = path[0];
+      const next = insertRootAfter(items, rootIndex, toInsert);
+      savePracticePlan(next);
+      return next;
+    }
+    const parentPath = path.slice(0, -1);
+    const insertAtIndex = path[path.length - 1] + 1;
+    const next = insertChildAtIndex(items, parentPath, insertAtIndex, toInsert);
+    savePracticePlan(next);
+    return next;
+  },
   /** Insert a new block of the given type immediately before the item with id. */
   insertBlockBefore: (
     items: PracticePlanItem[],

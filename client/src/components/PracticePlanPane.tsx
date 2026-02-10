@@ -20,6 +20,7 @@ import {
   type PracticePlanItem,
   type BlockType,
   getPracticePlan,
+  savePracticePlan,
   practicePlanApi,
   generateId,
 } from "@/lib/practicePlan";
@@ -155,10 +156,20 @@ interface FlatItem {
   parentId: string | null;
 }
 
+// Clone a practice plan item (and its children) with fresh IDs.
+function cloneWithNewIds(item: PracticePlanItem): PracticePlanItem {
+  return {
+    ...item,
+    id: generateId(),
+    children: item.children.map(cloneWithNewIds),
+  };
+}
+
 interface PlanItemProps {
   item: PracticePlanItem;
   depth: number;
   focusRequest: FocusRequest | null;
+  selectedIdSet: Set<string>;
   onToggle: (id: string) => void;
   onUpdateText: (id: string, text: string) => void;
   onUpdateType: (id: string, type: BlockType) => void;
@@ -170,12 +181,19 @@ interface PlanItemProps {
   onNavigate: (id: string, direction: "up" | "down", fromEdit: boolean) => void;
   onMergeWithPrevious: (id: string) => void;
   onInputFocus: (id: string) => void; // Notify parent that this item is focused
+  selected: boolean;
+  onRowClick: (id: string, e: any) => void;
+  onCopySelection: () => void;
+  onCutSelection: () => void;
+  onPasteBelowSelection: (targetId: string) => void;
+  onUndo: () => void;
 }
 
 function PlanItem({
   item,
   depth,
   focusRequest,
+  selectedIdSet,
   onToggle,
   onUpdateText,
   onUpdateType,
@@ -187,6 +205,12 @@ function PlanItem({
   onNavigate,
   onMergeWithPrevious,
   onInputFocus,
+  selected,
+  onRowClick,
+  onCopySelection,
+  onCutSelection,
+  onPasteBelowSelection,
+  onUndo,
 }: PlanItemProps) {
   const {
     attributes,
@@ -260,6 +284,28 @@ function PlanItem({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Clipboard-style operations work on the current selection (managed by parent).
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        onCopySelection();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "x") {
+        e.preventDefault();
+        onCutSelection();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        onPasteBelowSelection(item.id);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        onUndo();
+        return;
+      }
+
       if (editing) return;
       if (e.key === "Tab") {
         e.preventDefault();
@@ -289,7 +335,21 @@ function PlanItem({
         onNavigate(item.id, "down", false);
       }
     },
-    [editing, item.id, blockType, onIndent, onUnindent, onInsertBelow, onInsertBefore, onDelete, onNavigate]
+    [
+      editing,
+      item.id,
+      blockType,
+      onIndent,
+      onUnindent,
+      onInsertBelow,
+      onInsertBefore,
+      onDelete,
+      onNavigate,
+      onCopySelection,
+      onCutSelection,
+      onPasteBelowSelection,
+      onUndo,
+    ]
   );
 
   const handleInputKeyDown = useCallback(
@@ -382,11 +442,15 @@ function PlanItem({
           "group relative flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none",
           depth !== 0 && !isHeader && "ml-4",
           isHeader && "first:mt-0 ml-0",
-          "my-0.5" // Minimal vertical margin
+          "my-0.5", // Minimal vertical margin
+          selected && "bg-accent/40"
         )}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
-          // Click behavior: 
+          // Delegate selection behavior to parent.
+          onRowClick(item.id, e);
+
+          // Click behavior:
           // If clicking interactable elements (checkbox/buttons), don't set editing.
           // If clicking row background, just focus row. Editing requires double click.
           if (!editing && e.target === rowRef.current) focusRow();
@@ -518,30 +582,6 @@ function PlanItem({
             </span>
           )}
         </div>
-        <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                onClick={(e) => e.stopPropagation()}
-                title="Options"
-              >
-                <span className="material-icons text-base">delete_outline</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive cursor-pointer"
-                onClick={() => onDelete(item.id)}
-              >
-                <span className="material-icons mr-2 text-base">delete_outline</span>
-                Delete item
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
       {hasChildren && (
         <div className="border-l border-border/60 pl-2 ml-2 mt-0">
@@ -555,6 +595,7 @@ function PlanItem({
                 item={child}
                 depth={depth + 1}
                 focusRequest={focusRequest}
+                selectedIdSet={selectedIdSet}
                 onToggle={onToggle}
                 onUpdateText={onUpdateText}
                 onUpdateType={onUpdateType}
@@ -566,6 +607,12 @@ function PlanItem({
                 onNavigate={onNavigate}
                 onMergeWithPrevious={onMergeWithPrevious}
                 onInputFocus={onInputFocus}
+                selected={selectedIdSet.has(child.id)}
+                onRowClick={onRowClick}
+                onCopySelection={onCopySelection}
+                onCutSelection={onCutSelection}
+                onPasteBelowSelection={onPasteBelowSelection}
+                onUndo={onUndo}
               />
             ))}
           </SortableContext>
@@ -624,6 +671,32 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   const progressPercentage = totalTodos === 0 ? 0 : Math.round((checkedTodos / totalTodos) * 100);
 
+  // Multi-selection and clipboard state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<PracticePlanItem[] | null>(null);
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  // One-level undo: snapshot before each mutation, restore on Cmd/Ctrl+Z
+  const [undoSnapshot, setUndoSnapshot] = useState<PracticePlanItem[] | null>(null);
+  const itemsRef = useRef<PracticePlanItem[]>(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const applyChange = useCallback((updater: (prev: PracticePlanItem[]) => PracticePlanItem[]) => {
+    setUndoSnapshot(JSON.parse(JSON.stringify(itemsRef.current)));
+    setItems(updater);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (!undoSnapshot) return;
+    setItems(undoSnapshot);
+    savePracticePlan(undoSnapshot);
+    setUndoSnapshot(null);
+  }, [undoSnapshot]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -641,19 +714,117 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
     }
   }, [open]);
 
+  const handleRowClick = useCallback(
+    (id: string, e: React.MouseEvent<HTMLDivElement>) => {
+      // Selection logic with support for multi-select (meta/ctrl) and range (shift).
+      if (e.metaKey || e.ctrlKey) {
+        setSelectedIds((prev) => {
+          if (prev.includes(id)) {
+            return prev.filter((x) => x !== id);
+          }
+          return [...prev, id];
+        });
+        setLastSelectedId(id);
+      } else if (e.shiftKey && lastSelectedId) {
+        const idsInOrder = flatList.map((f) => f.id);
+        const fromIndex = idsInOrder.indexOf(lastSelectedId);
+        const toIndex = idsInOrder.indexOf(id);
+        if (fromIndex === -1 || toIndex === -1) {
+          setSelectedIds([id]);
+          setLastSelectedId(id);
+        } else {
+          const start = Math.min(fromIndex, toIndex);
+          const end = Math.max(fromIndex, toIndex);
+          setSelectedIds(idsInOrder.slice(start, end + 1));
+        }
+      } else {
+        setSelectedIds([id]);
+        setLastSelectedId(id);
+      }
+
+      // Ensure the row gets focus for keyboard operations.
+      setFocusRequest({ id, type: "row" });
+    },
+    [flatList, lastSelectedId]
+  );
+
+  const handleCopySelection = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    const idsInOrder = flatList.map((f) => f.id);
+    const ordered = [...selectedIds].sort(
+      (a, b) => idsInOrder.indexOf(a) - idsInOrder.indexOf(b)
+    );
+    const copies: PracticePlanItem[] = [];
+    for (const id of ordered) {
+      const flat = flatList.find((f) => f.id === id);
+      if (flat) {
+        // Deep clone to detach from current tree
+        copies.push(JSON.parse(JSON.stringify(flat.item)));
+      }
+    }
+    if (copies.length > 0) {
+      setClipboard(copies);
+    }
+  }, [selectedIds, flatList]);
+
+  const handleCutSelection = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    handleCopySelection();
+    const idsInOrder = flatList.map((f) => f.id);
+    const orderedDesc = [...selectedIds].sort(
+      (a, b) => idsInOrder.indexOf(b) - idsInOrder.indexOf(a)
+    );
+    applyChange((prev) => {
+      let result = prev;
+      for (const id of orderedDesc) {
+        result = practicePlanApi.delete(result, id);
+      }
+      return result;
+    });
+    setSelectedIds([]);
+    setLastSelectedId(null);
+  }, [selectedIds, flatList, handleCopySelection, applyChange]);
+
+  const handlePasteBelowSelection = useCallback(
+    (targetId: string) => {
+      if (!clipboard || clipboard.length === 0) return;
+      const newIds: string[] = [];
+      applyChange((prev) => {
+        let result = prev;
+        let insertAfterId = targetId;
+        for (const snippet of clipboard) {
+          const cloned = cloneWithNewIds(snippet);
+          result = practicePlanApi.insertExistingAfter(result, insertAfterId, cloned);
+          insertAfterId = cloned.id;
+          newIds.push(cloned.id);
+        }
+        return result;
+      });
+      if (newIds.length > 0) {
+        setSelectedIds(newIds);
+        setLastSelectedId(newIds[newIds.length - 1] ?? null);
+        setFocusRequest({
+          id: newIds[newIds.length - 1],
+          type: "row",
+        });
+      }
+    },
+    [clipboard, applyChange]
+  );
+
   const handleToggle = useCallback((id: string) => {
-    setItems((prev) => practicePlanApi.toggleCheck(prev, id));
-  }, []);
+    applyChange((prev) => practicePlanApi.toggleCheck(prev, id));
+  }, [applyChange]);
 
   const handleUpdateText = useCallback((id: string, text: string) => {
-    setItems((prev) => practicePlanApi.updateText(prev, id, text));
-  }, []);
+    applyChange((prev) => practicePlanApi.updateText(prev, id, text));
+  }, [applyChange]);
 
   const handleUpdateType = useCallback((id: string, type: BlockType) => {
-    setItems((prev) => practicePlanApi.updateBlockType(prev, id, type));
+    applyChange((prev) => practicePlanApi.updateBlockType(prev, id, type));
     // Request focus back to ensure editing continues smoothly
     setFocusRequest({ id, type: "edit", cursorPosition: "start" }); // Or keep current? Start is safe for "just deleted bullet".
-  }, []);
+  }, [applyChange]);
 
   const handleDelete = useCallback((id: string) => {
     const index = flatList.findIndex((x) => x.id === id);
@@ -664,27 +835,27 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
       nextFocusId = flatList[index + 1].id;
     }
 
-    setItems((prev) => practicePlanApi.delete(prev, id));
+    applyChange((prev) => practicePlanApi.delete(prev, id));
     if (nextFocusId) {
       setFocusRequest({ id: nextFocusId, type: "row" });
     }
-  }, [flatList]);
+  }, [flatList, applyChange]);
 
   const handleInsertBlock = useCallback(
     (index: number, blockType: BlockType, initialText?: string) => {
       const newId = generateId();
-      setItems((prev) =>
+      applyChange((prev) =>
         practicePlanApi.insertRootAt(prev, index, blockType, initialText, newId)
       );
       setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
     },
-    []
+    [applyChange]
   );
 
   const handleInsertBelow = useCallback(
     (afterId: string, blockType: BlockType, empty?: boolean) => {
       const newId = generateId();
-      setItems((prev) =>
+      applyChange((prev) =>
         practicePlanApi.insertBlockAfter(
           prev,
           afterId,
@@ -695,13 +866,13 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
       );
       setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
     },
-    []
+    [applyChange]
   );
 
   const handleInsertBefore = useCallback(
     (beforeId: string, blockType: BlockType, empty?: boolean) => {
       const newId = generateId();
-      setItems((prev) =>
+      applyChange((prev) =>
         practicePlanApi.insertBlockBefore(
           prev,
           beforeId,
@@ -712,28 +883,28 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
       );
       setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
     },
-    []
+    [applyChange]
   );
 
   const handleAddLineAtSlot = useCallback((index: number) => {
     const newId = generateId();
-    setItems((prev) =>
+    applyChange((prev) =>
       practicePlanApi.insertRootAt(prev, index, "text", "", newId)
     );
     setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
-  }, []);
+  }, [applyChange]);
 
   const handleIndent = useCallback((id: string) => {
-    setItems((prev) => practicePlanApi.indent(prev, id));
-  }, []);
+    applyChange((prev) => practicePlanApi.indent(prev, id));
+  }, [applyChange]);
 
   const handleUnindent = useCallback((id: string) => {
-    setItems((prev) => practicePlanApi.unindent(prev, id));
-  }, []);
+    applyChange((prev) => practicePlanApi.unindent(prev, id));
+  }, [applyChange]);
 
   const handleReset = useCallback(() => {
-    setItems((prev) => practicePlanApi.resetChecks(prev));
-  }, []);
+    applyChange((prev) => practicePlanApi.resetChecks(prev));
+  }, [applyChange]);
 
   const handleShareProgress = useCallback(() => {
     const snapshot = createReportSnapshot(items);
@@ -811,7 +982,7 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
     const cursorAt = prev.text.length;
 
     // Update previous text
-    setItems((items) => {
+    applyChange((items) => {
       let step1 = practicePlanApi.updateText(items, prev.id, newText);
       let step2 = practicePlanApi.delete(step1, id);
       return step2;
@@ -823,7 +994,7 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
       cursorPosition: cursorAt
     });
 
-  }, [flatList, handleDelete]);
+  }, [flatList, handleDelete, applyChange]);
 
   const handleInputFocus = useCallback((id: string) => {
     // no-op or tracking
@@ -832,9 +1003,9 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setItems((prev) => practicePlanApi.reorder(prev, active.id as string, over.id as string));
+      applyChange((prev) => practicePlanApi.reorder(prev, active.id as string, over.id as string));
     }
-  }, []);
+  }, [applyChange]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -847,7 +1018,7 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
               onClick={handleShareProgress}
-              title="Copy link"
+              title="Copy sharable report link"
             >
               <span className="material-icons text-lg">content_copy</span>
             </Button>
@@ -902,6 +1073,7 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
                         item={item}
                         depth={0}
                         focusRequest={focusRequest}
+                        selectedIdSet={selectedIdSet}
                         onToggle={handleToggle}
                         onUpdateText={handleUpdateText}
                         onUpdateType={handleUpdateType}
@@ -913,6 +1085,12 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
                         onNavigate={handleNavigate}
                         onMergeWithPrevious={handleMergeWithPrevious}
                         onInputFocus={handleInputFocus}
+                        selected={selectedIdSet.has(item.id)}
+                        onRowClick={handleRowClick}
+                        onCopySelection={handleCopySelection}
+                        onCutSelection={handleCutSelection}
+                        onPasteBelowSelection={handlePasteBelowSelection}
+                        onUndo={handleUndo}
                       />
                     </li>
                   ))}
