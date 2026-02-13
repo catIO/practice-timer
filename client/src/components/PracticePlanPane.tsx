@@ -28,6 +28,8 @@ import { createReportSnapshot, getReportShareUrl } from "@/lib/reportShare";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { TextWithLinks } from "./TextWithLinks";
+import { InlineToolbar } from "./InlineToolbar";
+import { LinkModal } from "./LinkModal";
 import {
   DndContext,
   closestCenter,
@@ -231,9 +233,18 @@ function PlanItem({
 
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(item.text);
+  const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const linkModalOpenRef = useRef(false);
+  useEffect(() => {
+    linkModalOpenRef.current = linkModalOpen;
+  }, [linkModalOpen]);
   const rowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setEditValue(item.text);
@@ -242,8 +253,23 @@ function PlanItem({
   useEffect(() => {
     return () => {
       if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
+
+  // Apply pending selection when entering edit mode (from double-click with selection)
+  useEffect(() => {
+    if (!editing || !pendingSelectionRef.current) return;
+    const pending = pendingSelectionRef.current;
+    pendingSelectionRef.current = null;
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(pending.start, pending.end);
+        setToolbarSelection({ start: pending.start, end: pending.end });
+      }
+    });
+  }, [editing]);
 
   const blockType = item.blockType ?? "todo";
   const hasChildren = item.children.length > 0;
@@ -281,6 +307,7 @@ function PlanItem({
 
   const saveEdit = useCallback(() => {
     setEditing(false);
+    setToolbarSelection(null);
     const trimmed = editValue.trim();
     if (trimmed !== item.text) {
       onUpdateText(item.id, trimmed);
@@ -288,6 +315,37 @@ function PlanItem({
       setEditValue(item.text);
     }
   }, [editValue, item.id, item.text, onUpdateText]);
+
+  const applyFormat = useCallback(
+    (action: "bold" | "italic" | "link", url?: string) => {
+      if (!toolbarSelection || toolbarSelection.start === toolbarSelection.end) return;
+      const sel = editValue.slice(toolbarSelection.start, toolbarSelection.end);
+      let newText: string;
+      let newCursorStart: number;
+      let newCursorEnd: number;
+      if (action === "bold") {
+        newText = editValue.slice(0, toolbarSelection.start) + `**${sel}**` + editValue.slice(toolbarSelection.end);
+        newCursorStart = toolbarSelection.start;
+        newCursorEnd = toolbarSelection.start + sel.length + 4;
+      } else if (action === "italic") {
+        newText = editValue.slice(0, toolbarSelection.start) + `*${sel}*` + editValue.slice(toolbarSelection.end);
+        newCursorStart = toolbarSelection.start;
+        newCursorEnd = toolbarSelection.start + sel.length + 2;
+      } else if (action === "link" && url) {
+        newText = editValue.slice(0, toolbarSelection.start) + `[${sel}](${url})` + editValue.slice(toolbarSelection.end);
+        newCursorStart = toolbarSelection.start;
+        newCursorEnd = toolbarSelection.start + sel.length + url.length + 4;
+      } else return;
+      setEditValue(newText);
+      onUpdateText(item.id, newText);
+      setToolbarSelection(null);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(newCursorStart, newCursorEnd);
+      });
+    },
+    [editValue, item.id, onUpdateText, toolbarSelection]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -444,7 +502,8 @@ function PlanItem({
       <div
         ref={rowRef}
         tabIndex={0}
-        role="button"
+        role="group"
+        aria-label="Plan item"
         className={cn(
           "group relative flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none",
           depth !== 0 && !isHeader && "ml-4",
@@ -454,17 +513,43 @@ function PlanItem({
         )}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
-          // Delegate selection behavior to parent.
           onRowClick(item.id, e);
 
-          // Cancel pending edit if this is a third click (triple-click for text selection).
-          if (editTimeoutRef.current) {
+          // Triple-click: let browser select line, then enter edit mode with that selection.
+          if (editTimeoutRef.current && !editing) {
             clearTimeout(editTimeoutRef.current);
             editTimeoutRef.current = null;
+            requestAnimationFrame(() => {
+              const sel = window.getSelection();
+              if (
+                contentRef.current &&
+                sel &&
+                sel.toString().length > 0
+              ) {
+                // Check if the selection covers the whole text content (approximate triple click)
+                const textContent = contentRef.current.textContent || "";
+                const isFullSelection = sel.toString().trim() === textContent.trim();
+
+                if (isFullSelection) {
+                  pendingSelectionRef.current = { start: 0, end: item.text.length };
+                } else if (
+                  contentRef.current.contains(sel.anchorNode) &&
+                  contentRef.current.contains(sel.focusNode)
+                ) {
+                  const range = sel.getRangeAt(0);
+                  const preRange = document.createRange();
+                  preRange.setStart(contentRef.current, 0);
+                  preRange.setEnd(range.startContainer, range.startOffset);
+                  const start = preRange.toString().length;
+                  const end = start + sel.toString().length;
+                  pendingSelectionRef.current = { start, end };
+                }
+              }
+              setEditing(true);
+            });
             return;
           }
 
-          // Focus row when clicking anywhere (for keyboard nav).
           if (!editing) focusRow();
         }}
         onFocus={(e) => {
@@ -475,10 +560,38 @@ function PlanItem({
         onDoubleClick={() => {
           if (!editing) {
             // Delay edit so triple-click can select text; cancel if third click arrives.
+            // Tripple click detection logic:
+            // If the browser selection covers the whole text, it's likely a triple click.
             editTimeoutRef.current = setTimeout(() => {
               editTimeoutRef.current = null;
+              // Capture selection from span before we replace it with Input
+              const sel = window.getSelection();
+              if (
+                contentRef.current &&
+                sel &&
+                sel.toString().length > 0
+              ) {
+                // Check if the selection covers the whole text content (approximate triple click)
+                const textContent = contentRef.current.textContent || "";
+                const isFullSelection = sel.toString().trim() === textContent.trim();
+
+                if (isFullSelection) {
+                  pendingSelectionRef.current = { start: 0, end: item.text.length };
+                } else if (
+                  contentRef.current.contains(sel.anchorNode) &&
+                  contentRef.current.contains(sel.focusNode)
+                ) {
+                  const range = sel.getRangeAt(0);
+                  const preRange = document.createRange();
+                  preRange.setStart(contentRef.current, 0);
+                  preRange.setEnd(range.startContainer, range.startOffset);
+                  const start = preRange.toString().length;
+                  const end = start + sel.toString().length;
+                  pendingSelectionRef.current = { start, end };
+                }
+              }
               setEditing(true);
-            }, 150);
+            }, 250); // Increased timeout to catch triple clicks better
           }
         }}
       >
@@ -552,23 +665,100 @@ function PlanItem({
           <span className="w-0 shrink-0" aria-hidden />
         ) : null}
         <div
+          ref={contentRef}
           className={cn("min-w-0 flex-1 overflow-x-auto select-text", isHeader && "flex items-center -ml-1", "cursor-text")}
         >
           {editing ? (
-            <Input
-              ref={inputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={saveEdit}
-              onKeyDown={handleInputKeyDown}
-              className={cn(
-                "h-auto py-0 px-0 border-none shadow-none focus-visible:ring-0 text-sm bg-transparent",
-                blockType === "heading1" && "text-xl font-semibold",
-                blockType === "heading2" && "text-lg font-semibold",
-                blockType === "heading3" && "text-base font-semibold"
-              )}
-              autoFocus
-            />
+            <>
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onSelect={(e) => {
+                  const { selectionStart, selectionEnd } = e.currentTarget;
+                  if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
+                    setToolbarSelection({ start: selectionStart, end: selectionEnd });
+                  } else {
+                    setToolbarSelection(null);
+                  }
+                }}
+                onBlur={() => {
+                  if (linkModalOpenRef.current) return;
+                  if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                  saveTimeoutRef.current = setTimeout(() => {
+                    saveTimeoutRef.current = null;
+                    saveEdit();
+                  }, 150);
+                }}
+                onKeyDown={handleInputKeyDown}
+                onPaste={(e) => {
+                  const pastedText = e.clipboardData.getData("text");
+                  // Check if pasted text is a URL
+                  if (/^https?:\/\/[^\s]+$/.test(pastedText)) {
+                    // Check if we have a selection
+                    const start = e.currentTarget.selectionStart;
+                    const end = e.currentTarget.selectionEnd;
+                    if (start !== null && end !== null && start !== end) {
+                      e.preventDefault();
+                      const selectedText = editValue.slice(start, end);
+                      const newText = editValue.slice(0, start) + `[${selectedText}](${pastedText})` + editValue.slice(end);
+                      setEditValue(newText);
+                      onUpdateText(item.id, newText);
+
+                      // Restore cursor after the link
+                      const newCursorPos = start + selectedText.length + pastedText.length + 4; // [ + ] + ( + )
+                      requestAnimationFrame(() => {
+                        if (inputRef.current) {
+                          inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                        }
+                      });
+                    }
+                  }
+                }}
+                className={cn(
+                  "h-auto py-0 px-0 border-none shadow-none focus-visible:ring-0 text-sm bg-transparent",
+                  blockType === "heading1" && "text-xl font-semibold",
+                  blockType === "heading2" && "text-lg font-semibold",
+                  blockType === "heading3" && "text-base font-semibold"
+                )}
+                autoFocus
+              />
+              <InlineToolbar
+                anchorRef={inputRef}
+                visible={!!toolbarSelection && !linkModalOpen}
+                selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
+                onToolbarInteraction={() => {
+                  if (saveTimeoutRef.current) {
+                    clearTimeout(saveTimeoutRef.current);
+                    saveTimeoutRef.current = null;
+                  }
+                }}
+                onFormat={(action) => {
+                  if (action === "link") {
+                    linkModalOpenRef.current = true;
+                    setLinkModalOpen(true);
+                  } else {
+                    applyFormat(action);
+                  }
+                }}
+                onLinkClick={() => {
+                  linkModalOpenRef.current = true;
+                  setLinkModalOpen(true);
+                }}
+              />
+              <LinkModal
+                open={linkModalOpen}
+                onOpenChange={(open) => {
+                  setLinkModalOpen(open);
+                  if (!open) setToolbarSelection(null);
+                }}
+                selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
+                onConfirm={(url) => {
+                  applyFormat("link", url);
+                  setLinkModalOpen(false);
+                }}
+              />
+            </>
           ) : isHeader ? (
             <span
               role="heading"
@@ -1020,7 +1210,7 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col" closeIcon="back">
+      <SheetContent id="practice-sheet-content" side="right" className="w-full sm:max-w-xl flex flex-col" closeIcon="back">
         <SheetHeader className="space-y-4 pb-4">
           <div className="flex items-center gap-2">
             <SheetTitle className="text-2xl font-bold text-primary">Practice plan</SheetTitle>
