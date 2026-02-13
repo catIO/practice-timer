@@ -379,6 +379,19 @@ export const practicePlanApi = {
       return next;
     }
 
+    // When dragging a root item over a nested item (e.g. header over another header's children),
+    // collision detection may hit the child instead of the parent. Treat as: move active root
+    // to the position of the root that contains over.
+    if (activePath.length === 1 && overPath.length >= 1) {
+      const activeRootIndex = activePath[0];
+      const overRootIndex = overPath[0];
+      if (activeRootIndex !== overRootIndex) {
+        const next = moveItemInTree(items, [], activeRootIndex, overRootIndex);
+        savePracticePlan(next);
+        return next;
+      }
+    }
+
     return items;
   },
 };

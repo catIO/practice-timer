@@ -233,10 +233,17 @@ function PlanItem({
   const [editValue, setEditValue] = useState(item.text);
   const rowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setEditValue(item.text);
   }, [item.text]);
+
+  useEffect(() => {
+    return () => {
+      if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
+    };
+  }, []);
 
   const blockType = item.blockType ?? "todo";
   const hasChildren = item.children.length > 0;
@@ -450,10 +457,15 @@ function PlanItem({
           // Delegate selection behavior to parent.
           onRowClick(item.id, e);
 
-          // Click behavior:
-          // If clicking interactable elements (checkbox/buttons), don't set editing.
-          // If clicking row background, just focus row. Editing requires double click.
-          if (!editing && e.target === rowRef.current) focusRow();
+          // Cancel pending edit if this is a third click (triple-click for text selection).
+          if (editTimeoutRef.current) {
+            clearTimeout(editTimeoutRef.current);
+            editTimeoutRef.current = null;
+            return;
+          }
+
+          // Focus row when clicking anywhere (for keyboard nav).
+          if (!editing) focusRow();
         }}
         onFocus={(e) => {
           if (e.target === rowRef.current) {
@@ -461,7 +473,13 @@ function PlanItem({
           }
         }}
         onDoubleClick={() => {
-          if (!editing) setEditing(true);
+          if (!editing) {
+            // Delay edit so triple-click can select text; cancel if third click arrives.
+            editTimeoutRef.current = setTimeout(() => {
+              editTimeoutRef.current = null;
+              setEditing(true);
+            }, 150);
+          }
         }}
       >
         <div className={cn(
@@ -534,14 +552,7 @@ function PlanItem({
           <span className="w-0 shrink-0" aria-hidden />
         ) : null}
         <div
-          className={cn("min-w-0 flex-1 overflow-x-auto", isHeader && "flex items-center -ml-1", "cursor-text")}
-          onClick={(e) => {
-            // Single click enters edit mode (Notion-like)
-            if (!editing) {
-              e.stopPropagation();
-              setEditing(true);
-            }
-          }}
+          className={cn("min-w-0 flex-1 overflow-x-auto select-text", isHeader && "flex items-center -ml-1", "cursor-text")}
         >
           {editing ? (
             <Input
@@ -563,7 +574,7 @@ function PlanItem({
               role="heading"
               aria-level={level}
               className={cn(
-                "cursor-pointer text-foreground block min-h-[1.5rem] flex items-center",
+                "cursor-text text-foreground block min-h-[1.5rem] flex items-center select-text",
                 blockType === "heading1" && "text-xl font-semibold",
                 blockType === "heading2" && "text-lg font-semibold",
                 blockType === "heading3" && "text-base font-semibold"
@@ -574,7 +585,7 @@ function PlanItem({
           ) : (
             <span
               className={cn(
-                "cursor-pointer text-sm block min-h-[1.5rem] flex items-center",
+                "cursor-text text-sm block min-h-[1.5rem] flex items-center select-text",
                 item.checked && "text-muted-foreground line-through"
               )}
             >
