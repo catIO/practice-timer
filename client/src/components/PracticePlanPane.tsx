@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { TextWithLinks } from "./TextWithLinks";
 import { InlineToolbar } from "./InlineToolbar";
-import { LinkModal } from "./LinkModal";
+import { LinkPopover } from "./LinkPopover";
 import {
   DndContext,
   closestCenter,
@@ -235,6 +235,9 @@ function PlanItem({
   const [editValue, setEditValue] = useState(item.text);
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [linkEditUrl, setLinkEditUrl] = useState<string>("");
+  const [linkEditLinkText, setLinkEditLinkText] = useState<string | null>(null);
+  const linkEditLinkTextRef = useRef<string | null>(null);
   const linkModalOpenRef = useRef(false);
   useEffect(() => {
     linkModalOpenRef.current = linkModalOpen;
@@ -305,6 +308,19 @@ function PlanItem({
     }
   }, [focusRequest, item.id]);
 
+  const handleEditLink = useCallback(
+    (linkText: string, linkUrl: string, start: number, end: number) => {
+      linkEditLinkTextRef.current = linkText;
+      setLinkEditLinkText(linkText);
+      setLinkEditUrl(linkUrl);
+      pendingSelectionRef.current = { start, end };
+      linkModalOpenRef.current = true;
+      setLinkModalOpen(true);
+      setEditing(true);
+    },
+    []
+  );
+
   const saveEdit = useCallback(() => {
     setEditing(false);
     setToolbarSelection(null);
@@ -317,9 +333,9 @@ function PlanItem({
   }, [editValue, item.id, item.text, onUpdateText]);
 
   const applyFormat = useCallback(
-    (action: "bold" | "italic" | "link", url?: string) => {
+    (action: "bold" | "italic" | "link", url?: string, opts?: { linkText?: string }) => {
       if (!toolbarSelection || toolbarSelection.start === toolbarSelection.end) return;
-      const sel = editValue.slice(toolbarSelection.start, toolbarSelection.end);
+      const sel = opts?.linkText ?? editValue.slice(toolbarSelection.start, toolbarSelection.end);
       let newText: string;
       let newCursorStart: number;
       let newCursorEnd: number;
@@ -746,16 +762,26 @@ function PlanItem({
                   setLinkModalOpen(true);
                 }}
               />
-              <LinkModal
+              <LinkPopover
                 open={linkModalOpen}
                 onOpenChange={(open) => {
                   setLinkModalOpen(open);
-                  if (!open) setToolbarSelection(null);
+                  if (!open) {
+                    setToolbarSelection(null);
+                    setLinkEditUrl("");
+                    setLinkEditLinkText(null);
+                    linkEditLinkTextRef.current = null;
+                  }
                 }}
-                selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
+                anchorRef={contentRef}
+                selectedText={linkEditLinkText ?? (toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : "")}
+                initialUrl={linkEditUrl}
                 onConfirm={(url) => {
-                  applyFormat("link", url);
+                  const linkText = linkEditLinkTextRef.current;
+                  applyFormat("link", url, linkText ? { linkText } : undefined);
                   setLinkModalOpen(false);
+                  setLinkEditUrl("");
+                  linkEditLinkTextRef.current = null;
                 }}
               />
             </>
@@ -770,7 +796,7 @@ function PlanItem({
                 blockType === "heading3" && "text-base font-semibold"
               )}
             >
-              <TextWithLinks text={item.text} />
+              <TextWithLinks text={item.text} onEditLink={handleEditLink} />
             </span>
           ) : (
             <span
@@ -779,7 +805,7 @@ function PlanItem({
                 item.checked && "text-muted-foreground line-through"
               )}
             >
-              <TextWithLinks text={item.text} />
+              <TextWithLinks text={item.text} onEditLink={handleEditLink} />
             </span>
           )}
         </div>

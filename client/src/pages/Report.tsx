@@ -118,7 +118,7 @@ export default function Report() {
   const dateLabel = (() => {
     try {
       const d = new Date(snapshot.date);
-      return d.toLocaleDateString(undefined, {
+      return d.toLocaleString(undefined, {
         dateStyle: "medium",
         timeStyle: "short",
       });
@@ -129,13 +129,15 @@ export default function Report() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/50 px-4 py-4">
-        <h1 className="text-2xl font-bold text-primary">
-          {snapshot.title ?? "Practice plan progress"}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+      <header className="border-b border-border/50 px-4 py-4 bg-card/50">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-2xl font-bold text-primary">
+            {snapshot.title ?? "Practice plan progress"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+        </div>
       </header>
-      <main className="p-6 max-w-2xl">
+      <main className="p-6 max-w-3xl mx-auto w-full">
         <div className="space-y-1">
           {snapshot.items.map((item, i) => (
             <ReportItem key={i} item={item} />

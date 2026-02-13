@@ -32,7 +32,7 @@ export function createReportSnapshot(items: PracticePlanItem[], title?: string):
   return {
     v: 1,
     date: new Date().toISOString(),
-    title: title ?? "Practice plan progress",
+    title: title ?? "Progress Report",
     items: items.map(itemToSnapshot),
   };
 }

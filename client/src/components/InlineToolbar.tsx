@@ -110,8 +110,12 @@ export function InlineToolbar({
         size="icon"
         className="h-8 w-8"
         title="Link"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onLinkClick}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onToolbarInteraction?.();
+          onLinkClick();
+        }}
+        onClick={() => {}}
       >
         <span className="material-icons text-base">link</span>
       </Button>
