@@ -50,11 +50,28 @@ function base64UrlDecode(str: string): string {
   return decodeURIComponent(escape(atob(base64)));
 }
 
+
+import LZString from "lz-string";
+
 export function encodeReportToken(snapshot: ReportSnapshot): string {
-  return base64UrlEncode(JSON.stringify(snapshot));
+  const json = JSON.stringify(snapshot);
+  // Using compressToEncodedURIComponent for URL safety and compactness
+  return LZString.compressToEncodedURIComponent(json);
 }
 
 export function decodeReportToken(token: string): ReportSnapshot | null {
+  try {
+    // Try LZ-String decompression first (new format)
+    const decompressed = LZString.decompressFromEncodedURIComponent(token);
+    if (decompressed) {
+      const data = JSON.parse(decompressed) as ReportSnapshot;
+      if (data?.v === 1 && Array.isArray(data?.items)) return data;
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback to old format (base64)
   try {
     const json = base64UrlDecode(token);
     const data = JSON.parse(json) as ReportSnapshot;
@@ -69,3 +86,4 @@ export function getReportShareUrl(snapshot: ReportSnapshot): string {
   const token = encodeReportToken(snapshot);
   return `${typeof window !== "undefined" ? window.location.origin : ""}/report/${token}`;
 }
+
