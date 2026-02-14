@@ -1,7 +1,7 @@
 {
   "name": "practice-mate",
   "version": "1.0.1",
-  "description": "A practice mate application",
+  "description": "A practice timer, planning, and logging application",
   "main": "server/index.ts",
   "type": "module",
   "scripts": {
