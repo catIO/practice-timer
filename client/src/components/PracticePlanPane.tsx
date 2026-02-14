@@ -1347,133 +1347,131 @@ export function PracticePlanPane({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm overflow-y-auto">
-      <div className="text-foreground font-sans min-h-screen w-full">
-        <div className="max-w-2xl mx-auto pt-8 pb-8 px-4 sm:px-0">
-          <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
-            <header className="relative p-4 flex items-center justify-between overflow-hidden border-b border-border/40 bg-background/20 backdrop-blur-md rounded-t-2xl">
-              <div className="relative z-10 flex items-center justify-between w-full">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-bold text-foreground">Practice Plan</h2>
-                  {typeof timeRemaining === 'number' && (
-                    <div className={cn(
-                      "font-mono text-xl font-medium tabular-nums",
-                      mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
-                    )}>
-                      {formatTime(timeRemaining)}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <span className="material-icons text-muted-foreground">more_vert</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={handleShareClick}>
-                        <span className="material-icons text-sm mr-2">share</span>
-                        Share Report
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleReset}>
-                        <span className="material-icons text-sm mr-2">refresh</span>
-                        Reset Checks
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onOpenChange(false)}
-                    className="rounded-full hover:bg-white/10"
-                  >
-                    <span className="material-icons text-primary hover:text-primary/80">arrow_back</span>
-                  </Button>
-                </div>
+    <div className="text-foreground font-sans min-h-screen w-full">
+      <div className="max-w-2xl mx-auto pt-8 pb-32 px-4 sm:px-0">
+        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
+          <header className="relative p-4 flex items-center justify-between overflow-hidden border-b border-border/40 bg-background/20 backdrop-blur-md rounded-t-2xl">
+            <div className="relative z-10 flex items-center justify-between w-full">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold text-foreground">Practice Plan</h2>
+                {typeof timeRemaining === 'number' && (
+                  <div className={cn(
+                    "font-mono text-xl font-medium tabular-nums",
+                    mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
+                  )}>
+                    {formatTime(timeRemaining)}
+                  </div>
+                )}
               </div>
-            </header>
-
-            <div
-              ref={contentRef}
-              className="w-full p-4"
-            >
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={items.map(item => item.id)}
-                  strategy={verticalListSortingStrategy}
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <span className="material-icons text-muted-foreground">more_vert</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={handleShareClick}>
+                      <span className="material-icons text-sm mr-2">share</span>
+                      Share Report
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleReset}>
+                      <span className="material-icons text-sm mr-2">refresh</span>
+                      Reset Checks
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onOpenChange(false)}
+                  className="rounded-full hover:bg-white/10"
                 >
-                  <div className="space-y-1 pb-20">
-                    {items.map((item) => (
-                      <PlanItem
-                        key={item.id}
-                        item={item}
-                        depth={0}
-                        focusRequest={focusRequest}
-                        selectedIdSet={selectedIdSet}
-                        onToggle={handleToggle}
-                        onUpdateText={handleUpdateText}
-                        onUpdateType={handleUpdateType}
-                        onDelete={handleDelete}
-                        onIndent={handleIndent}
-                        onUnindent={handleUnindent}
-                        onInsertBelow={handleInsertBelow}
-                        onInsertBefore={handleInsertBefore}
-                        onNavigate={handleNavigate}
-                        onMergeWithPrevious={handleMergeWithPrevious}
-                        onInputFocus={handleInputFocus}
-                        selected={selectedIdSet.has(item.id)}
-                        onRowClick={handleRowClick}
-                        onCopySelection={handleCopySelection}
-                        onCutSelection={handleCutSelection}
-                        onPasteBelowSelection={handlePasteBelowSelection}
-                        onUndo={handleUndo}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
+                  <span className="material-icons text-primary hover:text-primary/80">arrow_back</span>
+                </Button>
+              </div>
             </div>
-            {/* Link Popover Portal Target */}
-            <div id="practice-sheet-content" className="relative" />
+          </header>
 
-            <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Share Practice Plan</DialogTitle>
-                  <DialogDescription>
-                    Anyone with this link can view your progress.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex items-center space-x-2">
-                  <div className="grid flex-1 gap-2">
-                    <Label htmlFor="link" className="sr-only">
-                      Link
-                    </Label>
-                    <Input
-                      id="link"
-                      defaultValue={shareUrl}
-                      readOnly
-                      className="w-full"
+          <div
+            ref={contentRef}
+            className="w-full p-4"
+          >
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={items.map(item => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1 pb-20">
+                  {items.map((item) => (
+                    <PlanItem
+                      key={item.id}
+                      item={item}
+                      depth={0}
+                      focusRequest={focusRequest}
+                      selectedIdSet={selectedIdSet}
+                      onToggle={handleToggle}
+                      onUpdateText={handleUpdateText}
+                      onUpdateType={handleUpdateType}
+                      onDelete={handleDelete}
+                      onIndent={handleIndent}
+                      onUnindent={handleUnindent}
+                      onInsertBelow={handleInsertBelow}
+                      onInsertBefore={handleInsertBefore}
+                      onNavigate={handleNavigate}
+                      onMergeWithPrevious={handleMergeWithPrevious}
+                      onInputFocus={handleInputFocus}
+                      selected={selectedIdSet.has(item.id)}
+                      onRowClick={handleRowClick}
+                      onCopySelection={handleCopySelection}
+                      onCutSelection={handleCutSelection}
+                      onPasteBelowSelection={handlePasteBelowSelection}
+                      onUndo={handleUndo}
                     />
-                  </div>
-                  <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleCopyLink} title="Copy link">
-                    <span className="sr-only">Copy</span>
-                    <span className="material-icons text-sm">content_copy</span>
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleOpenLink} title="Open in new tab">
-                    <span className="sr-only">Open</span>
-                    <span className="material-icons text-sm">open_in_new</span>
-                  </Button>
+                  ))}
                 </div>
-              </DialogContent>
-            </Dialog>
+              </SortableContext>
+            </DndContext>
           </div>
+          {/* Link Popover Portal Target */}
+          <div id="practice-sheet-content" className="relative" />
+
+          <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Share Practice Plan</DialogTitle>
+                <DialogDescription>
+                  Anyone with this link can view your progress.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex items-center space-x-2">
+                <div className="grid flex-1 gap-2">
+                  <Label htmlFor="link" className="sr-only">
+                    Link
+                  </Label>
+                  <Input
+                    id="link"
+                    defaultValue={shareUrl}
+                    readOnly
+                    className="w-full"
+                  />
+                </div>
+                <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleCopyLink} title="Copy link">
+                  <span className="sr-only">Copy</span>
+                  <span className="material-icons text-sm">content_copy</span>
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleOpenLink} title="Open in new tab">
+                  <span className="sr-only">Open</span>
+                  <span className="material-icons text-sm">open_in_new</span>
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

@@ -297,105 +297,110 @@ export default function Home() {
 
 
 
-  return (
-    <div className="text-foreground font-sans min-h-screen">
-      <div className="max-w-2xl mx-auto pt-8">
-        <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
-          <header className="relative p-4 flex items-center justify-between overflow-hidden">
-            <div className="relative z-10 flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
-                {/* Wake Lock Status Indicator */}
-                {isRunning && (
+  if (!planPaneOpen) {
+    return (
+      <div className="text-foreground font-sans min-h-screen">
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
+            <header className="relative p-4 flex items-center justify-between overflow-hidden">
+              <div className="relative z-10 flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-primary">Practice Mate</h1>
+                  {/* Wake Lock Status Indicator */}
+                  {isRunning && (
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      wakeLockActive ? "bg-gray-400 animate-pulse" : "bg-gray-600"
+                    )} title={wakeLockActive ? "Wake lock active" : "Wake lock inactive"} />
+                  )}
+                  {/* Audio Status Indicator */}
                   <div className={cn(
                     "w-2 h-2 rounded-full",
-                    wakeLockActive ? "bg-gray-400 animate-pulse" : "bg-gray-600"
-                  )} title={wakeLockActive ? "Wake lock active" : "Wake lock inactive"} />
-                )}
-                {/* Audio Status Indicator */}
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  audioInitialized ? "bg-green-400" : "bg-gray-600"
-                )} title={audioInitialized ? "Audio ready" : "Audio not ready"} />
+                    audioInitialized ? "bg-green-400" : "bg-gray-600"
+                  )} title={audioInitialized ? "Audio ready" : "Audio not ready"} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary hover:text-primary/80"
+                    onClick={() => setPlanPaneOpen(true)}
+                    aria-label="Practice plan"
+                    title="Practice plan"
+                  >
+                    <span className="material-icons">assignment_add</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary hover:text-primary/80"
+                    onClick={handlePracticeLogClick}
+                    aria-label="View practice time log"
+                    title="Practice time"
+                  >
+                    <span className="material-icons font-semibold">history</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary hover:text-primary/80"
+                    onClick={handleSettingsClick}
+                  >
+                    <span className="material-icons">settings</span>
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={() => setPlanPaneOpen(true)}
-                  aria-label="Practice plan"
-                  title="Practice plan"
-                >
-                  <span className="material-icons">assignment_add</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={handlePracticeLogClick}
-                  aria-label="View practice time log"
-                  title="Practice time"
-                >
-                  <span className="material-icons font-semibold">history</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-primary hover:text-primary/80"
-                  onClick={handleSettingsClick}
-                >
-                  <span className="material-icons">settings</span>
-                </Button>
-              </div>
-            </div>
-          </header>
-          <PracticePlanPane
-            open={planPaneOpen}
-            onOpenChange={setPlanPaneOpen}
-            timeRemaining={timeRemaining}
-            totalTime={totalTime}
-            mode={mode}
-            isRunning={isRunning}
-          />
+            </header>
 
-          <main className="p-6">
-            <div className="space-y-8">
-              {isPracticeComplete ? (
-                <PracticeComplete
-                  currentIteration={currentIteration}
-                  totalIterations={totalIterations}
-                  onStartNewSession={startNewSession}
-                />
-              ) : (
-                <div className="flex flex-col items-center space-y-6">
-                  <Timer
-                    timeRemaining={timeRemaining}
-                    totalTime={totalTime}
-                    mode={mode}
-                    isRunning={isRunning}
-                  />
-
-                  <TimerControls
-                    isRunning={isRunning}
-                    onStart={handleStart}
-                    onPause={handlePause}
-                    onReset={handleResetAll}
-                    onSkip={handleSkip}
-                    skipDisabled={isSkipping}
-                  />
-
-                  <IterationTracker
+            <main className="p-6">
+              <div className="space-y-8">
+                {isPracticeComplete ? (
+                  <PracticeComplete
                     currentIteration={currentIteration}
                     totalIterations={totalIterations}
-                    mode={mode}
+                    onStartNewSession={startNewSession}
                   />
-                </div>
-              )}
-            </div>
-          </main>
+                ) : (
+                  <div className="flex flex-col items-center space-y-6">
+                    <Timer
+                      timeRemaining={timeRemaining}
+                      totalTime={totalTime}
+                      mode={mode}
+                      isRunning={isRunning}
+                    />
+
+                    <TimerControls
+                      isRunning={isRunning}
+                      onStart={handleStart}
+                      onPause={handlePause}
+                      onReset={handleResetAll}
+                      onSkip={handleSkip}
+                      skipDisabled={isSkipping}
+                    />
+
+                    <IterationTracker
+                      currentIteration={currentIteration}
+                      totalIterations={totalIterations}
+                      mode={mode}
+                    />
+                  </div>
+                )}
+              </div>
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <PracticePlanPane
+      open={planPaneOpen}
+      onOpenChange={setPlanPaneOpen}
+      timeRemaining={timeRemaining}
+      totalTime={totalTime}
+      mode={mode}
+      isRunning={isRunning}
+    />
   );
 }
