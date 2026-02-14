@@ -38,6 +38,7 @@ interface TextWithLinksProps {
   text: string;
   /** When provided, links show edit chip on hover (view mode) */
   onEditLink?: (linkText: string, linkUrl: string, start: number, end: number) => void;
+  onRemoveLink?: (start: number, end: number) => void;
 }
 
 /**
@@ -47,7 +48,7 @@ interface TextWithLinksProps {
  * - **bold** and *italic*
  * - Optional: edit chip on link hover when onEditLink provided
  */
-export function TextWithLinks({ text, onEditLink }: TextWithLinksProps) {
+export function TextWithLinks({ text, onEditLink, onRemoveLink }: TextWithLinksProps) {
   const parts: Array<LinkPart | PlainPart> = [];
   let lastIndex = 0;
   let match;
@@ -76,6 +77,7 @@ export function TextWithLinks({ text, onEditLink }: TextWithLinksProps) {
               key={i}
               part={part}
               onEditLink={onEditLink}
+              onRemoveLink={onRemoveLink}
               rich={part.text === part.url}
             />
           );
@@ -89,10 +91,12 @@ export function TextWithLinks({ text, onEditLink }: TextWithLinksProps) {
 function LinkWithPreview({
   part,
   onEditLink,
+  onRemoveLink,
   rich,
 }: {
   part: LinkPart;
   onEditLink?: (linkText: string, linkUrl: string, start: number, end: number) => void;
+  onRemoveLink?: (start: number, end: number) => void;
   rich?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
@@ -107,6 +111,11 @@ function LinkWithPreview({
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     onEditLink?.(part.text, part.url, part.start, part.end);
+  };
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemoveLink?.(part.start, part.end);
   };
 
   const domain = tryGetDomain(part.url);
@@ -136,42 +145,58 @@ function LinkWithPreview({
           align="start"
           side="bottom"
           sideOffset={5}
-          className="w-auto p-1 flex items-center gap-1 bg-popover/95 backdrop-blur-sm border-border/50 shadow-lg"
+          className="w-auto p-1 flex flex-col gap-1 bg-popover/95 backdrop-blur-sm border-border/50 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center gap-2 px-2 py-1 max-w-[240px]">
-            <span className="material-icons text-xs text-muted-foreground shrink-0">public</span>
-            <a
-              href={part.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-popover-foreground hover:underline truncate"
-            >
-              {part.url}
-            </a>
+          <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2 px-2 py-1 max-w-[240px]">
+              <span className="material-icons text-xs text-muted-foreground shrink-0">public</span>
+              <a
+                href={part.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-popover-foreground hover:underline truncate"
+              >
+                {part.url}
+              </a>
+            </div>
+            <div className="flex items-center gap-0.5 border-l border-border/50 pl-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-sm text-muted-foreground hover:text-foreground"
+                onClick={handleCopy}
+                title="Copy URL"
+              >
+                <span className="material-icons text-[14px]">
+                  {copied ? "check" : "content_copy"}
+                </span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs font-medium rounded-sm text-muted-foreground hover:text-foreground"
+                onClick={handleEdit}
+              >
+                Edit
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-0.5 border-l border-border/50 pl-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 rounded-sm text-muted-foreground hover:text-foreground"
-              onClick={handleCopy}
-              title="Copy URL"
-            >
-              <span className="material-icons text-[14px]">
-                {copied ? "check" : "content_copy"}
-              </span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs font-medium rounded-sm text-muted-foreground hover:text-foreground"
-              onClick={handleEdit}
-            >
-              Edit
-            </Button>
-          </div>
+          {onRemoveLink && !rich && (
+            <>
+              <Separator className="my-0.5" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-full justify-start text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-2"
+                onClick={handleRemove}
+              >
+                <span className="material-icons text-[14px] mr-2">delete</span>
+                Remove link
+              </Button>
+            </>
+          )}
         </HoverCardContent>
       )}
     </HoverCard>

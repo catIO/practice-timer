@@ -248,6 +248,7 @@ function PlanItem({
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openedFromViewModeRef = useRef(false);
 
   useEffect(() => {
     setEditValue(item.text);
@@ -317,9 +318,40 @@ function PlanItem({
       linkModalOpenRef.current = true;
       setLinkModalOpen(true);
       setEditing(true);
+      openedFromViewModeRef.current = true;
     },
     []
   );
+
+  const handleRemoveLink = useCallback(
+    (start: number, end: number) => {
+      // The range includes [text](url)
+      // We want to extract "text" and replace the range with it.
+
+      const currentText = item.text;
+      const part = currentText.slice(start, end);
+
+      // Match [text](url)
+      const match = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+      let newText = "";
+
+      if (match) {
+        const linkText = match[1];
+        newText = currentText.slice(0, start) + linkText + currentText.slice(end);
+      } else {
+        // If we can't parse it as markdown, assume it's just text or bare URL?
+        // If it's a bare URL being "removed", maybe user wants to delete it?
+        // But let's be safe and just return for now as we only support "unwrap" for markdown.
+        return;
+      }
+
+      onUpdateText(item.id, newText);
+      setEditValue(newText);
+    },
+    [item.text, onUpdateText]
+  );
+
+
 
   const saveEdit = useCallback(() => {
     setEditing(false);
@@ -800,6 +832,10 @@ function PlanItem({
                     setLinkEditUrl("");
                     setLinkEditLinkText(null);
                     linkEditLinkTextRef.current = null;
+                    if (openedFromViewModeRef.current) {
+                      saveEdit();
+                      openedFromViewModeRef.current = false;
+                    }
                   }
                 }}
                 anchorRef={contentRef}
@@ -811,6 +847,13 @@ function PlanItem({
                   setLinkModalOpen(false);
                   setLinkEditUrl("");
                   linkEditLinkTextRef.current = null;
+                }}
+                onRemove={() => {
+                  const selection = pendingSelectionRef.current || toolbarSelection;
+                  if (selection) {
+                    handleRemoveLink(selection.start, selection.end);
+                  }
+                  setLinkModalOpen(false);
                 }}
               />
             </>
@@ -825,7 +868,11 @@ function PlanItem({
                 blockType === "heading3" && "text-base font-semibold"
               )}
             >
-              <TextWithLinks text={item.text} onEditLink={handleEditLink} />
+              <TextWithLinks
+                text={item.text}
+                onEditLink={handleEditLink}
+                onRemoveLink={handleRemoveLink}
+              />
             </span>
           ) : (
             <span
@@ -834,7 +881,11 @@ function PlanItem({
                 item.checked && "text-muted-foreground line-through"
               )}
             >
-              <TextWithLinks text={item.text} onEditLink={handleEditLink} />
+              <TextWithLinks
+                text={item.text}
+                onEditLink={handleEditLink}
+                onRemoveLink={handleRemoveLink}
+              />
             </span>
           )}
         </div>
