@@ -17,6 +17,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   type PracticePlanItem,
   type BlockType,
   getPracticePlan,
@@ -30,6 +39,8 @@ import { cn } from "@/lib/utils";
 import { TextWithLinks } from "./TextWithLinks";
 import { InlineToolbar } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
+import { formatTime } from "@/lib/formatTime";
+import "@/assets/headerBlur.css";
 import {
   DndContext,
   closestCenter,
@@ -50,6 +61,10 @@ import { CSS } from "@dnd-kit/utilities";
 interface PracticePlanPaneProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  timeRemaining?: number;
+  totalTime?: number;
+  mode?: 'work' | 'break';
+  isRunning?: boolean;
 }
 
 const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
@@ -961,7 +976,16 @@ function countTodos(items: PracticePlanItem[]): { total: number; checked: number
   return { total, checked };
 }
 
-export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) {
+export function PracticePlanPane({
+  open,
+  onOpenChange,
+  timeRemaining,
+  totalTime,
+  mode,
+  isRunning
+}: PracticePlanPaneProps) {
+
+
   const [items, setItems] = useState<PracticePlanItem[]>([]);
   const { toast } = useToast();
   // Dismissed slots concept removed for cleaner UI
@@ -983,11 +1007,16 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<PracticePlanItem[] | null>(null);
 
+  // Share dialog state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   // One-level undo: snapshot before each mutation, restore on Cmd/Ctrl+Z
   const [undoSnapshot, setUndoSnapshot] = useState<PracticePlanItem[] | null>(null);
   const itemsRef = useRef<PracticePlanItem[]>(items);
+  const contentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
@@ -1213,26 +1242,27 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
     applyChange((prev) => practicePlanApi.resetChecks(prev));
   }, [applyChange]);
 
-  const handleShareProgress = useCallback(() => {
+  const handleShareClick = useCallback(() => {
     const snapshot = createReportSnapshot(items);
     const url = getReportShareUrl(snapshot);
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        toast({
-          title: "Link copied",
-          description: "Share this link so others can view your practice plan progress. The page is not indexed by search engines.",
-        });
-      })
-      .catch(() => {
-        toast({
-          variant: "destructive",
-          title: "Could not copy",
-          description: "Copy the link manually from the address bar after opening the report.",
-        });
-        window.open(url, "_blank", "noopener");
+    setShareUrl(url);
+    setShareDialogOpen(true);
+  }, [items]);
+
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast({
+        title: "Copied!",
+        description: "Link copied to clipboard.",
+        duration: 2000,
       });
-  }, [items, toast]);
+    });
+  }, [shareUrl, toast]);
+
+  const handleOpenLink = useCallback(() => {
+    window.open(shareUrl, "_blank", "noopener");
+    setShareDialogOpen(false);
+  }, [shareUrl]);
 
   // Navigation Logic
   const handleNavigate = useCallback(
@@ -1314,69 +1344,74 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
     }
   }, [applyChange]);
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent id="practice-sheet-content" side="right" className="w-full sm:max-w-xl flex flex-col" closeIcon="back">
-        <SheetHeader className="space-y-4 pb-4">
-          <div className="flex items-center gap-2">
-            <SheetTitle className="text-2xl font-bold text-primary">Practice plan</SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
-              onClick={handleShareProgress}
-              title="Copy sharable report link"
-            >
-              <span className="material-icons text-lg">content_copy</span>
-            </Button>
-          </div>
+  if (!open) return null;
 
-          {/* Progress Bar Row */}
-          {totalTodos > 0 && (
-            <div className="flex flex-col gap-1 w-full">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progress</span>
-                <span>{Math.round(progressPercentage)}% ({checkedTodos}/{totalTodos})</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary transition-all duration-500 ease-in-out"
-                    style={{ width: `${progressPercentage}%` }}
-                  />
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm overflow-y-auto">
+      <div className="text-foreground font-sans min-h-screen w-full">
+        <div className="max-w-2xl mx-auto pt-8 pb-8 px-4 sm:px-0">
+          <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
+            <header className="relative p-4 flex items-center justify-between overflow-hidden border-b border-border/40 bg-background/20 backdrop-blur-md rounded-t-2xl">
+              <div className="relative z-10 flex items-center justify-between w-full">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-2xl font-bold text-foreground">Practice Plan</h2>
+                  {typeof timeRemaining === 'number' && (
+                    <div className={cn(
+                      "font-mono text-xl font-medium tabular-nums",
+                      mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
+                    )}>
+                      {formatTime(timeRemaining)}
+                    </div>
+                  )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
-                  onClick={handleReset}
-                  title="Reset all checks"
-                >
-                  <span className="material-icons text-base">refresh</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <span className="material-icons text-muted-foreground">more_vert</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={handleShareClick}>
+                        <span className="material-icons text-sm mr-2">share</span>
+                        Share Report
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleReset}>
+                        <span className="material-icons text-sm mr-2">refresh</span>
+                        Reset Checks
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onOpenChange(false)}
+                    className="rounded-full hover:bg-white/10"
+                  >
+                    <span className="material-icons text-primary hover:text-primary/80">arrow_back</span>
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </SheetHeader>
-        <div className="mt-4 flex flex-col flex-1 min-h-0">
-          <ScrollArea className="flex-1 pr-4 -mr-4">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+            </header>
+
+            <div
+              ref={contentRef}
+              className="w-full p-4"
             >
-              <ul className="space-y-0 pr-2">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
                 <SortableContext
-                  items={items.map(i => i.id)}
+                  items={items.map(item => item.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {items.map((item, index) => (
-                    <li key={item.id}>
-                      <EmptyLineSlot
-                        index={index}
-                        onInsert={handleInsertBlock}
-                      />
+                  <div className="space-y-1 pb-20">
+                    {items.map((item) => (
                       <PlanItem
+                        key={item.id}
                         item={item}
                         depth={0}
                         focusRequest={focusRequest}
@@ -1399,21 +1434,48 @@ export function PracticePlanPane({ open, onOpenChange }: PracticePlanPaneProps) 
                         onPasteBelowSelection={handlePasteBelowSelection}
                         onUndo={handleUndo}
                       />
-                    </li>
-                  ))}
+                    ))}
+                  </div>
                 </SortableContext>
-                <li>
-                  {/* Keep placeholder at bottom for easy adding */}
-                  <AddLinePlaceholder
-                    index={items.length}
-                    onAddLine={handleAddLineAtSlot}
-                  />
-                </li>
-              </ul>
-            </DndContext>
-          </ScrollArea>
+              </DndContext>
+            </div>
+            {/* Link Popover Portal Target */}
+            <div id="practice-sheet-content" className="relative" />
+
+            <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Share Practice Plan</DialogTitle>
+                  <DialogDescription>
+                    Anyone with this link can view your progress.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center space-x-2">
+                  <div className="grid flex-1 gap-2">
+                    <Label htmlFor="link" className="sr-only">
+                      Link
+                    </Label>
+                    <Input
+                      id="link"
+                      defaultValue={shareUrl}
+                      readOnly
+                      className="w-full"
+                    />
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleCopyLink} title="Copy link">
+                    <span className="sr-only">Copy</span>
+                    <span className="material-icons text-sm">content_copy</span>
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleOpenLink} title="Open in new tab">
+                    <span className="sr-only">Open</span>
+                    <span className="material-icons text-sm">open_in_new</span>
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </SheetContent>
-    </Sheet >
+      </div>
+    </div>
   );
 }

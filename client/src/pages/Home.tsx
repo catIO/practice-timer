@@ -100,14 +100,14 @@ export default function Home() {
           return false;
         };
         const isIPad = detectIPad();
-        
 
-        
+
+
         if (isIOS || isIPad) {
           // iOS: Try notification sounds first, then direct audio as fallback
 
 
-          
+
           // Try notification first
           try {
             await showTimerCompletionNotification({
@@ -118,42 +118,42 @@ export default function Home() {
           } catch (error) {
             // Notification error
           }
-          
+
           // Also try direct audio playback as fallback
           try {
 
             // Force re-initialize audio context for iPad
             await initializeAudio();
-            
+
             // Add a small delay to ensure audio context is ready
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             // Try the complex audio system first
             await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
 
-            
+
             // Also try a simple HTML5 audio fallback for iPad
             try {
 
-              
+
               const audio = new Audio();
               audio.volume = settings.volume / 100;
-              
+
               // Create a simple beep sound using oscillator
               const context = new (window.AudioContext || (window as any).webkitAudioContext)();
               const oscillator = context.createOscillator();
               const gainNode = context.createGain();
-              
+
               oscillator.connect(gainNode);
               gainNode.connect(context.destination);
-              
+
               oscillator.frequency.setValueAtTime(800, context.currentTime);
               gainNode.gain.setValueAtTime(settings.volume / 100, context.currentTime);
               gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
-              
+
               oscillator.start(context.currentTime);
               oscillator.stop(context.currentTime + 0.5);
-              
+
 
             } catch (simpleAudioError) {
 
@@ -171,7 +171,7 @@ export default function Home() {
 
           }
         }
-        
+
 
         try {
           toast({
@@ -182,7 +182,7 @@ export default function Home() {
         } catch (toastError) {
 
         }
-        
+
 
       } catch (error) {
 
@@ -222,13 +222,13 @@ export default function Home() {
   const handleStart = useCallback(async () => {
     // Initialize audio context first when play button is clicked
     console.log('Play button clicked - initializing audio for cross-platform compatibility');
-    
+
     try {
       await initializeAudio();
     } catch (error) {
       console.error('Error initializing audio on play button:', error);
     }
-    
+
     // Then start the timer
     startTimer();
   }, [startTimer, initializeAudio]);
@@ -278,7 +278,7 @@ export default function Home() {
       // Check if any wake lock is active
       const hasNativeWakeLock = 'wakeLock' in navigator;
       const hasWakeLockFallback = document.querySelector('[data-wake-lock="active"]');
-      
+
       setWakeLockActive(hasNativeWakeLock || !!hasWakeLockFallback);
     };
 
@@ -350,7 +350,14 @@ export default function Home() {
               </div>
             </div>
           </header>
-          <PracticePlanPane open={planPaneOpen} onOpenChange={setPlanPaneOpen} />
+          <PracticePlanPane
+            open={planPaneOpen}
+            onOpenChange={setPlanPaneOpen}
+            timeRemaining={timeRemaining}
+            totalTime={totalTime}
+            mode={mode}
+            isRunning={isRunning}
+          />
 
           <main className="p-6">
             <div className="space-y-8">
