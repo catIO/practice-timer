@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { RichLink } from "./RichLink";
 import {
   HoverCard,
@@ -37,9 +37,11 @@ function renderFormatted(segment: string, keyPrefix: string) {
 interface TextWithLinksProps {
   text: string;
   /** When provided, links show edit chip on hover (view mode) */
-  onEditLink?: (linkText: string, linkUrl: string, start: number, end: number) => void;
+  onEditLink?: (linkText: string, linkUrl: string, start: number, end: number, anchor: HTMLElement | null) => void;
+  onUpdateLink?: (start: number, end: number, newUrl: string) => void;
   onRemoveLink?: (start: number, end: number) => void;
 }
+
 
 /**
  * Renders text with:
@@ -48,7 +50,7 @@ interface TextWithLinksProps {
  * - **bold** and *italic*
  * - Optional: edit chip on link hover when onEditLink provided
  */
-export function TextWithLinks({ text, onEditLink, onRemoveLink }: TextWithLinksProps) {
+export function TextWithLinks({ text, onEditLink, onRemoveLink, onUpdateLink }: TextWithLinksProps) {
   const parts: Array<LinkPart | PlainPart> = [];
   let lastIndex = 0;
   let match;
@@ -77,6 +79,7 @@ export function TextWithLinks({ text, onEditLink, onRemoveLink }: TextWithLinksP
               key={i}
               part={part}
               onEditLink={onEditLink}
+              onUpdateLink={onUpdateLink}
               onRemoveLink={onRemoveLink}
               rich={part.text === part.url}
             />
@@ -91,15 +94,29 @@ export function TextWithLinks({ text, onEditLink, onRemoveLink }: TextWithLinksP
 function LinkWithPreview({
   part,
   onEditLink,
+  onUpdateLink,
   onRemoveLink,
   rich,
 }: {
   part: LinkPart;
-  onEditLink?: (linkText: string, linkUrl: string, start: number, end: number) => void;
+  onEditLink?: (linkText: string, linkUrl: string, start: number, end: number, anchor: HTMLElement | null) => void;
+  onUpdateLink?: (start: number, end: number, newUrl: string) => void;
   onRemoveLink?: (start: number, end: number) => void;
   rich?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [editingUrl, setEditingUrl] = useState(false);
+  const [tempUrl, setTempUrl] = useState(part.url);
+  const linkRef = useRef<HTMLSpanElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUrlSave = () => {
+    if (tempUrl !== part.url) {
+      onUpdateLink?.(part.start, part.end, tempUrl);
+    }
+    setEditingUrl(false);
+  };
+
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -110,7 +127,8 @@ function LinkWithPreview({
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onEditLink?.(part.text, part.url, part.start, part.end);
+    setEditingUrl(true);
+    setTempUrl(part.url);
   };
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -123,7 +141,7 @@ function LinkWithPreview({
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
-        <span className="cursor-pointer">
+        <span ref={linkRef} className="cursor-pointer">
           {rich ? (
             <RichLink url={part.url} />
           ) : (
@@ -152,14 +170,36 @@ function LinkWithPreview({
           <div className="flex items-center gap-1">
             <div className="flex items-center gap-2 px-2 py-1 max-w-[240px]">
               <span className="material-icons text-xs text-muted-foreground shrink-0">public</span>
-              <a
-                href={part.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-popover-foreground hover:underline truncate"
-              >
-                {part.url}
-              </a>
+              {editingUrl ? (
+                <input
+                  ref={inputRef}
+                  value={tempUrl}
+                  onChange={(e) => setTempUrl(e.target.value)}
+                  onBlur={handleUrlSave}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleUrlSave();
+                    }
+                  }}
+                  className="h-5 px-1 text-xs bg-background border rounded w-[180px] focus:outline-none focus:ring-1 focus:ring-ring"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span
+                  className="text-xs text-popover-foreground hover:underline truncate cursor-text block max-w-[180px]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingUrl(true);
+                    setTempUrl(part.url);
+                  }}
+                  title="Click to edit URL"
+                >
+                  {part.url}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-0.5 border-l border-border/50 pl-1">
               <Button

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 interface LinkPopoverProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  anchorRef: React.RefObject<HTMLElement | null>;
+  anchor: HTMLElement | null;
   selectedText: string;
   /** Pre-filled URL when editing existing link */
   initialUrl?: string;
@@ -18,7 +18,7 @@ interface LinkPopoverProps {
 export function LinkPopover({
   open,
   onOpenChange,
-  anchorRef,
+  anchor,
   selectedText,
   initialUrl = "",
   onConfirm,
@@ -44,26 +44,12 @@ export function LinkPopover({
   }, [open, initialUrl]);
 
   useLayoutEffect(() => {
-    if (!open || !anchorRef.current || !container) return;
-    const rect = anchorRef.current.getBoundingClientRect();
+    if (!open || !anchor || !container) return;
+    const rect = anchor.getBoundingClientRect();
     const gap = 4;
 
-    // Position just below toolbar (Notion-style: close to selection)
-    // Actually anchorRef passed is usually the contentRef (row). 
-    // We want it near the selection if possible, or just below the row.
-    // For now, centering on the row is acceptable or we could try to use window.getSelection range.
-
-    let top = rect.top + rect.height + gap; // Default below (or above if space?)
-    // Provide a better guess? The previous code used `rect.top - 8` (toolbar bottom).
-    // But `anchorRef` in PracticePlanPane is `contentRef` (the div).
-    // Let's stick to the previous logic but adjust for container offset like InlineToolbar.
-
-    // Previous logic: top = rect.top - 8. 
-    // Wait, rect.top would be the top of the row. rect.top - 8 is ABOVE the row?
-    // If it's a popover for a Link, usually it's below the link or selection.
-
-    // Let's place it slightly below the row for now to avoid covering text.
-    top = rect.bottom + gap;
+    // Position just below the anchor element
+    let top = rect.bottom + gap;
     let left = rect.left + rect.width / 2;
 
     if (container !== document.body) {
@@ -77,7 +63,7 @@ export function LinkPopover({
     }
 
     setPosition({ top, left });
-  }, [open, anchorRef, container]);
+  }, [open, anchor, container]);
 
   useEffect(() => {
     if (open) {

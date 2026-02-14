@@ -248,26 +248,18 @@ function PlanItem({
 
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(item.text);
+  useEffect(() => setEditValue(item.text), [item.text]);
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
-  const [linkModalOpen, setLinkModalOpen] = useState(false);
-  const [linkEditUrl, setLinkEditUrl] = useState<string>("");
-  const [linkEditLinkText, setLinkEditLinkText] = useState<string | null>(null);
-  const linkEditLinkTextRef = useRef<string | null>(null);
-  const linkModalOpenRef = useRef(false);
-  useEffect(() => {
-    linkModalOpenRef.current = linkModalOpen;
-  }, [linkModalOpen]);
+
   const rowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openedFromViewModeRef = useRef(false);
 
-  useEffect(() => {
-    setEditValue(item.text);
-  }, [item.text]);
+
+
 
   useEffect(() => {
     return () => {
@@ -324,16 +316,18 @@ function PlanItem({
     }
   }, [focusRequest, item.id]);
 
+  const [linkPopoverAnchor, setLinkPopoverAnchor] = useState<HTMLElement | null>(null);
+
   const handleEditLink = useCallback(
-    (linkText: string, linkUrl: string, start: number, end: number) => {
-      linkEditLinkTextRef.current = linkText;
-      setLinkEditLinkText(linkText);
-      setLinkEditUrl(linkUrl);
-      pendingSelectionRef.current = { start, end };
-      linkModalOpenRef.current = true;
-      setLinkModalOpen(true);
+    (linkText: string, linkUrl: string, start: number, end: number, anchor: HTMLElement | null) => {
       setEditing(true);
-      openedFromViewModeRef.current = true;
+      // Defer selection until input is rendered
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(start, end);
+        }
+      });
     },
     []
   );
@@ -363,8 +357,31 @@ function PlanItem({
       onUpdateText(item.id, newText);
       setEditValue(newText);
     },
-    [item.text, onUpdateText]
+    [item.text, item.id, onUpdateText]
   );
+
+  const handleUpdateLink = useCallback(
+    (start: number, end: number, newUrl: string) => {
+      const currentText = item.text;
+      const linkMarkdown = currentText.slice(start, end);
+      const match = /^\[(.*?)\]\(.*?\)$/.exec(linkMarkdown);
+      const plainMatch = /^(https?:\/\/[^\s]+)$/.exec(linkMarkdown);
+
+      let newLinkMarkdown = linkMarkdown;
+      if (match) {
+        newLinkMarkdown = `[${match[1]}](${newUrl})`;
+      } else if (plainMatch) {
+        newLinkMarkdown = newUrl;
+      }
+
+      const newText = currentText.slice(0, start) + newLinkMarkdown + currentText.slice(end);
+      setEditValue(newText);
+      onUpdateText(item.id, newText);
+    },
+    [item.text, item.id, onUpdateText]
+  );
+
+
 
 
 
@@ -746,7 +763,6 @@ function PlanItem({
                   }
                 }}
                 onBlur={() => {
-                  if (linkModalOpenRef.current) return;
                   if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                   saveTimeoutRef.current = setTimeout(() => {
                     saveTimeoutRef.current = null;
@@ -788,7 +804,7 @@ function PlanItem({
               />
               <InlineToolbar
                 anchorRef={inputRef}
-                visible={!!toolbarSelection && !linkModalOpen}
+                visible={!!toolbarSelection}
                 selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
                 onToolbarInteraction={() => {
                   if (saveTimeoutRef.current) {
@@ -798,79 +814,16 @@ function PlanItem({
                 }}
                 onFormat={(action) => {
                   if (action === "link") {
-                    linkModalOpenRef.current = true;
-                    setLinkModalOpen(true);
+                    applyFormat("link", "");
                   } else {
                     applyFormat(action);
                   }
                 }}
                 onLinkClick={() => {
-                  if (toolbarSelection) {
-                    const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
-                    let match;
-                    while ((match = LINK_REGEX.exec(editValue)) !== null) {
-                      const start = match.index;
-                      const end = start + match[0].length;
-                      // Check if selection is inside or touches the link
-                      // intersection: Math.max(start, selStart) < Math.min(end, selEnd) ??
-                      // Let's say if cursor is inside: start <= selStart && end >= selEnd
-                      if (toolbarSelection.start >= start && toolbarSelection.end <= end) {
-                        const mdText = match[1];
-                        const mdUrl = match[2];
-                        const plainUrl = match[3];
+                  // No-op: editing is done inline
+                }}
+              />
 
-                        if (mdUrl) {
-                          setLinkEditUrl(mdUrl);
-                          setLinkEditLinkText(mdText);
-                          linkEditLinkTextRef.current = mdText;
-                          setToolbarSelection({ start, end });
-                        } else if (plainUrl) {
-                          setLinkEditUrl(plainUrl);
-                          setLinkEditLinkText(plainUrl);
-                          linkEditLinkTextRef.current = plainUrl;
-                          setToolbarSelection({ start, end });
-                        }
-                        break;
-                      }
-                    }
-                  }
-                  linkModalOpenRef.current = true;
-                  setLinkModalOpen(true);
-                }}
-              />
-              <LinkPopover
-                open={linkModalOpen}
-                onOpenChange={(open) => {
-                  setLinkModalOpen(open);
-                  if (!open) {
-                    setToolbarSelection(null);
-                    setLinkEditUrl("");
-                    setLinkEditLinkText(null);
-                    linkEditLinkTextRef.current = null;
-                    if (openedFromViewModeRef.current) {
-                      saveEdit();
-                      openedFromViewModeRef.current = false;
-                    }
-                  }
-                }}
-                anchorRef={contentRef}
-                selectedText={linkEditLinkText ?? (toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : "")}
-                initialUrl={linkEditUrl}
-                onConfirm={(url) => {
-                  const linkText = linkEditLinkTextRef.current;
-                  applyFormat("link", url, linkText ? { linkText } : undefined);
-                  setLinkModalOpen(false);
-                  setLinkEditUrl("");
-                  linkEditLinkTextRef.current = null;
-                }}
-                onRemove={() => {
-                  const selection = pendingSelectionRef.current || toolbarSelection;
-                  if (selection) {
-                    handleRemoveLink(selection.start, selection.end);
-                  }
-                  setLinkModalOpen(false);
-                }}
-              />
             </>
           ) : isHeader ? (
             <span
@@ -886,6 +839,7 @@ function PlanItem({
               <TextWithLinks
                 text={item.text}
                 onEditLink={handleEditLink}
+                onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
                 onRemoveLink={handleRemoveLink}
               />
             </span>
@@ -899,6 +853,7 @@ function PlanItem({
               <TextWithLinks
                 text={item.text}
                 onEditLink={handleEditLink}
+                onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
                 onRemoveLink={handleRemoveLink}
               />
             </span>
@@ -935,6 +890,7 @@ function PlanItem({
                 onCutSelection={onCutSelection}
                 onPasteBelowSelection={onPasteBelowSelection}
                 onUndo={onUndo}
+
               />
             ))}
           </SortableContext>
@@ -1432,6 +1388,7 @@ export function PracticePlanPane({
                       onCutSelection={handleCutSelection}
                       onPasteBelowSelection={handlePasteBelowSelection}
                       onUndo={handleUndo}
+
                     />
                   ))}
                 </div>
