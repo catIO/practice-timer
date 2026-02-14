@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  getDailyBreakdownByWeek,
+  getDailyBreakdown,
   getTodaySeconds,
   getThisWeekSeconds,
   getLastWeekSeconds,
@@ -15,8 +15,7 @@ import "@/assets/headerBlur.css";
 export default function PracticeLog() {
   const settings = getSettings();
   const weekStartsOn = settings?.weekStartsOn ?? "monday";
-  const allWeekGroups = getDailyBreakdownByWeek(weekStartsOn);
-  const weekGroups = allWeekGroups.slice(0, 2); // Current week and last week only
+  const last10Days = getDailyBreakdown().slice(0, 10);
   const todaySeconds = getTodaySeconds();
   const thisWeekSeconds = getThisWeekSeconds(weekStartsOn);
   const lastWeekSeconds = getLastWeekSeconds(weekStartsOn);
@@ -77,37 +76,28 @@ export default function PracticeLog() {
                 <h2 className="mb-3 text-xl font-semibold text-foreground">
                   Daily breakdown
                 </h2>
-                {weekGroups.length === 0 ? (
+                {last10Days.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No practice sessions logged yet. Complete work sessions to
                     track your time.
                   </p>
                 ) : (
                   <ScrollArea className="h-[400px] pr-4">
-                    <div className="space-y-4">
-                      {weekGroups.map(({ weekStart, weekLabel, days }) => (
-                        <div key={weekStart}>
-                          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            {weekLabel}
-                          </p>
-                          <ul className="space-y-2">
-                            {days.map(({ date, seconds }) => (
-                              <li
-                                key={date}
-                                className="flex items-center justify-between rounded-lg border px-3 py-2"
-                              >
-                                <span className="text-sm font-medium">
-                                  {formatDate(date)}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  {formatDuration(seconds)}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                    <ul className="space-y-2">
+                      {last10Days.map(({ date, seconds }) => (
+                        <li
+                          key={date}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2"
+                        >
+                          <span className="text-sm font-medium">
+                            {formatDate(date)}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {formatDuration(seconds)}
+                          </span>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </ScrollArea>
                 )}
               </div>

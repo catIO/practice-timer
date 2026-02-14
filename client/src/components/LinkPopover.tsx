@@ -114,6 +114,7 @@ export function LinkPopover({
         // So we shouldn't preventDefault blindly.
         e.stopPropagation();
       }}
+      onClick={(e) => e.stopPropagation()}
       onKeyDown={stopPropagation}
       onKeyUp={stopPropagation}
       onKeyPress={stopPropagation}
@@ -131,7 +132,7 @@ export function LinkPopover({
             className="flex-1 h-9 text-sm"
           />
           <Button type="submit" size="sm" disabled={!url.trim()} className="h-9 px-3 shrink-0">
-            Link
+            {initialUrl ? "Edit link" : "Link"}
           </Button>
         </div>
         {selectedText && (

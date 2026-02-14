@@ -682,7 +682,7 @@ function PlanItem({
         ) : null}
         <div
           ref={contentRef}
-          className={cn("min-w-0 flex-1 overflow-x-auto select-text", isHeader && "flex items-center -ml-1", "cursor-text")}
+          className={cn("min-w-0 flex-1 break-words select-text", isHeader && "flex items-center -ml-1", "cursor-text")}
         >
           {editing ? (
             <>
@@ -758,6 +758,35 @@ function PlanItem({
                   }
                 }}
                 onLinkClick={() => {
+                  if (toolbarSelection) {
+                    const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
+                    let match;
+                    while ((match = LINK_REGEX.exec(editValue)) !== null) {
+                      const start = match.index;
+                      const end = start + match[0].length;
+                      // Check if selection is inside or touches the link
+                      // intersection: Math.max(start, selStart) < Math.min(end, selEnd) ??
+                      // Let's say if cursor is inside: start <= selStart && end >= selEnd
+                      if (toolbarSelection.start >= start && toolbarSelection.end <= end) {
+                        const mdText = match[1];
+                        const mdUrl = match[2];
+                        const plainUrl = match[3];
+
+                        if (mdUrl) {
+                          setLinkEditUrl(mdUrl);
+                          setLinkEditLinkText(mdText);
+                          linkEditLinkTextRef.current = mdText;
+                          setToolbarSelection({ start, end });
+                        } else if (plainUrl) {
+                          setLinkEditUrl(plainUrl);
+                          setLinkEditLinkText(plainUrl);
+                          linkEditLinkTextRef.current = plainUrl;
+                          setToolbarSelection({ start, end });
+                        }
+                        break;
+                      }
+                    }
+                  }
                   linkModalOpenRef.current = true;
                   setLinkModalOpen(true);
                 }}

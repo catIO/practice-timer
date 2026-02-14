@@ -83,9 +83,15 @@ function formatWeekLabel(weekStartStr: string): string {
 }
 
 export function getDailyBreakdownByWeek(
-  weekStartsOn: WeekStartsOn = 'monday'
+  weekStartsOn: WeekStartsOn = 'monday',
+  limitDays?: number
 ): WeekGroup[] {
-  const dailyLogs = getDailyBreakdown();
+  let dailyLogs = getDailyBreakdown();
+
+  if (limitDays && limitDays > 0) {
+    dailyLogs = dailyLogs.slice(0, limitDays);
+  }
+
   const weekMap = new Map<string, DailyLog[]>();
 
   for (const log of dailyLogs) {

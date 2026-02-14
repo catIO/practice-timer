@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { RichLink } from "./RichLink";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 /** Matches [text](url) or plain https URLs. Markdown links are tried first. */
 const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
@@ -64,20 +71,12 @@ export function TextWithLinks({ text, onEditLink }: TextWithLinksProps) {
     <>
       {parts.map((part, i) => {
         if (part.type === "mdlink") {
-          if (part.text === part.url) {
-            return (
-              <RichLinkWithEdit
-                key={i}
-                part={part}
-                onEditLink={onEditLink}
-              />
-            );
-          }
           return (
-            <LinkWithEdit
+            <LinkWithPreview
               key={i}
               part={part}
               onEditLink={onEditLink}
+              rich={part.text === part.url}
             />
           );
         }
@@ -87,79 +86,102 @@ export function TextWithLinks({ text, onEditLink }: TextWithLinksProps) {
   );
 }
 
-function RichLinkWithEdit({
+function LinkWithPreview({
   part,
   onEditLink,
+  rich,
 }: {
   part: LinkPart;
   onEditLink?: (linkText: string, linkUrl: string, start: number, end: number) => void;
+  rich?: boolean;
 }) {
-  const [hover, setHover] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(part.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEditLink?.(part.text, part.url, part.start, part.end);
+  };
+
+  const domain = tryGetDomain(part.url);
 
   return (
-    <span
-      className="relative inline group/link"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <RichLink url={part.url} />
-      {onEditLink && hover && (
-        <button
-          type="button"
-          className="absolute -top-6 left-0 z-10 rounded border bg-background px-2 py-0.5 text-xs shadow hover:bg-accent"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onEditLink(part.text, part.url, part.start, part.end);
-          }}
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <span className="cursor-pointer">
+          {rich ? (
+            <RichLink url={part.url} />
+          ) : (
+            <a
+              href={part.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline hover:text-primary/80"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {renderFormatted(part.text, `link-${part.start}`)}
+            </a>
+          )}
+        </span>
+      </HoverCardTrigger>
+      {onEditLink && (
+        <HoverCardContent
+          align="start"
+          side="bottom"
+          sideOffset={5}
+          className="w-auto p-1 flex items-center gap-1 bg-popover/95 backdrop-blur-sm border-border/50 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
-          Edit link
-        </button>
+          <div className="flex items-center gap-2 px-2 py-1 max-w-[240px]">
+            <span className="material-icons text-xs text-muted-foreground shrink-0">public</span>
+            <a
+              href={part.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-popover-foreground hover:underline truncate"
+            >
+              {part.url}
+            </a>
+          </div>
+          <div className="flex items-center gap-0.5 border-l border-border/50 pl-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-sm text-muted-foreground hover:text-foreground"
+              onClick={handleCopy}
+              title="Copy URL"
+            >
+              <span className="material-icons text-[14px]">
+                {copied ? "check" : "content_copy"}
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs font-medium rounded-sm text-muted-foreground hover:text-foreground"
+              onClick={handleEdit}
+            >
+              Edit
+            </Button>
+          </div>
+        </HoverCardContent>
       )}
-    </span>
+    </HoverCard>
   );
 }
 
-function LinkWithEdit({
-  part,
-  onEditLink,
-}: {
-  part: LinkPart;
-  onEditLink?: (linkText: string, linkUrl: string, start: number, end: number) => void;
-}) {
-  const [hover, setHover] = useState(false);
-
-  return (
-    <span
-      className="relative inline group/link"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <a
-        href={part.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary underline hover:text-primary/80"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {renderFormatted(part.text, `link-${part.start}`)}
-      </a>
-      {onEditLink && hover && (
-        <button
-          type="button"
-          className="absolute -top-6 left-0 z-10 rounded border bg-background px-2 py-0.5 text-xs shadow hover:bg-accent"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onEditLink(part.text, part.url, part.start, part.end);
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          Edit link
-        </button>
-      )}
-    </span>
-  );
+function tryGetDomain(url: string) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
 }
