@@ -28,7 +28,7 @@ async function fetchMetadata(url: string): Promise<Metadata> {
                         title: data.title,
                         description: data.author_name, // YouTube oEmbed often puts channel name here
                         image: data.thumbnail_url,
-                        icon: "https://www.youtube.com/s/desktop/12dcdb8e/img/favicon.ico", // Fallback/static for YT
+                        icon: "https://www.youtube.com/favicon.ico",
                         url: url
                     };
                 }
