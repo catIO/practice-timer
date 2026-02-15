@@ -14,6 +14,31 @@ interface Metadata {
 }
 
 async function fetchMetadata(url: string): Promise<Metadata> {
+    // Optimization: Check if it's a known media site (YouTube, Vimeo) and use noembed (CORS friendly)
+    // This bypasses the need for our server function and avoids bot detection issues.
+    const isMediaUrl = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com');
+
+    if (isMediaUrl) {
+        try {
+            const noembedRes = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+            if (noembedRes.ok) {
+                const data = await noembedRes.json();
+                if (data.title) {
+                    return {
+                        title: data.title,
+                        description: data.author_name, // YouTube oEmbed often puts channel name here
+                        image: data.thumbnail_url,
+                        icon: "https://www.youtube.com/s/desktop/12dcdb8e/img/favicon.ico", // Fallback/static for YT
+                        url: url
+                    };
+                }
+            }
+        } catch (e) {
+            console.warn("Client-side oEmbed failed, falling back to server:", e);
+        }
+    }
+
+    // Fallback to our server function for everything else
     const res = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`);
     if (!res.ok) {
         console.error("Metadata fetch failed:", res.status, res.statusText);
