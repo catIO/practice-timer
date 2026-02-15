@@ -440,6 +440,8 @@ function PlanItem({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (editing) return;
+
       // Clipboard-style operations work on the current selection (managed by parent).
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
         e.preventDefault();
@@ -462,7 +464,6 @@ function PlanItem({
         return;
       }
 
-      if (editing) return;
       if (e.key === "Tab") {
         e.preventDefault();
         if (e.shiftKey) onUnindent(item.id);
@@ -782,9 +783,22 @@ function PlanItem({
                 }}
                 onKeyDown={handleInputKeyDown}
                 onPaste={(e) => {
-                  const pastedText = e.clipboardData.getData("text");
-                  // Check if pasted text is a URL
-                  if (/^https?:\/\/[^\s]+$/.test(pastedText)) {
+                  const rawText = e.clipboardData.getData("text");
+                  const pastedText = rawText.trim();
+
+                  let isUrl = false;
+                  try {
+                    // Try constructing a URL. We require a protocol to be considered a "link paste" event.
+                    // Otherwise "Apple" would be valid (relative URL).
+                    const url = new URL(pastedText);
+                    if (url.protocol === "http:" || url.protocol === "https:") {
+                      isUrl = true;
+                    }
+                  } catch (e) {
+                    // Not a valid URL
+                  }
+
+                  if (isUrl) {
                     // Check if we have a selection
                     const start = e.currentTarget.selectionStart;
                     const end = e.currentTarget.selectionEnd;
