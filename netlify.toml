@@ -2,9 +2,16 @@
   base = "."
   publish = "client/dist"
   command = "npm run build"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/metadata"
+  to = "/.netlify/functions/metadata"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/api/*"
