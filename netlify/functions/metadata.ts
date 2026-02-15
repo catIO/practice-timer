@@ -38,7 +38,7 @@ export const handler: Handler = async (event, context) => {
         });
 
         // Extract best available metadata
-        const metadata: MetadataResponse = {
+        let metadata: MetadataResponse = {
             title: result.ogTitle || result.twitterTitle || result.dcTitle || (result as any).title,
             description: result.ogDescription || result.twitterDescription || result.dcDescription,
             image: (result.ogImage && result.ogImage[0]?.url) ||
@@ -46,6 +46,29 @@ export const handler: Handler = async (event, context) => {
             icon: result.favicon,
             url: url
         };
+
+        // Fallback for YouTube if title is generic
+        const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+        const isGenericTitle = !metadata.title || metadata.title === 'YouTube' || metadata.title === '- YouTube';
+
+        if (isYouTube && isGenericTitle) {
+            try {
+                const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+                const oembedRes = await fetch(oembedUrl);
+                if (oembedRes.ok) {
+                    const oembedData = await oembedRes.json();
+                    if (oembedData.title) {
+                        metadata.title = oembedData.title;
+                        // oEmbed also provides high quality thumbnails
+                        if (oembedData.thumbnail_url && !metadata.image) {
+                            metadata.image = oembedData.thumbnail_url;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('YouTube oEmbed fallback failed:', e);
+            }
+        }
 
         return {
             statusCode: 200,
