@@ -15,7 +15,15 @@ interface Metadata {
 
 async function fetchMetadata(url: string): Promise<Metadata> {
     const res = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`);
-    if (!res.ok) throw new Error("Failed to fetch metadata");
+    if (!res.ok) {
+        console.error("Metadata fetch failed:", res.status, res.statusText);
+        throw new Error("Failed to fetch metadata");
+    }
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        console.error("Metadata endpoint returned non-JSON:", await res.text().then(t => t.slice(0, 100)));
+        throw new Error("Invalid response format");
+    }
     return res.json();
 }
 
