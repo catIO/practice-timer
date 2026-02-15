@@ -28,11 +28,13 @@ export function LinkPopover({
   const [url, setUrl] = useState(initialUrl);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, transform: "translate(-50%, -100%)" });
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [isPositioned, setIsPositioned] = useState(false);
 
-  useLayoutEffect(() => {
-    setContainer(document.getElementById("practice-sheet-content") || document.body);
+  useEffect(() => {
+    // We used to look for specific containers, but document.body is safer for fixed positioning validity.
+    setContainer(document.body);
   }, []);
 
   useEffect(() => {
@@ -44,15 +46,48 @@ export function LinkPopover({
   }, [open, initialUrl]);
 
   useLayoutEffect(() => {
-    if (!open || !anchor || !container) return;
+    if (!open) {
+      setIsPositioned(false);
+      return;
+    }
+    if (!anchor || !container) return;
     const rect = anchor.getBoundingClientRect();
+
+    // Safety check: if anchor is hidden or unmounted (or waiting for layout), rect might be zero.
+    // If we position based on zero, we get 0,0 placement.
+    if (rect.width === 0 && rect.height === 0) return;
+
     const gap = 4;
 
-    // Position just below the anchor element
-    let top = rect.bottom + gap;
+    // Position logic
+    const TOOLBAR_OFFSET = 8;
+    const POPOVER_HEIGHT_ESTIMATE = 120; // Title, input, buttons...
+    const viewportTop = 0;
+
+    const spaceAbove = rect.top - viewportTop;
+    const placeAbove = spaceAbove > POPOVER_HEIGHT_ESTIMATE;
+
+    let top: number;
+    let transformOrigin: string;
+
+    if (placeAbove) {
+      top = rect.top - TOOLBAR_OFFSET;
+      transformOrigin = "translate(-50%, -100%)";
+    } else {
+      top = rect.bottom + TOOLBAR_OFFSET;
+      transformOrigin = "translate(-50%, 0)";
+    }
+
     let left = rect.left + rect.width / 2;
 
+    // Since we are portal-ing to document.body, and position is fixed,
+    // we don't need to subtract container offsets unless document.body has a transform (unlikely).
+    // The previous logic for `container` handles specific relative containers. 
+    // If container IS document.body, we just use viewport coordinates (rect).
+
     if (container !== document.body) {
+      // Legacy check just in case we revert to a specific container later, 
+      // but currently we force document.body.
       const computedStyle = window.getComputedStyle(container);
       const hasTransform = computedStyle.transform !== 'none';
       if (hasTransform) {
@@ -62,14 +97,17 @@ export function LinkPopover({
       }
     }
 
-    setPosition({ top, left });
+    setPosition({ top, left, transform: transformOrigin });
+    setIsPositioned(true);
   }, [open, anchor, container]);
 
   useEffect(() => {
     if (open) {
-      requestAnimationFrame(() => inputRef.current?.focus());
+      if (isPositioned) {
+        requestAnimationFrame(() => inputRef.current?.focus());
+      }
     }
-  }, [open]);
+  }, [open, isPositioned]);
 
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
@@ -104,7 +142,6 @@ export function LinkPopover({
     const trimmed = url.trim();
     if (trimmed) {
       onConfirm(trimmed);
-      onOpenChange(false);
     }
   };
 
@@ -116,12 +153,13 @@ export function LinkPopover({
     <div
       ref={wrapperRef}
       data-link-modal
-      className="fixed z-[10001] w-72 rounded-md border bg-popover p-3 shadow-lg"
+      className="fixed z-[10001] w-72 rounded-md border bg-popover p-3 shadow-lg transition-opacity duration-75"
       style={{
         top: position.top,
         left: position.left,
-        transform: "translate(-50%, 0)",
-        pointerEvents: "auto"
+        transform: position.transform,
+        pointerEvents: "auto",
+        opacity: isPositioned ? 1 : 0
       }}
       onMouseDown={(e) => {
         // Prevent default mousedown to avoid losing focus if clicking background of popover, 
@@ -170,6 +208,6 @@ export function LinkPopover({
         )}
       </form>
     </div>,
-    container
+    document.body
   );
 }

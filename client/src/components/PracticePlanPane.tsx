@@ -257,9 +257,10 @@ function PlanItem({
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLinkPopoverOpenRef = useRef(false);
 
-
-
+  // ... (lines 261-267 are omitted in replacement context, assuming they are okay to implicitly include or skip if not touching them)
+  // Actually, I need to match valid context.
 
   useEffect(() => {
     return () => {
@@ -268,7 +269,26 @@ function PlanItem({
     };
   }, []);
 
-  // Apply pending selection when entering edit mode (from double-click with selection)
+  // ...
+
+  const saveEdit = useCallback(() => {
+    // If popover is open, don't exit edit mode on blur
+    if (isLinkPopoverOpenRef.current) return;
+
+    setEditing(false);
+    setToolbarSelection(null);
+    const trimmed = editValue.trim();
+    if (trimmed !== item.text) {
+      onUpdateText(item.id, trimmed);
+    } else {
+      setEditValue(item.text);
+    }
+  }, [editValue, item.id, item.text, onUpdateText]);
+
+  // ... (lines 402+ applyFormat)
+
+  // ... lines 808+ for InlineToolbar and LinkPopover
+
   useEffect(() => {
     if (!editing || !pendingSelectionRef.current) return;
     const pending = pendingSelectionRef.current;
@@ -385,16 +405,7 @@ function PlanItem({
 
 
 
-  const saveEdit = useCallback(() => {
-    setEditing(false);
-    setToolbarSelection(null);
-    const trimmed = editValue.trim();
-    if (trimmed !== item.text) {
-      onUpdateText(item.id, trimmed);
-    } else {
-      setEditValue(item.text);
-    }
-  }, [editValue, item.id, item.text, onUpdateText]);
+
 
   const applyFormat = useCallback(
     (action: "bold" | "italic" | "link", url?: string, opts?: { linkText?: string }) => {
@@ -804,7 +815,7 @@ function PlanItem({
               />
               <InlineToolbar
                 anchorRef={inputRef}
-                visible={!!toolbarSelection}
+                visible={!!toolbarSelection && !linkPopoverAnchor}
                 selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
                 onToolbarInteraction={() => {
                   if (saveTimeoutRef.current) {
@@ -814,13 +825,42 @@ function PlanItem({
                 }}
                 onFormat={(action) => {
                   if (action === "link") {
-                    applyFormat("link", "");
+                    // Start link flow
+                    isLinkPopoverOpenRef.current = true;
+                    setLinkPopoverAnchor(inputRef.current);
                   } else {
                     applyFormat(action);
                   }
                 }}
                 onLinkClick={() => {
-                  // No-op: editing is done inline
+                  isLinkPopoverOpenRef.current = true;
+                  setLinkPopoverAnchor(inputRef.current);
+                }}
+              />
+              <LinkPopover
+                open={!!linkPopoverAnchor}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    isLinkPopoverOpenRef.current = false;
+                    setLinkPopoverAnchor(null);
+                    saveEdit();
+                  }
+                }}
+                anchor={linkPopoverAnchor}
+                selectedText={
+                  toolbarSelection
+                    ? editValue.slice(toolbarSelection.start, toolbarSelection.end)
+                    : ""
+                }
+                onConfirm={(url) => {
+                  isLinkPopoverOpenRef.current = false;
+                  applyFormat("link", url);
+                  setLinkPopoverAnchor(null);
+                }}
+                onCancel={() => {
+                  isLinkPopoverOpenRef.current = false;
+                  setLinkPopoverAnchor(null);
+                  requestAnimationFrame(() => inputRef.current?.focus());
                 }}
               />
 
