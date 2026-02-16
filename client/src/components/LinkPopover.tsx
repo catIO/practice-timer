@@ -115,7 +115,9 @@ export function LinkPopover({
       // We need a ref to the popover content.
       // Actually we have the portal content.
       // Let's rely on the `wrapperRef` we'll add to the div.
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      // Use composedPath for more robust check (handles shadow DOM, removed nodes, etc.)
+      const path = e.composedPath();
+      if (wrapperRef.current && !path.includes(wrapperRef.current)) {
         onOpenChange(false);
       }
     };
@@ -153,6 +155,10 @@ export function LinkPopover({
     <div
       ref={wrapperRef}
       data-link-modal
+      onMouseDown={(e) => {
+        // Prevent click-outside logic from triggering when interacting with the popover
+        e.stopPropagation();
+      }}
       className="fixed z-[10001] w-72 rounded-md border bg-popover p-3 shadow-lg transition-opacity duration-75"
       style={{
         top: position.top,
@@ -161,13 +167,7 @@ export function LinkPopover({
         pointerEvents: "auto",
         opacity: isPositioned ? 1 : 0
       }}
-      onMouseDown={(e) => {
-        // Prevent default mousedown to avoid losing focus if clicking background of popover, 
-        // BUT allow interaction with inputs.
-        // Actually, for a popover with input, we DO want focus to move to input.
-        // So we shouldn't preventDefault blindly.
-        e.stopPropagation();
-      }}
+
       onClick={(e) => e.stopPropagation()}
       onKeyDown={stopPropagation}
       onKeyUp={stopPropagation}
