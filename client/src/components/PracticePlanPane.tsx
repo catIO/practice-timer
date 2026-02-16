@@ -196,7 +196,7 @@ interface PlanItemProps {
   onInsertBelow: (id: string, blockType: BlockType, empty?: boolean) => void;
   onInsertBefore: (id: string, blockType: BlockType, empty?: boolean) => void;
   onNavigate: (id: string, direction: "up" | "down", fromEdit: boolean) => void;
-  onMergeWithPrevious: (id: string) => void;
+  onMergeWithPrevious: (id: string, currentText?: string) => void;
   onInputFocus: (id: string) => void; // Notify parent that this item is focused
   selected: boolean;
   onRowClick: (id: string, e: any) => void;
@@ -577,7 +577,7 @@ function PlanItem({
           }
 
           // 2. If it is already text (or header), try to merge with previous
-          onMergeWithPrevious(item.id);
+          onMergeWithPrevious(item.id, editValue);
         }
       }
     },
@@ -1296,15 +1296,16 @@ export function PracticePlanPane({
   );
 
   // Merge / Backspace Logic
-  const handleMergeWithPrevious = useCallback((id: string) => {
+  const handleMergeWithPrevious = useCallback((id: string, currentTextOverride?: string) => {
     const index = flatList.findIndex((x) => x.id === id);
     if (index === -1) return;
 
     const current = flatList[index].item;
+    const textToMerge = typeof currentTextOverride === 'string' ? currentTextOverride : current.text;
 
     // If first item and empty, allow delete
     if (index === 0) {
-      if (!current.text) {
+      if (!textToMerge) {
         handleDelete(id);
       }
       return;
@@ -1314,7 +1315,7 @@ export function PracticePlanPane({
     const prev = flatList[index - 1].item;
 
     // If current is empty, just delete and focus previous
-    if (!current.text) {
+    if (!textToMerge) {
       handleDelete(id);
       setFocusRequest({
         id: prev.id,
@@ -1325,8 +1326,10 @@ export function PracticePlanPane({
     }
 
     // Merge: Append text to previous, delete current.
-    const newText = prev.text + current.text;
-    const cursorAt = prev.text.length;
+    // Fix: Add a space if both have text to avoid "Word1Word2"
+    const separator = (prev.text && textToMerge && !prev.text.endsWith(" ") && !textToMerge.startsWith(" ")) ? " " : "";
+    const newText = prev.text + separator + textToMerge;
+    const cursorAt = prev.text.length + separator.length;
 
     // Update previous text
     applyChange((items) => {
