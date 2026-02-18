@@ -14,15 +14,25 @@ export const handler: Handler = async (event, context) => {
     } catch (e) {
         // Check if running in Netlify production
         if (process.env.NETLIFY) {
-            console.error("Netlify Blobs is not configured or failed to initialize.", e);
-            // In production, we cannot fallback to local file storage (read-only FS).
-            // Return 500 or rethrow to let the outer try/catch handle it.
-            throw new Error("Netlify Blobs configuration missing");
-        }
+            console.error("Netlify Blobs failed to initialize:", e);
+            // Return 500 cleanly so it's not a 502 crash
+            // The frontend will treat this as !response.ok and use the fallback
+            store = {
+                setJSON: async () => { throw new Error("Blobs not available"); },
+                get: async () => { throw new Error("Blobs not available"); }
+            };
+            // We can't just return here because we are outside the handler's main try/catch return path
+            // But we can assign a dummy store that throws, which will be caught by the main try/catch lower down.
+            // OR better: we can't easily return a response from inside this catch block to the main function scope
+            // without restructuring.
 
-        // If Blobs is not configured (e.g. local dev), use a local file-based store
-        // This ensures REAL data persistence without needing cloud credentials
-        console.warn("Netlify Blobs not configured. Using local file storage for development.");
+            // Let's restructure slightly to allow returning early.
+            // Actually, simply throwing was indeed the cause of 502 if not caught.
+            // Let's set a flag or just fail gracefully in the main logic.
+        } else {
+            console.warn("Netlify Blobs not configured. Using local file storage for development.");
+            // ... (local fallback logic)
+        }
 
         const TMP_DIR = path.resolve(process.cwd(), 'tmp');
         const DB_FILE = path.join(TMP_DIR, 'blobs.json');
