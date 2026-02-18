@@ -905,7 +905,7 @@ function PlanItem({
             <span
               className={cn(
                 "cursor-text text-sm block min-h-[1.5rem] flex items-center select-text",
-                item.checked && "text-muted-foreground line-through"
+                item.checked && "text-muted-foreground"
               )}
             >
               <TextWithLinks

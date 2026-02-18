@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
@@ -50,7 +50,7 @@ function ReportItem({
           </span>
         ) : null}
         <span
-          className={isTodo && item.checked ? "text-muted-foreground line-through" : undefined}
+          className={isTodo && item.checked ? "text-muted-foreground" : undefined}
         >
           <TextWithLinks text={item.text || "\u00A0"} />
         </span>
@@ -67,7 +67,10 @@ function ReportItem({
 }
 
 export default function Report() {
-  const { token, id } = useParams<{ token?: string; id?: string }>();
+  const { token: pathToken, id } = useParams<{ token?: string; id?: string }>();
+  const location = useLocation();
+  // Token from path (/report/:token) or from hash (/report#token - used in dev to avoid long URLs)
+  const token = pathToken ?? (location.pathname === "/report" && location.hash ? location.hash.slice(1) : null);
   const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null);
   const [loading, setLoading] = useState(!!id);
   const [error, setError] = useState(false);

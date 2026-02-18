@@ -112,6 +112,11 @@ export function getShortShareUrl(id: string): string {
 export function getReportShareUrl(snapshot: ReportSnapshot): string {
   // Legacy URL generation (still useful as fallback or for local dev without functions)
   const token = encodeReportToken(snapshot);
-  return `${typeof window !== "undefined" ? window.location.origin : ""}/report/${token}`;
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  // In dev: use hash so token isn't in path (avoids "Could not proxy request" with long URLs)
+  if (import.meta.env.DEV) {
+    return `${base}/report#${token}`;
+  }
+  return `${base}/report/${token}`;
 }
 
