@@ -1,21 +1,35 @@
-
 import { getStore } from "@netlify/blobs";
-import type { Handler } from "@netlify/functions";
+import type { Context, Config } from "@netlify/functions";
 import { nanoid } from "nanoid";
-
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const handler: Handler = async (event, context) => {
+export default async (req: Request, context: Context) => {
+    // CORS headers handling for V2
+    if (req.method === "OPTIONS") {
+        return new Response(null, {
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            }
+        });
+    }
+
+    const headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+    };
+
     let store;
 
     try {
+        // In V2, getStore() should work seamlessly with the injected context
         store = getStore("reports");
     } catch (e) {
         // Detect if we are in local development
         const isLocalDev = process.env.NETLIFY_DEV === 'true';
 
-        // If NOT local dev (i.e. we are in production), we must not use the fallback
         if (!isLocalDev) {
             console.error("Netlify Blobs failed to initialize in production.");
             console.error("Error Details:", e);
@@ -26,7 +40,7 @@ export const handler: Handler = async (event, context) => {
                 SITE_ID: process.env.SITE_ID ? 'Present' : 'Missing'
             });
 
-            // Falling back to a dummy store that throws with debug info
+            // Prepare debug info for client response
             const debugError = JSON.stringify({
                 message: "Netlify Blobs failed to initialize",
                 details: e instanceof Error ? e.message : String(e),
@@ -36,6 +50,7 @@ export const handler: Handler = async (event, context) => {
                 }
             });
 
+            // Falling back to a dummy store that throws with debug info
             store = {
                 setJSON: async () => { throw new Error(debugError); },
                 get: async () => { throw new Error(debugError); }
@@ -90,42 +105,30 @@ export const handler: Handler = async (event, context) => {
         }
     }
 
-    // CORS headers
-    const headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    };
-
-    if (event.httpMethod === "OPTIONS") {
-        return { statusCode: 200, headers, body: "" };
-    }
-
     try {
         // POST: Create a new report
-        if (event.httpMethod === "POST") {
-            if (!event.body) {
-                return { statusCode: 400, headers, body: "Missing body" };
+        if (req.method === "POST") {
+            const body = await req.json().catch(() => null);
+            if (!body) {
+                return new Response("Missing body", { status: 400, headers });
             }
 
-            // Generate a short ID (default nanoid is URL-safe)
             const id = nanoid(10);
+            await store.setJSON(id, body);
 
-            await store.setJSON(id, JSON.parse(event.body));
-
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({ id }),
-            };
+            return new Response(JSON.stringify({ id }), {
+                status: 200,
+                headers: { ...headers, "Content-Type": "application/json" }
+            });
         }
 
         // GET: Retrieve a report by ID
-        if (event.httpMethod === "GET") {
-            const id = event.queryStringParameters?.id;
+        if (req.method === "GET") {
+            const url = new URL(req.url);
+            const id = url.searchParams.get("id");
 
             if (!id) {
-                return { statusCode: 400, headers, body: "Missing id parameter" };
+                return new Response("Missing id parameter", { status: 400, headers });
             }
 
             const report = await store.get(id, { type: "json" });
@@ -134,17 +137,16 @@ export const handler: Handler = async (event, context) => {
                 // For mock store in dev, we might not find it, so return 404 is correct.
                 // Or we could return dummy data if needed? 
                 // Let's stick to 404 if not found, as regular behavior.
-                return { statusCode: 404, headers, body: "Report not found" };
+                return new Response("Report not found", { status: 404, headers });
             }
 
-            return {
-                statusCode: 200,
-                headers,
-                body: JSON.stringify(report),
-            };
+            return new Response(JSON.stringify(report), {
+                status: 200,
+                headers: { ...headers, "Content-Type": "application/json" }
+            });
         }
 
-        return { statusCode: 405, headers, body: "Method Not Allowed" };
+        return new Response("Method Not Allowed", { status: 405, headers });
 
     } catch (error: any) {
         console.error("Share function error:", error);
@@ -163,10 +165,13 @@ export const handler: Handler = async (event, context) => {
             }
         }
 
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify(errorBody),
-        };
+        return new Response(JSON.stringify(errorBody), {
+            status: 500,
+            headers: { ...headers, "Content-Type": "application/json" }
+        });
     }
+};
+
+export const config: Config = {
+    path: "/.netlify/functions/share-report"
 };
