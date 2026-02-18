@@ -17,7 +17,15 @@ export const handler: Handler = async (event, context) => {
 
         // If NOT local dev (i.e. we are in production), we must not use the fallback
         if (!isLocalDev) {
-            console.error("Netlify Blobs failed to initialize in production:", e);
+            console.error("Netlify Blobs failed to initialize in production.");
+            console.error("Error Details:", e);
+            console.log("Debug Info:", {
+                NETLIFY: process.env.NETLIFY,
+                NETLIFY_DEV: process.env.NETLIFY_DEV,
+                CONTEXT: process.env.CONTEXT,
+                SITE_ID: process.env.SITE_ID ? 'Present' : 'Missing'
+            });
+
             // Falling back to a dummy store that throws, effectively returning 500
             store = {
                 setJSON: async () => { throw new Error("Netlify Blobs not configured"); },
