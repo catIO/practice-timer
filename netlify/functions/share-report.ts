@@ -26,10 +26,19 @@ export const handler: Handler = async (event, context) => {
                 SITE_ID: process.env.SITE_ID ? 'Present' : 'Missing'
             });
 
-            // Falling back to a dummy store that throws, effectively returning 500
+            // Falling back to a dummy store that throws with debug info
+            const debugError = JSON.stringify({
+                message: "Netlify Blobs failed to initialize",
+                details: e instanceof Error ? e.message : String(e),
+                env: {
+                    NETLIFY: process.env.NETLIFY,
+                    SITE_ID: process.env.SITE_ID ? 'Present' : 'Missing'
+                }
+            });
+
             store = {
-                setJSON: async () => { throw new Error("Netlify Blobs not configured"); },
-                get: async () => { throw new Error("Netlify Blobs not configured"); }
+                setJSON: async () => { throw new Error(debugError); },
+                get: async () => { throw new Error(debugError); }
             };
         } else {
             console.warn("Netlify Blobs not configured. Using local file storage for development.");
@@ -137,12 +146,27 @@ export const handler: Handler = async (event, context) => {
 
         return { statusCode: 405, headers, body: "Method Not Allowed" };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Share function error:", error);
+
+        // Try to parse if it's our structured debug error
+        let errorBody = { error: "Internal Server Error" };
+        try {
+            const parsed = JSON.parse(error.message);
+            if (parsed && parsed.message && parsed.env) {
+                errorBody = parsed;
+            }
+        } catch (e) {
+            // Not JSON, use message if available
+            if (error.message) {
+                errorBody = { error: error.message };
+            }
+        }
+
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: "Internal Server Error" }),
+            body: JSON.stringify(errorBody),
         };
     }
 };
