@@ -12,6 +12,14 @@ export const handler: Handler = async (event, context) => {
     try {
         store = getStore("reports");
     } catch (e) {
+        // Check if running in Netlify production
+        if (process.env.NETLIFY) {
+            console.error("Netlify Blobs is not configured or failed to initialize.", e);
+            // In production, we cannot fallback to local file storage (read-only FS).
+            // Return 500 or rethrow to let the outer try/catch handle it.
+            throw new Error("Netlify Blobs configuration missing");
+        }
+
         // If Blobs is not configured (e.g. local dev), use a local file-based store
         // This ensures REAL data persistence without needing cloud credentials
         console.warn("Netlify Blobs not configured. Using local file storage for development.");
