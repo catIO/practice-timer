@@ -31,29 +31,12 @@ export default async (req: Request, context: Context) => {
         const isLocalDev = process.env.NETLIFY_DEV === 'true';
 
         if (!isLocalDev) {
-            console.error("Netlify Blobs failed to initialize in production.");
-            console.error("Error Details:", e);
-            console.log("Debug Info:", {
-                NETLIFY: process.env.NETLIFY,
-                NETLIFY_DEV: process.env.NETLIFY_DEV,
-                CONTEXT: process.env.CONTEXT,
-                SITE_ID: process.env.SITE_ID ? 'Present' : 'Missing'
-            });
+            console.error("Netlify Blobs failed to initialize in production:", e);
 
-            // Prepare debug info for client response
-            const debugError = JSON.stringify({
-                message: "Netlify Blobs failed to initialize",
-                details: e instanceof Error ? e.message : String(e),
-                env: {
-                    NETLIFY: process.env.NETLIFY,
-                    SITE_ID: process.env.SITE_ID ? 'Present' : 'Missing'
-                }
-            });
-
-            // Falling back to a dummy store that throws with debug info
+            // Falling back to a dummy store that throws
             store = {
-                setJSON: async () => { throw new Error(debugError); },
-                get: async () => { throw new Error(debugError); }
+                setJSON: async () => { throw new Error("Netlify Blobs not configured"); },
+                get: async () => { throw new Error("Netlify Blobs not configured"); }
             };
         } else {
             console.warn("Netlify Blobs not configured. Using local file storage for development.");
@@ -151,25 +134,10 @@ export default async (req: Request, context: Context) => {
     } catch (error: any) {
         console.error("Share function error:", error);
 
-        // Try to parse if it's our structured debug error
-        let errorBody = { error: "Internal Server Error" };
-        try {
-            const parsed = JSON.parse(error.message);
-            if (parsed && parsed.message && parsed.env) {
-                errorBody = parsed;
-            }
-        } catch (e) {
-            // Not JSON, use message if available
-            if (error.message) {
-                errorBody = { error: error.message };
-            }
-        }
-
-        return new Response(JSON.stringify(errorBody), {
+        return new Response(JSON.stringify({ error: "Internal Server Error" }), {
             status: 500,
             headers: { ...headers, "Content-Type": "application/json" }
         });
     }
 };
-
 
