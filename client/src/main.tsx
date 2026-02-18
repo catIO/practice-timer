@@ -5,8 +5,14 @@ import "./index.css";
 import { Toaster } from "@/components/ui/toaster";
 import { useTimerStore } from "@/stores/timerStore";
 
+// In dev: unregister any existing SW so cached production assets don't block Vite
+if ('serviceWorker' in navigator && import.meta.env.DEV) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister());
+  });
+}
 // Register service worker only in production (avoids aggressive caching during dev)
-if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+else if ('serviceWorker' in navigator && !import.meta.env.DEV) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;

@@ -35,6 +35,7 @@ function App() {
             <Route path="/practice-log" element={<PracticeLog />} />
             <Route path="/report" element={<Report />} />
             <Route path="/report/:token" element={<Report />} />
+            <Route path="/r/:id" element={<Report />} />
           </Routes>
           <Toaster />
         </Router>

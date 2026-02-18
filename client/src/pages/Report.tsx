@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { decodeReportToken, type ReportSnapshotItem } from "@/lib/reportShare";
+import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
 
@@ -67,14 +67,47 @@ function ReportItem({
 }
 
 export default function Report() {
-  const { token } = useParams<{ token: string }>();
-  const snapshot = useMemo(
-    () => (token ? decodeReportToken(token) : null),
-    [token]
-  );
+  const { token, id } = useParams<{ token?: string; id?: string }>();
+  const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null);
+  const [loading, setLoading] = useState(!!id);
+  const [error, setError] = useState(false);
+
+  // Handle legacy token (client-side decode)
+  useEffect(() => {
+    if (token) {
+      const decoded = decodeReportToken(token);
+      if (decoded) {
+        setSnapshot(decoded);
+      } else {
+        setError(true);
+      }
+      setLoading(false);
+    }
+  }, [token]);
+
+  // Handle short ID (server-side fetch)
+  useEffect(() => {
+    if (id) {
+      setLoading(true);
+      fetch(`/.netlify/functions/share-report?id=${id}`)
+        .then(async (res) => {
+          if (!res.ok) throw new Error("Failed");
+          const data = await res.json();
+          setSnapshot(data);
+        })
+        .catch(() => {
+          setError(true);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [id]);
 
   useEffect(() => {
-    document.title = snapshot?.title ?? "Practice plan progress";
+    if (snapshot?.title) {
+      document.title = snapshot.title;
+    }
     let meta = document.querySelector('meta[name="robots"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -85,9 +118,18 @@ export default function Report() {
     return () => {
       meta?.setAttribute("content", "");
     };
-  }, [snapshot?.title]);
+  }, [snapshot]);
 
-  if (!token) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+        <p className="text-muted-foreground">Loading report...</p>
+      </div>
+    );
+  }
+
+  if (!token && !id) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
         <h1 className="text-2xl font-bold text-primary mb-2">Practice plan progress</h1>

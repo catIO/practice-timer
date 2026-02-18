@@ -47,6 +47,8 @@
 
 [dev]
   base = "."
+  framework = "#custom"
   command = "npm run dev"
-  port = 5173
   publish = "client/dist"
+  port = 3000
+  targetPort = 5173

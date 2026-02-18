@@ -68,16 +68,36 @@ export function getPracticePlan(): PracticePlanItem[] {
     const stored = localStorage.getItem(PRACTICE_PLAN_KEY);
     let raw: PracticePlanItem[];
     if (stored) {
-      const parsed = JSON.parse(stored);
-      // Fallback to dynamic default if stored array is empty (optional edge case)
-      // but usually we trust what's stored unless we want to force reset logic.
-      // For now, respect stored value if valid.
-      raw = Array.isArray(parsed) ? parsed : generateDefaultPlan().map(cloneItem);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(stored);
+      } catch (parseErr) {
+        console.error("[practicePlan] Invalid JSON in localStorage:", parseErr);
+        raw = generateDefaultPlan().map(cloneItem);
+        return raw.map(normalizeItem);
+      }
+      // Handle double-encoded string (e.g. pasted with extra quotes)
+      if (typeof parsed === "string") {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          console.warn("[practicePlan] Stored value is a string, not array");
+          raw = generateDefaultPlan().map(cloneItem);
+          return raw.map(normalizeItem);
+        }
+      }
+      if (!Array.isArray(parsed)) {
+        console.warn("[practicePlan] Stored value is not an array, type:", typeof parsed);
+        raw = generateDefaultPlan().map(cloneItem);
+      } else {
+        raw = parsed;
+      }
     } else {
       raw = generateDefaultPlan();
     }
     return raw.map(normalizeItem);
-  } catch {
+  } catch (e) {
+    console.error("[practicePlan] Failed to load from localStorage:", e);
     return generateDefaultPlan().map(normalizeItem);
   }
 }

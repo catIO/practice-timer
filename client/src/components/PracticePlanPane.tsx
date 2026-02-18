@@ -33,7 +33,11 @@ import {
   practicePlanApi,
   generateId,
 } from "@/lib/practicePlan";
-import { createReportSnapshot, getReportShareUrl } from "@/lib/reportShare";
+import {
+  createReportSnapshot,
+  getReportShareUrl,
+  shareReport
+} from "@/lib/reportShare";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { TextWithLinks } from "./TextWithLinks";
@@ -1252,12 +1256,67 @@ export function PracticePlanPane({
     applyChange((prev) => practicePlanApi.resetChecks(prev));
   }, [applyChange]);
 
-  const handleShareClick = useCallback(() => {
-    const snapshot = createReportSnapshot(items);
-    const url = getReportShareUrl(snapshot);
-    setShareUrl(url);
-    setShareDialogOpen(true);
-  }, [items]);
+  const [isSharing, setIsSharing] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+
+  const handleExportPlan = useCallback(() => {
+    navigator.clipboard.writeText(JSON.stringify(items, null, 2)).then(() => {
+      toast({
+        title: "Exported",
+        description: "Plan copied to clipboard. Paste into Import on another tab/port.",
+        duration: 3000,
+      });
+    });
+  }, [items, toast]);
+
+  const normalizeImportedItem = useCallback((item: PracticePlanItem): PracticePlanItem => ({
+    ...item,
+    id: item.id || generateId(),
+    text: item.text ?? "",
+    checked: item.checked ?? false,
+    children: (item.children ?? []).map(normalizeImportedItem),
+  }), []);
+
+  const handleImportPlan = useCallback(() => {
+    try {
+      const parsed = JSON.parse(importText);
+      if (!Array.isArray(parsed)) {
+        toast({ title: "Invalid format", description: "Must be a JSON array.", variant: "destructive" });
+        return;
+      }
+      const normalized = parsed.map((item: PracticePlanItem) => normalizeImportedItem(item));
+      setItems(normalized);
+      savePracticePlan(normalized);
+      setImportDialogOpen(false);
+      setImportText("");
+      toast({ title: "Imported", description: "Plan loaded successfully." });
+    } catch (e) {
+      toast({
+        title: "Invalid JSON",
+        description: e instanceof Error ? e.message : "Could not parse. Check for truncated data.",
+        variant: "destructive",
+      });
+    }
+  }, [importText, normalizeImportedItem, toast]);
+
+  const handleShareClick = useCallback(async () => {
+    setIsSharing(true);
+    try {
+      const snapshot = createReportSnapshot(items);
+      const url = await shareReport(snapshot);
+      setShareUrl(url);
+      setShareDialogOpen(true);
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to generate share link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  }, [items, toast]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -1385,9 +1444,21 @@ export function PracticePlanPane({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={handleShareClick}>
-                      <span className="material-icons text-sm mr-2">share</span>
-                      Share Report
+                    <DropdownMenuItem onClick={handleExportPlan}>
+                      <span className="material-icons text-sm mr-2">content_copy</span>
+                      Export Plan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                      <span className="material-icons text-sm mr-2">content_paste</span>
+                      Import Plan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleShareClick} disabled={isSharing}>
+                      {isSharing ? (
+                        <span className="material-icons text-sm mr-2 animate-spin">refresh</span>
+                      ) : (
+                        <span className="material-icons text-sm mr-2">share</span>
+                      )}
+                      {isSharing ? "Generating Link..." : "Share Report"}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleReset}>
                       <span className="material-icons text-sm mr-2">refresh</span>
@@ -1484,6 +1555,29 @@ export function PracticePlanPane({
                   <span className="material-icons text-sm">open_in_new</span>
                 </Button>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Import Plan</DialogTitle>
+                <DialogDescription>
+                  Paste exported plan JSON below. Use Export Plan on another tab/port to copy it.
+                </DialogDescription>
+              </DialogHeader>
+              <textarea
+                className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+                placeholder='[{"id":"...","text":"Item 1","checked":false,"children":[]},...]'
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleImportPlan}>Import</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

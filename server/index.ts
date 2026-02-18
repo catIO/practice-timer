@@ -21,7 +21,8 @@ app.get('/api/metadata', async (req: Request, res: Response) => {
     const { url } = req.query;
 
     if (!url || typeof url !== 'string') {
-        return res.status(400).json({ error: 'URL is required' });
+        res.status(400).json({ error: 'URL is required' });
+        return;
     }
 
     try {

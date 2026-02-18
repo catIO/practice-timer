@@ -82,7 +82,35 @@ export function decodeReportToken(token: string): ReportSnapshot | null {
   return null;
 }
 
+export async function shareReport(snapshot: ReportSnapshot): Promise<string> {
+  // In dev, Blobs often unavailable. Use legacy URL to avoid 500.
+  // if (import.meta.env.DEV) {
+  //   return getReportShareUrl(snapshot);
+  // }
+
+  const response = await fetch("/.netlify/functions/share-report", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(snapshot),
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    return getShortShareUrl(data.id);
+  }
+
+  // Fallback if Blobs fails (e.g. unlinked site)
+  return getReportShareUrl(snapshot);
+}
+
+export function getShortShareUrl(id: string): string {
+  return `${typeof window !== "undefined" ? window.location.origin : ""}/r/${id}`;
+}
+
 export function getReportShareUrl(snapshot: ReportSnapshot): string {
+  // Legacy URL generation (still useful as fallback or for local dev without functions)
   const token = encodeReportToken(snapshot);
   return `${typeof window !== "undefined" ? window.location.origin : ""}/report/${token}`;
 }
