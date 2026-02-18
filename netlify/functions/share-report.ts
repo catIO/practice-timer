@@ -12,64 +12,65 @@ export const handler: Handler = async (event, context) => {
     try {
         store = getStore("reports");
     } catch (e) {
-        // Check if running in Netlify production
-        if (process.env.NETLIFY) {
-            console.error("Netlify Blobs failed to initialize:", e);
-            // Return 500 cleanly so it's not a 502 crash
-            // The frontend will treat this as !response.ok and use the fallback
-            store = {
-                setJSON: async () => { throw new Error("Blobs not available"); },
-                get: async () => { throw new Error("Blobs not available"); }
-            };
-            // We can't just return here because we are outside the handler's main try/catch return path
-            // But we can assign a dummy store that throws, which will be caught by the main try/catch lower down.
-            // OR better: we can't easily return a response from inside this catch block to the main function scope
-            // without restructuring.
+        // Detect if we are in local development
+        const isLocalDev = process.env.NETLIFY_DEV === 'true';
 
-            // Let's restructure slightly to allow returning early.
-            // Actually, simply throwing was indeed the cause of 502 if not caught.
-            // Let's set a flag or just fail gracefully in the main logic.
+        // If NOT local dev (i.e. we are in production), we must not use the fallback
+        if (!isLocalDev) {
+            console.error("Netlify Blobs failed to initialize in production:", e);
+            // Falling back to a dummy store that throws, effectively returning 500
+            store = {
+                setJSON: async () => { throw new Error("Netlify Blobs not configured"); },
+                get: async () => { throw new Error("Netlify Blobs not configured"); }
+            };
         } else {
             console.warn("Netlify Blobs not configured. Using local file storage for development.");
-            // ... (local fallback logic)
-        }
 
-        const TMP_DIR = path.resolve(process.cwd(), 'tmp');
-        const DB_FILE = path.join(TMP_DIR, 'blobs.json');
-
-        // Ensure tmp dir exists
-        if (!fs.existsSync(TMP_DIR)) {
-            fs.mkdirSync(TMP_DIR, { recursive: true });
-        }
-
-        const readDb = () => {
-            if (!fs.existsSync(DB_FILE)) return {};
             try {
-                return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-            } catch (err) {
-                console.error("Error reading local DB:", err);
-                return {};
-            }
-        };
+                const TMP_DIR = path.resolve(process.cwd(), 'tmp');
+                const DB_FILE = path.join(TMP_DIR, 'blobs.json');
 
-        const writeDb = (data: any) => {
-            fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-        };
+                // Ensure tmp dir exists
+                if (!fs.existsSync(TMP_DIR)) {
+                    fs.mkdirSync(TMP_DIR, { recursive: true });
+                }
 
-        store = {
-            setJSON: async (key: string, data: any) => {
-                const db = readDb();
-                db[key] = data;
-                writeDb(db);
-                console.log(`[Local Store] Saved ${key} to ${DB_FILE}`);
-            },
-            get: async (key: string, options?: any) => {
-                const db = readDb();
-                const data = db[key];
-                console.log(`[Local Store] Retrieved ${key} from ${DB_FILE}: ${!!data}`);
-                return data || null;
+                const readDb = () => {
+                    if (!fs.existsSync(DB_FILE)) return {};
+                    try {
+                        return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+                    } catch (err) {
+                        console.error("Error reading local DB:", err);
+                        return {};
+                    }
+                };
+
+                const writeDb = (data: any) => {
+                    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+                };
+
+                store = {
+                    setJSON: async (key: string, data: any) => {
+                        const db = readDb();
+                        db[key] = data;
+                        writeDb(db);
+                        console.log(`[Local Store] Saved ${key} to ${DB_FILE}`);
+                    },
+                    get: async (key: string, options?: any) => {
+                        const db = readDb();
+                        const data = db[key];
+                        console.log(`[Local Store] Retrieved ${key} from ${DB_FILE}: ${!!data}`);
+                        return data || null;
+                    }
+                };
+            } catch (fsError) {
+                console.error("Failed to initialize local file storage:", fsError);
+                store = {
+                    setJSON: async () => { throw new Error("Local storage failed"); },
+                    get: async () => { throw new Error("Local storage failed"); }
+                };
             }
-        };
+        }
     }
 
     // CORS headers
