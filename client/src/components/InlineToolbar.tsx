@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 type FormatAction = "bold" | "italic" | "link";
 
 interface InlineToolbarProps {
-  anchorRef: React.RefObject<HTMLInputElement | null>;
+  anchorRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
   visible: boolean;
   selectedText: string;
   onFormat: (action: FormatAction, selectedText?: string) => void;

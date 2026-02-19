@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { RichLink } from "./RichLink";
 import {
   HoverCard,
@@ -27,11 +27,12 @@ function renderFormatted(segment: string, keyPrefix: string) {
     last = combined.lastIndex;
   }
   if (last < segment.length) tokens.push({ t: "p", s: segment.slice(last) });
-  return tokens.map((tok, i) => {
+  const elements = tokens.map((tok, i) => {
     if (tok.t === "b") return <strong key={`${keyPrefix}-${i}`}>{tok.s}</strong>;
     if (tok.t === "i") return <em key={`${keyPrefix}-${i}`}>{tok.s}</em>;
     return <span key={`${keyPrefix}-${i}`}>{tok.s}</span>;
   });
+  return elements.length === 1 && tokens[0].t === "p" ? elements[0] : <>{elements}</>;
 }
 
 interface TextWithLinksProps {
@@ -85,7 +86,7 @@ export function TextWithLinks({ text, onEditLink, onRemoveLink, onUpdateLink }: 
             />
           );
         }
-        return <span key={i}>{renderFormatted(part.text, `p-${i}`)}</span>;
+        return <React.Fragment key={i}>{renderFormatted(part.text, `p-${i}`)}</React.Fragment>;
       })}
     </>
   );

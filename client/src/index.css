@@ -73,4 +73,15 @@
   .dark * {
     color-scheme: dark;
   }
+
+  /* Remove border/outline from text selection */
+  ::selection {
+    outline: none;
+  }
+
+  /* Remove tap highlight that can look like a border on mobile */
+  input::selection,
+  textarea::selection {
+    outline: none;
+  }
 }

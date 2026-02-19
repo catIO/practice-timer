@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
@@ -106,12 +107,12 @@ function EmptyLineSlot({
               <span className="material-icons text-base">add</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuContent align="start" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuLabel className="text-muted-foreground">Basic blocks</DropdownMenuLabel>
             {BLOCK_OPTIONS.map(({ type, label, icon }) => (
               <DropdownMenuItem
                 key={type}
-                onClick={() => onInsert(index, type)}
+                onSelect={() => onInsert(index, type)}
                 className="flex items-center gap-2"
               >
                 <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
@@ -189,7 +190,9 @@ function cloneWithNewIds(item: PracticePlanItem): PracticePlanItem {
 interface PlanItemProps {
   item: PracticePlanItem;
   depth: number;
+  numberIndex: number; // Index among preceding number-type siblings (for 1., 2., 3. display)
   focusRequest: FocusRequest | null;
+  onFocusRequestFulfilled: () => void;
   selectedIdSet: Set<string>;
   onToggle: (id: string) => void;
   onUpdateText: (id: string, text: string) => void;
@@ -213,7 +216,9 @@ interface PlanItemProps {
 function PlanItem({
   item,
   depth,
+  numberIndex,
   focusRequest,
+  onFocusRequestFulfilled,
   selectedIdSet,
   onToggle,
   onUpdateText,
@@ -250,13 +255,17 @@ function PlanItem({
     position: 'relative' as const, // Fix for z-index
   };
 
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(() => {
+    // If this item is born with a focus request, start in editing mode immediately.
+    // This allows autoFocus to work on the Input without waiting for useEffect.
+    return !!(focusRequest && focusRequest.id === item.id && focusRequest.type === "edit");
+  });
   const [editValue, setEditValue] = useState(item.text);
   useEffect(() => setEditValue(item.text), [item.text]);
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
 
   const rowRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
@@ -307,6 +316,21 @@ function PlanItem({
   }, [editing]);
 
   const blockType = item.blockType ?? "todo";
+
+  // Auto-resize textarea for text blocks when content changes (deferred to avoid resetting cursor)
+  useEffect(() => {
+    if (blockType === "text" && editing && inputRef.current && "scrollHeight" in inputRef.current) {
+      const ta = inputRef.current as HTMLTextAreaElement;
+      const raf = requestAnimationFrame(() => {
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        ta.style.height = "auto";
+        ta.style.height = ta.scrollHeight + "px";
+        ta.setSelectionRange(start, end);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [blockType, editing, editValue]);
   const hasChildren = item.children.length > 0;
   const isHeader = item.isHeader === true;
   const level = headingLevel(blockType);
@@ -317,28 +341,35 @@ function PlanItem({
     if (focusRequest && focusRequest.id === item.id) {
       if (focusRequest.type === "edit") {
         setEditing(true);
-        // Defer focus slightly for React to render Input
-        requestAnimationFrame(() => {
+        const cursorPos = focusRequest.cursorPosition;
+        const doFocus = () => {
           if (inputRef.current) {
             inputRef.current.focus();
-            if (focusRequest.cursorPosition === "end") {
+            if (cursorPos === "end") {
               inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
-            } else if (focusRequest.cursorPosition === "start") {
+            } else if (cursorPos === "start") {
               inputRef.current.setSelectionRange(0, 0);
-            } else if (typeof focusRequest.cursorPosition === 'number') {
-              inputRef.current.setSelectionRange(focusRequest.cursorPosition, focusRequest.cursorPosition);
+            } else if (typeof cursorPos === "number") {
+              inputRef.current.setSelectionRange(cursorPos, cursorPos);
             }
+            onFocusRequestFulfilled();
           }
+        };
+        // Defer to next tick so input is in DOM; double rAF for layout
+        queueMicrotask(() => {
+          requestAnimationFrame(() => {
+            doFocus();
+          });
         });
       } else if (focusRequest.type === "row") {
         setEditing(false);
-        // Defer focus slightly
         requestAnimationFrame(() => {
           rowRef.current?.focus();
+          onFocusRequestFulfilled();
         });
       }
     }
-  }, [focusRequest, item.id]);
+  }, [focusRequest, item.id, onFocusRequestFulfilled]);
 
   const [linkPopoverAnchor, setLinkPopoverAnchor] = useState<HTMLElement | null>(null);
 
@@ -434,10 +465,10 @@ function PlanItem({
       setEditValue(newText);
       onUpdateText(item.id, newText);
       setToolbarSelection(null);
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.setSelectionRange(newCursorStart, newCursorEnd);
-      });
+      }, 10);
     },
     [editValue, item.id, onUpdateText, toolbarSelection]
   );
@@ -514,13 +545,27 @@ function PlanItem({
   );
 
   const handleInputKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const target = e.currentTarget;
+      const isTextBlock = blockType === "text";
+
       // Standard interactions
       if (e.key === "Enter") {
-        e.preventDefault();
-
         const isListType = blockType === "bullet" || blockType === "number" || blockType === "todo";
         const isEmpty = editValue.trim() === "";
+
+        // Text block: Enter = newline, Shift+Enter = new block below
+        if (isTextBlock) {
+          if (e.shiftKey) {
+            e.preventDefault();
+            saveEdit();
+            onInsertBelow(item.id, "text", true);
+          }
+          // Enter without shift: allow default (newline)
+          return;
+        }
+
+        e.preventDefault();
 
         // Priority 1: Handle empty items (Break list / Unindent)
         if (isEmpty) {
@@ -537,10 +582,7 @@ function PlanItem({
         }
 
         // Priority 2: Insert before if at start (and not empty handled above)
-        // (If it was empty and NOT a list type, e.g. text, it will fall through to insert below or we could insert before also?)
-        // Standard text editors: Enter on empty text line -> Insert new line below.
-        // Enter at start of text line -> Insert new line before.
-        if (e.currentTarget.selectionStart === 0 && e.currentTarget.selectionEnd === 0) {
+        if (target.selectionStart === 0 && target.selectionEnd === 0) {
           saveEdit();
           onInsertBefore(item.id, "text", true);
           return;
@@ -566,7 +608,7 @@ function PlanItem({
       }
       if (e.key === "Backspace") {
         // If cursor is at start
-        if (e.currentTarget.selectionStart === 0 && e.currentTarget.selectionEnd === 0) {
+        if (target.selectionStart === 0 && target.selectionEnd === 0) {
           e.preventDefault();
 
           // Notion-like Backspace:
@@ -601,7 +643,8 @@ function PlanItem({
         role="group"
         aria-label="Plan item"
         className={cn(
-          "group relative flex items-start gap-2 rounded-md py-0.5 pr-10 outline-none",
+          "group relative flex gap-2 rounded-md py-0.5 pr-10 outline-none",
+          blockType === "number" ? "items-baseline" : "items-start",
           depth !== 0 && !isHeader && "ml-4",
           isHeader && "first:mt-0 ml-0",
           "my-0.5", // Minimal vertical margin
@@ -609,9 +652,13 @@ function PlanItem({
         )}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
+          // When clicking inside the input/textarea, let the browser handle cursor placement
+          if (editing && inputRef.current && (e.target === inputRef.current || inputRef.current.contains(e.target as Node))) {
+            return;
+          }
           onRowClick(item.id, e);
 
-          // Triple-click: let browser select line, then enter edit mode with that selection.
+          // Triple-click: let browser select line, then enter edit mode with that selection
           if (editTimeoutRef.current && !editing) {
             clearTimeout(editTimeoutRef.current);
             editTimeoutRef.current = null;
@@ -622,7 +669,6 @@ function PlanItem({
                 sel &&
                 sel.toString().length > 0
               ) {
-                // Check if the selection covers the whole text content (approximate triple click)
                 const textContent = contentRef.current.textContent || "";
                 const isFullSelection = sel.toString().trim() === textContent.trim();
 
@@ -707,12 +753,12 @@ function PlanItem({
                 <span className="material-icons text-lg">add</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuContent align="start" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
               <DropdownMenuLabel className="text-muted-foreground">Basic blocks</DropdownMenuLabel>
               {BLOCK_OPTIONS.map(({ type, label, icon }) => (
                 <DropdownMenuItem
                   key={type}
-                  onClick={() => onInsertBelow(item.id, type)}
+                  onSelect={() => onInsertBelow(item.id, type)}
                   className="flex items-center gap-2"
                 >
                   <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
@@ -753,23 +799,96 @@ function PlanItem({
             onCheckedChange={() => onToggle(item.id)}
             className="mt-1 shrink-0"
           />
-        ) : blockType === "bullet" && item.text.trim() ? (
+        ) : blockType === "bullet" ? (
           <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/70" aria-hidden />
-        ) : blockType === "number" && item.text.trim() ? (
-          <span className="mt-2 shrink-0 text-sm text-muted-foreground" aria-hidden />
+        ) : blockType === "number" ? (
+          <span className="w-7 shrink-0 text-right text-sm text-muted-foreground tabular-nums select-none pr-1.5" aria-hidden>
+            {numberIndex + 1}.
+          </span>
         ) : !isHeader ? (
           <span className="w-0 shrink-0" aria-hidden />
         ) : null}
         <div
           ref={contentRef}
-          className={cn("min-w-0 flex-1 break-words select-text", isHeader && "flex items-center -ml-1", "cursor-text")}
+          className={cn("min-w-0 flex-1 break-words select-text outline-none border-0", isHeader && "flex items-center -ml-1", "cursor-text")}
         >
           {editing ? (
             <>
-              <Input
-                ref={inputRef}
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+              {blockType === "text" ? (
+                <Textarea
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  ref={(el) => {
+                    (inputRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                    if (el) {
+                      el.style.height = "auto";
+                      el.style.height = el.scrollHeight + "px";
+                    }
+                  }}
+                  value={editValue}
+                  onChange={(e) => {
+                    const ta = e.target;
+                    const start = ta.selectionStart;
+                    const end = ta.selectionEnd;
+                    setEditValue(ta.value);
+                    ta.style.height = "auto";
+                    ta.style.height = ta.scrollHeight + "px";
+                    ta.setSelectionRange(start, end);
+                  }}
+                  onSelect={(e) => {
+                    const { selectionStart, selectionEnd } = e.currentTarget;
+                    if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
+                      setToolbarSelection({ start: selectionStart, end: selectionEnd });
+                    } else {
+                      setToolbarSelection(null);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    saveTimeoutRef.current = setTimeout(() => {
+                      saveTimeoutRef.current = null;
+                      saveEdit();
+                    }, 150);
+                  }}
+                  onKeyDown={handleInputKeyDown}
+                  onPaste={(e) => {
+                    const rawText = e.clipboardData.getData("text");
+                    const pastedText = rawText.trim();
+                    let isUrl = false;
+                    try {
+                      const url = new URL(pastedText);
+                      if (url.protocol === "http:" || url.protocol === "https:") isUrl = true;
+                    } catch {}
+                    if (isUrl) {
+                      const start = e.currentTarget.selectionStart;
+                      const end = e.currentTarget.selectionEnd;
+                      if (start !== null && end !== null && start !== end) {
+                        e.preventDefault();
+                        const selectedText = editValue.slice(start, end);
+                        const newText = editValue.slice(0, start) + `[${selectedText}](${pastedText})` + editValue.slice(end);
+                        setEditValue(newText);
+                        onUpdateText(item.id, newText);
+                        requestAnimationFrame(() => {
+                          if (inputRef.current) {
+                            inputRef.current.setSelectionRange(start + selectedText.length + pastedText.length + 4, start + selectedText.length + pastedText.length + 4);
+                          }
+                        });
+                      }
+                    }
+                  }}
+                  className="block min-h-[1.5rem] leading-[1.25rem] py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent resize-none overflow-y-auto"
+                  rows={1}
+                  autoFocus
+                />
+              ) : (
+                <Input
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  ref={(el) => { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el; }}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
                 onSelect={(e) => {
                   const { selectionStart, selectionEnd } = e.currentTarget;
                   if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
@@ -824,13 +943,14 @@ function PlanItem({
                   }
                 }}
                 className={cn(
-                  "h-auto py-0 px-0 border-none shadow-none focus-visible:ring-0 text-sm bg-transparent",
+                  "block min-h-[1.5rem] leading-[1.25rem] h-auto py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent",
                   blockType === "heading1" && "text-xl font-semibold",
                   blockType === "heading2" && "text-lg font-semibold",
                   blockType === "heading3" && "text-base font-semibold"
                 )}
                 autoFocus
               />
+              )}
               <InlineToolbar
                 anchorRef={inputRef}
                 visible={!!toolbarSelection && !linkPopoverAnchor}
@@ -888,7 +1008,7 @@ function PlanItem({
               role="heading"
               aria-level={level}
               className={cn(
-                "cursor-text text-foreground block min-h-[1.5rem] flex items-center select-text",
+                "cursor-text text-foreground block min-h-[1.5rem] leading-[1.25rem] flex items-center select-text outline-none border-0",
                 blockType === "heading1" && "text-xl font-semibold",
                 blockType === "heading2" && "text-lg font-semibold",
                 blockType === "heading3" && "text-base font-semibold"
@@ -903,8 +1023,10 @@ function PlanItem({
             </span>
           ) : (
             <span
-              className={cn(
-                "cursor-text text-sm block min-h-[1.5rem] flex items-center select-text",
+                className={cn(
+                "cursor-text text-sm block min-h-[1.5rem] leading-[1.25rem] select-text outline-none border-0",
+                blockType === "text" && "whitespace-pre-wrap",
+                !isHeader && blockType !== "text" && "flex items-center",
                 item.checked && "text-muted-foreground"
               )}
             >
@@ -924,12 +1046,14 @@ function PlanItem({
             items={item.children.map(c => c.id)}
             strategy={verticalListSortingStrategy}
           >
-            {item.children.map((child) => (
+            {item.children.map((child, idx) => (
               <PlanItem
                 key={child.id}
                 item={child}
                 depth={depth + 1}
+                numberIndex={item.children.slice(0, idx).filter((c) => c.blockType === "number").length}
                 focusRequest={focusRequest}
+                onFocusRequestFulfilled={onFocusRequestFulfilled}
                 selectedIdSet={selectedIdSet}
                 onToggle={onToggle}
                 onUpdateText={onUpdateText}
@@ -1004,6 +1128,7 @@ export function PracticePlanPane({
   const { toast } = useToast();
   // Dismissed slots concept removed for cleaner UI
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  const onFocusRequestFulfilled = useCallback(() => setFocusRequest(null), []);
 
   // Maintain a flat list of IDs for navigation
   const flatList = useMemo(() => flattenItems(items), [items]);
@@ -1492,12 +1617,40 @@ export function PracticePlanPane({
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-1 pb-20">
-                  {items.map((item) => (
+                  {items.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
+                      <p className="mb-4">Your practice plan is empty.</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="gap-2">
+                            <span className="material-icons text-base">add</span>
+                            Create First Item
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
+                          <DropdownMenuLabel>Choose first block</DropdownMenuLabel>
+                          {BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                            <DropdownMenuItem
+                              key={type}
+                              onSelect={() => handleInsertBlock(0, type)}
+                              className="flex items-center gap-2"
+                            >
+                              <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                              {label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                  {items.map((item, idx) => (
                     <PlanItem
                       key={item.id}
                       item={item}
                       depth={0}
+                      numberIndex={items.slice(0, idx).filter((i) => i.blockType === "number").length}
                       focusRequest={focusRequest}
+                      onFocusRequestFulfilled={onFocusRequestFulfilled}
                       selectedIdSet={selectedIdSet}
                       onToggle={handleToggle}
                       onUpdateText={handleUpdateText}

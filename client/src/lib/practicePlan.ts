@@ -420,13 +420,13 @@ function createBlock(blockType: BlockType, initialText?: string, id?: string): P
   const isHeader =
     blockType === "heading1" || blockType === "heading2" || blockType === "heading3";
   const defaultText: Record<BlockType, string> = {
-    text: "Text",
-    heading1: "Heading 1",
-    heading2: "Heading 2",
-    heading3: "Heading 3",
-    bullet: "List item",
-    number: "List item",
-    todo: "To-do",
+    text: "",
+    heading1: "",
+    heading2: "",
+    heading3: "",
+    bullet: "",
+    number: "",
+    todo: "",
   };
   return {
     id: id || generateId(),
