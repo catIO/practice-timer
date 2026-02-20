@@ -190,6 +190,7 @@ function cloneWithNewIds(item: PracticePlanItem): PracticePlanItem {
 interface PlanItemProps {
   item: PracticePlanItem;
   depth: number;
+  parentIsHeader?: boolean;
   numberIndex: number; // Index among preceding number-type siblings (for 1., 2., 3. display)
   focusRequest: FocusRequest | null;
   onFocusRequestFulfilled: () => void;
@@ -216,6 +217,7 @@ interface PlanItemProps {
 function PlanItem({
   item,
   depth,
+  parentIsHeader = false,
   numberIndex,
   focusRequest,
   onFocusRequestFulfilled,
@@ -643,11 +645,15 @@ function PlanItem({
         role="group"
         aria-label="Plan item"
         className={cn(
-          "group relative flex gap-2 rounded-md py-0.5 pr-10 outline-none",
+          "group relative flex rounded-md py-0.5 pr-10 outline-none",
+          blockType === "text" ? "gap-0" : "gap-2",
           blockType === "number" ? "items-baseline" : "items-start",
-          depth !== 0 && !isHeader && "ml-4",
-          isHeader && "first:mt-0 ml-0",
+          depth !== 0 && !isHeader && !parentIsHeader && "ml-4",
+          parentIsHeader && blockType !== "text" && "-ml-2",
+          isHeader && !parentIsHeader && "ml-0",
+          isHeader && "first:mt-0",
           "my-0.5", // Minimal vertical margin
+          blockType === "text" && "mb-2",
           selected && "bg-accent/40"
         )}
         onKeyDown={handleKeyDown}
@@ -738,7 +744,8 @@ function PlanItem({
         }}
       >
         <div className={cn(
-          "flex shrink-0 items-center gap-0.1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground relative -left-0 top-0 z-10"
+          "flex shrink-0 items-center gap-0.1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
+          parentIsHeader && blockType === "text" ? "absolute left-0 top-0" : "relative -left-0 top-0"
         )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -805,12 +812,12 @@ function PlanItem({
           <span className="w-7 shrink-0 text-right text-sm text-muted-foreground tabular-nums select-none pr-1.5" aria-hidden>
             {numberIndex + 1}.
           </span>
-        ) : !isHeader ? (
+        ) : isHeader || blockType === "text" ? null : (
           <span className="w-0 shrink-0" aria-hidden />
-        ) : null}
+        )}
         <div
           ref={contentRef}
-          className={cn("min-w-0 flex-1 break-words select-text outline-none border-0", isHeader && "flex items-center -ml-1", "cursor-text")}
+          className={cn("min-w-0 flex-1 break-words select-text outline-none border-0", isHeader && "flex items-center", (isHeader || (parentIsHeader && blockType !== "text")) && "-ml-2", "cursor-text")}
         >
           {editing ? (
             <>
@@ -1041,7 +1048,7 @@ function PlanItem({
         </div>
       </div>
       {hasChildren && (
-        <div className="border-l border-border/60 pl-2 ml-2 mt-0">
+        <div className={cn("mt-0", isHeader ? "" : "border-l border-border/60 pl-2 ml-2")}>
           <SortableContext
             items={item.children.map(c => c.id)}
             strategy={verticalListSortingStrategy}
@@ -1051,6 +1058,7 @@ function PlanItem({
                 key={child.id}
                 item={child}
                 depth={depth + 1}
+                parentIsHeader={isHeader}
                 numberIndex={item.children.slice(0, idx).filter((c) => c.blockType === "number").length}
                 focusRequest={focusRequest}
                 onFocusRequestFulfilled={onFocusRequestFulfilled}
