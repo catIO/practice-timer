@@ -101,7 +101,15 @@ export async function shareReport(snapshot: ReportSnapshot): Promise<string> {
     return getShortShareUrl(data.id);
   }
 
-  // Fallback if Blobs fails (e.g. unlinked site)
+  // Log Blobs failure for debugging
+  const errBody = await response.text();
+  let errJson: { error?: string; detail?: string } = {};
+  try {
+    errJson = JSON.parse(errBody);
+  } catch {}
+  console.warn("[shareReport] Blobs failed:", response.status, errJson.detail || errBody);
+
+  // Fallback if Blobs fails (e.g. unlinked site, MissingBlobsEnvironmentError)
   return getReportShareUrl(snapshot);
 }
 

@@ -1,4 +1,4 @@
-import { getStore } from "@netlify/blobs";
+import { connectLambda, getStore } from "@netlify/blobs";
 import type { Handler } from "@netlify/functions";
 import { nanoid } from "nanoid";
 import * as fs from 'fs';
@@ -68,6 +68,10 @@ export const handler: Handler = async (event, context) => {
         }
     } else {
         try {
+            // connectLambda required when Blobs context is in event (Lambda compatibility mode)
+            if ((event as any).blobs) {
+                connectLambda(event as any);
+            }
             store = getStore("reports");
         } catch (e) {
             console.error("Netlify Blobs failed to initialize in production:", e);
@@ -120,10 +124,14 @@ export const handler: Handler = async (event, context) => {
 
     } catch (error: any) {
         console.error("Share function error:", error);
+        const msg = error?.message || String(error);
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: "Internal Server Error" })
+            body: JSON.stringify({
+                error: "Internal Server Error",
+                detail: msg.replace(/token|secret|key/gi, "[redacted]")
+            })
         };
     }
 };
