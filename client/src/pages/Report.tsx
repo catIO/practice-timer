@@ -180,22 +180,32 @@ export default function Report() {
   })();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/50 px-4 py-4 bg-card/50">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold text-primary">
-            {snapshot.title ?? "Practice plan progress"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+    <div className="min-h-screen text-foreground font-sans bg-background">
+      <div className="max-w-3xl mx-auto pt-8 pb-32 px-4 sm:px-0">
+        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
+          <header className="border-b border-border/40 px-6 py-6 bg-background/20 backdrop-blur-md rounded-t-2xl">
+            <h1 className="text-2xl font-bold text-foreground">
+              {snapshot.title ?? "Practice plan progress"}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+          </header>
+          <main className="p-8 w-full">
+            <div className="space-y-1">
+              {snapshot.items.map((item, i) => (
+                <ReportItem key={i} item={item} />
+              ))}
+            </div>
+          </main>
         </div>
-      </header>
-      <main className="p-6 max-w-3xl mx-auto w-full">
-        <div className="space-y-1">
-          {snapshot.items.map((item, i) => (
-            <ReportItem key={i} item={item} />
-          ))}
-        </div>
-      </main>
+        <footer className="mt-8 text-center">
+          <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="material-icons text-sm">pwa</span>
+              Open Practice Mate
+            </Link>
+          </Button>
+        </footer>
+      </div>
     </div>
   );
 }
