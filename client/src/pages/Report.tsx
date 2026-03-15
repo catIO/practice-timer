@@ -197,14 +197,6 @@ export default function Report() {
             </div>
           </main>
         </div>
-        <footer className="mt-8 text-center">
-          <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="material-icons text-sm">pwa</span>
-              Open Practice Mate
-            </Link>
-          </Button>
-        </footer>
       </div>
     </div>
   );
