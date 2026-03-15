@@ -82,7 +82,7 @@ export function decodeReportToken(token: string): ReportSnapshot | null {
   return null;
 }
 
-export async function shareReport(snapshot: ReportSnapshot): Promise<string> {
+export async function shareReport(snapshot: ReportSnapshot, id?: string): Promise<string> {
   // In dev, Blobs often unavailable. Use legacy URL to avoid 500.
   // if (import.meta.env.DEV) {
   //   return getReportShareUrl(snapshot);
@@ -93,7 +93,7 @@ export async function shareReport(snapshot: ReportSnapshot): Promise<string> {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(snapshot),
+    body: JSON.stringify({ ...snapshot, id }),
   });
 
   if (response.ok) {

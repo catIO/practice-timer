@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   type PracticePlanItem,
   type BlockType,
   getPracticePlan,
@@ -42,7 +48,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { TextWithLinks } from "./TextWithLinks";
-import { InlineToolbar } from "./InlineToolbar";
+import { InlineToolbar, type InlineToolbarProps } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
 import { formatTime } from "@/lib/formatTime";
 import "@/assets/headerBlur.css";
@@ -80,6 +86,7 @@ const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
   { type: "bullet", label: "Bulleted list", icon: "•" },
   { type: "number", label: "Numbered list", icon: "1." },
   { type: "todo", label: "To-do list", icon: "☐" },
+  { type: "divider", label: "Divider", icon: "—" },
 ];
 
 function EmptyLineSlot({
@@ -265,6 +272,7 @@ function PlanItem({
   const [editValue, setEditValue] = useState(item.text);
   useEffect(() => setEditValue(item.text), [item.text]);
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
+  const [turnIntoOpen, setTurnIntoOpen] = useState(false);
 
   const rowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -958,10 +966,16 @@ function PlanItem({
                 autoFocus
               />
               )}
+              {blockType === "divider" && (
+                <div className="flex-1 flex items-center h-8" onMouseDown={(e) => e.stopPropagation()}>
+                  <div className="w-full h-0.5 bg-muted-foreground/30 rounded-full" />
+                </div>
+              )}
               <InlineToolbar
                 anchorRef={inputRef}
-                visible={!!toolbarSelection && !linkPopoverAnchor}
+                visible={(!!toolbarSelection || turnIntoOpen) && !linkPopoverAnchor}
                 selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
+                currentBlockType={blockType}
                 onToolbarInteraction={() => {
                   if (saveTimeoutRef.current) {
                     clearTimeout(saveTimeoutRef.current);
@@ -970,7 +984,6 @@ function PlanItem({
                 }}
                 onFormat={(action) => {
                   if (action === "link") {
-                    // Start link flow
                     isLinkPopoverOpenRef.current = true;
                     setLinkPopoverAnchor(inputRef.current);
                   } else {
@@ -980,6 +993,13 @@ function PlanItem({
                 onLinkClick={() => {
                   isLinkPopoverOpenRef.current = true;
                   setLinkPopoverAnchor(inputRef.current);
+                }}
+                turnIntoOpen={turnIntoOpen}
+                onTurnIntoOpenChange={setTurnIntoOpen}
+                onConvertType={(type) => {
+                  setTurnIntoOpen(false);
+                  saveEdit();
+                  onUpdateType(item.id, type);
                 }}
               />
               <LinkPopover
@@ -1028,6 +1048,10 @@ function PlanItem({
                 onRemoveLink={handleRemoveLink}
               />
             </span>
+          ) : blockType === "divider" ? (
+            <div className="flex items-center h-6 py-1">
+              <div className="w-full h-0.5 bg-muted-foreground/20 rounded-full" />
+            </div>
           ) : (
             <span
                 className={cn(
@@ -1159,6 +1183,8 @@ export function PracticePlanPane({
   const [shareUrl, setShareUrl] = useState("");
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const [permalinkId, setPermalinkId] = useState<string | null>(() => practicePlanApi.getPermalinkId());
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // One-level undo: snapshot before each mutation, restore on Cmd/Ctrl+Z
   const [undoSnapshot, setUndoSnapshot] = useState<PracticePlanItem[] | null>(null);
@@ -1306,7 +1332,7 @@ export function PracticePlanPane({
   const handleUpdateType = useCallback((id: string, type: BlockType) => {
     applyChange((prev) => practicePlanApi.updateBlockType(prev, id, type));
     // Request focus back to ensure editing continues smoothly
-    setFocusRequest({ id, type: "edit", cursorPosition: "start" }); // Or keep current? Start is safe for "just deleted bullet".
+    setFocusRequest({ id, type: type === "divider" ? "row" : "edit", cursorPosition: "start" });
   }, [applyChange]);
 
   const handleDelete = useCallback((id: string) => {
@@ -1330,7 +1356,7 @@ export function PracticePlanPane({
       applyChange((prev) =>
         practicePlanApi.insertRootAt(prev, index, blockType, initialText, newId)
       );
-      setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
+      setFocusRequest({ id: newId, type: blockType === "divider" ? "row" : "edit", cursorPosition: "end" });
     },
     [applyChange]
   );
@@ -1347,7 +1373,7 @@ export function PracticePlanPane({
           newId
         )
       );
-      setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
+      setFocusRequest({ id: newId, type: blockType === "divider" ? "row" : "edit", cursorPosition: "end" });
     },
     [applyChange]
   );
@@ -1364,7 +1390,7 @@ export function PracticePlanPane({
           newId
         )
       );
-      setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
+      setFocusRequest({ id: newId, type: blockType === "divider" ? "row" : "edit", cursorPosition: "end" });
     },
     [applyChange]
   );
@@ -1433,17 +1459,57 @@ export function PracticePlanPane({
     }
   }, [importText, normalizeImportedItem, toast]);
 
-  const handleShareClick = useCallback(async () => {
-    setIsSharing(true);
+  const handleShareClick = useCallback(() => {
+    setShareDialogOpen(true);
+  }, []);
+
+  const handlePublishUpdate = useCallback(async () => {
+    setIsPublishing(true);
     try {
       const snapshot = createReportSnapshot(items);
-      const url = await shareReport(snapshot);
-      setShareUrl(url);
-      setShareDialogOpen(true);
+      // If we already have a permalinkId, update it. Otherwise create a new one.
+      const url = await shareReport(snapshot, permalinkId || undefined);
+      
+      // If it was a new ID, save it
+      if (!permalinkId) {
+        const newId = url.split('/').pop() || "";
+        setPermalinkId(newId);
+        practicePlanApi.savePermalinkId(newId);
+        setShareUrl(url);
+      } else {
+        setShareUrl(url);
+      }
+      
+      toast({
+        title: "Link Updated",
+        description: "Your practice plan has been published to the permalink.",
+      });
     } catch (e) {
       toast({
         title: "Error",
-        description: "Failed to generate share link. Please try again.",
+        description: "Failed to publish update. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [items, permalinkId, toast]);
+
+  const handleCreateVersion = useCallback(async () => {
+    setIsSharing(true);
+    try {
+      const snapshot = createReportSnapshot(items);
+      // Create a new unique version by not passing an ID
+      const url = await shareReport(snapshot);
+      setShareUrl(url);
+      toast({
+        title: "Version Created",
+        description: "A new snapshot link has been generated.",
+      });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to create version. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -1569,6 +1635,18 @@ export function PracticePlanPane({
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={handleReset} className="h-8 w-8">
+                        <span className="material-icons text-muted-foreground">refresh</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Reset Checks</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -1577,14 +1655,6 @@ export function PracticePlanPane({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={handleExportPlan}>
-                      <span className="material-icons text-sm mr-2">content_copy</span>
-                      Export Plan
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
-                      <span className="material-icons text-sm mr-2">content_paste</span>
-                      Import Plan
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleShareClick} disabled={isSharing}>
                       {isSharing ? (
                         <span className="material-icons text-sm mr-2 animate-spin">refresh</span>
@@ -1593,9 +1663,13 @@ export function PracticePlanPane({
                       )}
                       {isSharing ? "Generating Link..." : "Share Report"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleReset}>
-                      <span className="material-icons text-sm mr-2">refresh</span>
-                      Reset Checks
+                    <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                      <span className="material-icons text-sm mr-2">content_paste</span>
+                      Import Plan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPlan}>
+                      <span className="material-icons text-sm mr-2">content_copy</span>
+                      Export Plan
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1695,26 +1769,83 @@ export function PracticePlanPane({
                   Anyone with this link can view your progress.
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex items-center space-x-2">
-                <div className="grid flex-1 gap-2">
-                  <Label htmlFor="link" className="sr-only">
-                    Link
-                  </Label>
-                  <Input
-                    id="link"
-                    defaultValue={shareUrl}
-                    readOnly
-                    className="w-full"
-                  />
+              
+              <div className="space-y-6 py-4">
+                {/* Permalink Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground">Permalink</h4>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Always latest</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="grid flex-1 gap-2">
+                      <Input
+                        id="permalink"
+                        value={permalinkId ? window.location.origin + "/r/" + permalinkId : "Not published yet"}
+                        readOnly
+                        className="w-full h-9 bg-muted/50 text-xs"
+                      />
+                    </div>
+                    {permalinkId && (
+                      <>
+                        <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => {
+                          navigator.clipboard.writeText(window.location.origin + "/r/" + permalinkId);
+                          toast({ title: "Copied!", duration: 1000 });
+                        }} title="Copy permalink">
+                          <span className="material-icons text-base">content_copy</span>
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => window.open(window.location.origin + "/r/" + permalinkId, "_blank")} title="Open link">
+                          <span className="material-icons text-base">open_in_new</span>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <Button 
+                    className="w-full gap-2 h-9" 
+                    onClick={handlePublishUpdate}
+                    disabled={isPublishing}
+                  >
+                    <span className={cn("material-icons text-sm", isPublishing && "animate-spin")}>
+                      {isPublishing ? "sync" : "cloud_upload"}
+                    </span>
+                    {permalinkId ? "Publish Update" : "Create Permalink"}
+                  </Button>
                 </div>
-                <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleCopyLink} title="Copy link">
-                  <span className="sr-only">Copy</span>
-                  <span className="material-icons text-sm">content_copy</span>
-                </Button>
-                <Button type="button" size="sm" variant="ghost" className="px-3" onClick={handleOpenLink} title="Open in new tab">
-                  <span className="sr-only">Open</span>
-                  <span className="material-icons text-sm">open_in_new</span>
-                </Button>
+
+                <div className="relative h-px bg-border">
+                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover px-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">or</span>
+                </div>
+
+                {/* Snapshot Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground">Snapshot version</h4>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Static backup</span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2 h-9 border-dashed" 
+                    onClick={handleCreateVersion}
+                    disabled={isSharing}
+                  >
+                    <span className={cn("material-icons text-sm", isSharing && "animate-spin")}>
+                      {isSharing ? "sync" : "history"}
+                    </span>
+                    Create Snapshot Version
+                  </Button>
+                  {shareUrl && !shareUrl.includes(permalinkId || "___") && (
+                    <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                       <Input
+                        value={shareUrl}
+                        readOnly
+                        className="flex-1 h-8 bg-muted/30 text-[11px] font-mono"
+                      />
+                      <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleCopyLink}>
+                        <span className="material-icons text-sm">content_copy</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>

@@ -90,8 +90,12 @@ export const handler: Handler = async (event, context) => {
             }
 
             const body = JSON.parse(event.body);
-            const id = nanoid(10);
-            await store.setJSON(id, body);
+            const id = body.id || nanoid(10);
+            
+            // Remove ID from the stored data if it was provided in the body for routing
+            const { id: _, ...dataToStore } = body;
+            
+            await store.setJSON(id, dataToStore);
 
             return {
                 statusCode: 200,

@@ -3,6 +3,7 @@
  */
 
 const PRACTICE_PLAN_KEY = "practice-timer-plan";
+const PERMANENT_SHARE_ID_KEY = "practice-timer-share-id";
 
 export type BlockType =
   | "text"
@@ -11,6 +12,7 @@ export type BlockType =
   | "heading3"
   | "bullet"
   | "number"
+  | "divider"
   | "todo";
 
 export interface PracticePlanItem {
@@ -175,6 +177,12 @@ function addChildToItem(
 export const practicePlanApi = {
   get: getPracticePlan,
   save: savePracticePlan,
+  getPermalinkId: (): string | null => {
+    return localStorage.getItem(PERMANENT_SHARE_ID_KEY);
+  },
+  savePermalinkId: (id: string): void => {
+    localStorage.setItem(PERMANENT_SHARE_ID_KEY, id);
+  },
   resetChecks: (items: PracticePlanItem[]): PracticePlanItem[] => {
     const next = resetPracticePlanChecks(items);
     savePracticePlan(next);
@@ -426,6 +434,7 @@ function createBlock(blockType: BlockType, initialText?: string, id?: string): P
     heading3: "",
     bullet: "",
     number: "",
+    divider: "---",
     todo: "",
   };
   return {
