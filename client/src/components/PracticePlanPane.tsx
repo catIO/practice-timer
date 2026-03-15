@@ -701,7 +701,9 @@ function PlanItem({
                   pendingSelectionRef.current = { start, end };
                 }
               }
-              setEditing(true);
+              if (blockType !== "divider") {
+                setEditing(true);
+              }
             });
             return;
           }
@@ -746,7 +748,9 @@ function PlanItem({
                   pendingSelectionRef.current = { start, end };
                 }
               }
-              setEditing(true);
+              if (blockType !== "divider") {
+                setEditing(true);
+              }
             }, 250); // Increased timeout to catch triple clicks better
           }
         }}
@@ -829,7 +833,11 @@ function PlanItem({
         >
           {editing ? (
             <>
-              {blockType === "text" ? (
+              {blockType === "divider" ? (
+                <div className="flex-1 flex items-center h-8" onMouseDown={(e) => e.stopPropagation()}>
+                  <div className="w-full h-0.5 bg-muted-foreground/30 rounded-full" />
+                </div>
+              ) : blockType === "text" ? (
                 <Textarea
                   onPointerDown={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -965,11 +973,6 @@ function PlanItem({
                 )}
                 autoFocus
               />
-              )}
-              {blockType === "divider" && (
-                <div className="flex-1 flex items-center h-8" onMouseDown={(e) => e.stopPropagation()}>
-                  <div className="w-full h-0.5 bg-muted-foreground/30 rounded-full" />
-                </div>
               )}
               <InlineToolbar
                 anchorRef={inputRef}
@@ -1434,6 +1437,8 @@ export function PracticePlanPane({
     id: item.id || generateId(),
     text: item.text ?? "",
     checked: item.checked ?? false,
+    blockType: item.blockType || (item.isHeader ? "heading1" : "todo"),
+    isHeader: item.isHeader ?? (item.blockType === "heading1" || item.blockType === "heading2" || item.blockType === "heading3"),
     children: (item.children ?? []).map(normalizeImportedItem),
   }), []);
 

@@ -11,6 +11,7 @@ function ReportItem({
   item: ReportSnapshotItem;
   depth?: number;
 }) {
+  const isDivider = item.blockType === "divider" || (item.text === "---" && !item.blockType);
   const isHeader =
     item.blockType === "heading1" ||
     item.blockType === "heading2" ||
@@ -18,6 +19,14 @@ function ReportItem({
   const isTodo = item.blockType === "todo";
 
   const paddingLeft = depth * 16;
+
+  if (isDivider) {
+    return (
+      <div className="py-4" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
+        <div className="h-px bg-muted-foreground/30 w-full" />
+      </div>
+    );
+  }
 
   if (isHeader) {
     const Tag =
@@ -44,21 +53,19 @@ function ReportItem({
   return (
     <div className="py-0.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
       <div className="flex items-start gap-2 text-foreground">
-        {item.text.trim() ? (
+        {(item.text.trim() || isTodo) ? (
           <span className="shrink-0 mt-0.5 text-muted-foreground" aria-hidden>
-            {isTodo ? (item.checked ? "✓" : "○") : "•"}
+            •
           </span>
         ) : null}
-        <span
-          className={isTodo && item.checked ? "text-muted-foreground" : undefined}
-        >
+        <span>
           <TextWithLinks text={item.text || "\u00A0"} />
         </span>
       </div>
       {item.children.length > 0 && (
         <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
           {item.children.map((child, i) => (
-            <ReportItem key={i} item={child} depth={0} />
+            <ReportItem key={i} item={child} depth={depth + 1} />
           ))}
         </div>
       )}
