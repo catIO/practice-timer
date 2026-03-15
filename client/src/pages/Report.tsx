@@ -180,7 +180,7 @@ export default function Report() {
   })();
 
   return (
-    <div className="min-h-screen text-foreground font-sans bg-background">
+    <div className="min-h-screen text-foreground font-sans">
       <div className="max-w-3xl mx-auto pt-8 pb-32 px-4 sm:px-0">
         <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
           <header className="border-b border-border/40 px-6 py-6 bg-background/20 backdrop-blur-md rounded-t-2xl">
