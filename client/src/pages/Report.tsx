@@ -4,6 +4,14 @@ import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem } from 
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
 
+/** Decode token during render so the first paint has snapshot data (RichLink metadata queries mount immediately). */
+function useTokenSnapshot(token: string | null): ReportSnapshot | null {
+  return useMemo(() => {
+    if (!token) return null;
+    return decodeReportToken(token);
+  }, [token]);
+}
+
 function ReportItem({
   item,
   depth = 0,
@@ -35,10 +43,16 @@ function ReportItem({
         : item.blockType === "heading2"
           ? "h3"
           : "h4";
+    const headingSizeClass =
+      item.blockType === "heading1"
+        ? "text-xl sm:text-2xl font-semibold tracking-tight"
+        : item.blockType === "heading2"
+          ? "text-lg sm:text-xl font-semibold"
+          : "text-base sm:text-lg font-semibold";
     return (
       <>
         <Tag
-          className="font-semibold text-foreground mt-4 first:mt-0"
+          className={`text-foreground mt-4 first:mt-0 ${headingSizeClass}`}
           style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}
         >
           <TextWithLinks text={item.text || "\u00A0"} />
@@ -78,40 +92,38 @@ export default function Report() {
   const location = useLocation();
   // Token from path (/report/:token) or from hash (/report#token - used in dev to avoid long URLs)
   const token = pathToken ?? (location.pathname === "/report" && location.hash ? location.hash.slice(1) : null);
-  const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null);
-  const [loading, setLoading] = useState(!!id);
-  const [error, setError] = useState(false);
+  const tokenSnapshot = useTokenSnapshot(id ? null : token);
+  const [idSnapshot, setIdSnapshot] = useState<ReportSnapshot | null>(null);
+  const [idLoading, setIdLoading] = useState(!!id);
+  const [idError, setIdError] = useState(false);
 
-  // Handle legacy token (client-side decode)
-  useEffect(() => {
-    if (token) {
-      const decoded = decodeReportToken(token);
-      if (decoded) {
-        setSnapshot(decoded);
-      } else {
-        setError(true);
-      }
-      setLoading(false);
-    }
-  }, [token]);
+  const snapshot = id ? idSnapshot : tokenSnapshot;
+  const loading = id ? idLoading : false;
+  const tokenInvalid = Boolean(token && !id && !tokenSnapshot);
+  const error = id ? idError : tokenInvalid;
 
   // Handle short ID (server-side fetch)
   useEffect(() => {
-    if (id) {
-      setLoading(true);
-      fetch(`/.netlify/functions/share-report?id=${id}`)
-        .then(async (res) => {
-          if (!res.ok) throw new Error("Failed");
-          const data = await res.json();
-          setSnapshot(data);
-        })
-        .catch(() => {
-          setError(true);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+    if (!id) {
+      setIdSnapshot(null);
+      setIdError(false);
+      setIdLoading(false);
+      return;
     }
+    setIdLoading(true);
+    setIdError(false);
+    fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+        setIdSnapshot(data);
+      })
+      .catch(() => {
+        setIdError(true);
+      })
+      .finally(() => {
+        setIdLoading(false);
+      });
   }, [id]);
 
   useEffect(() => {
@@ -153,7 +165,7 @@ export default function Report() {
     );
   }
 
-  if (!snapshot) {
+  if (error || !snapshot) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
         <h1 className="text-2xl font-bold text-primary mb-2">Invalid or expired link</h1>

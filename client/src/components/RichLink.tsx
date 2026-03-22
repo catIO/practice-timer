@@ -56,8 +56,13 @@ export function RichLink({ url }: RichLinkProps) {
     const { data: metadata, isLoading, isError } = useQuery({
         queryKey: ['metadata', url],
         queryFn: () => fetchMetadata(url),
-        staleTime: Infinity, // Cache forever (or for a very long time)
-        retry: 1,
+        // Long-lived cache, but not Infinity — avoids “stuck” error state after a cancelled/aborted first fetch (e.g. React Strict Mode remount).
+        staleTime: 1000 * 60 * 60 * 24,
+        gcTime: 1000 * 60 * 60,
+        retry: 3,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
+        // Default true; explicit so error/cancelled queries retry when the link remounts (e.g. after Strict Mode or route change).
+        refetchOnMount: true,
     });
 
     if (isLoading) {
