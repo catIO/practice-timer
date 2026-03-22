@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 
 interface RichLinkProps {
     url: string;
+    /** Progress report: stronger refetch/retry so title pills appear without a hard reload. */
+    eagerPreview?: boolean;
 }
 
 interface Metadata {
@@ -13,7 +15,7 @@ interface Metadata {
     url: string;
 }
 
-async function fetchMetadata(url: string): Promise<Metadata> {
+async function fetchMetadata(url: string, fetchOpts?: { cache?: RequestCache }): Promise<Metadata> {
     // Optimization: Check if it's a known media site (YouTube, Vimeo) and use noembed (CORS friendly)
     // This bypasses the need for our server function and avoids bot detection issues.
     const isMediaUrl = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com');
@@ -39,7 +41,9 @@ async function fetchMetadata(url: string): Promise<Metadata> {
     }
 
     // Fallback to our server function for everything else
-    const res = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`);
+    const res = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`, {
+        cache: fetchOpts?.cache ?? "default",
+    });
     if (!res.ok) {
         console.error("Metadata fetch failed:", res.status, res.statusText);
         throw new Error("Failed to fetch metadata");
@@ -52,17 +56,16 @@ async function fetchMetadata(url: string): Promise<Metadata> {
     return res.json();
 }
 
-export function RichLink({ url }: RichLinkProps) {
+export function RichLink({ url, eagerPreview }: RichLinkProps) {
     const { data: metadata, isLoading, isError } = useQuery({
         queryKey: ['metadata', url],
-        queryFn: () => fetchMetadata(url),
-        // Long-lived cache, but not Infinity — avoids “stuck” error state after a cancelled/aborted first fetch (e.g. React Strict Mode remount).
-        staleTime: 1000 * 60 * 60 * 24,
-        gcTime: 1000 * 60 * 60,
-        retry: 3,
+        queryFn: () =>
+            fetchMetadata(url, eagerPreview ? { cache: "no-store" } : undefined),
+        staleTime: eagerPreview ? 0 : 1000 * 60 * 60 * 24,
+        gcTime: eagerPreview ? 1000 * 60 * 10 : 1000 * 60 * 60,
+        retry: eagerPreview ? 5 : 3,
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
-        // Default true; explicit so error/cancelled queries retry when the link remounts (e.g. after Strict Mode or route change).
-        refetchOnMount: true,
+        refetchOnMount: eagerPreview ? "always" : true,
     });
 
     if (isLoading) {

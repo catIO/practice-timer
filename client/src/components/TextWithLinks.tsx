@@ -41,6 +41,8 @@ interface TextWithLinksProps {
   onEditLink?: (linkText: string, linkUrl: string, start: number, end: number, anchor: HTMLElement | null) => void;
   onUpdateLink?: (start: number, end: number, newUrl: string) => void;
   onRemoveLink?: (start: number, end: number) => void;
+  /** Progress report: fetch link previews aggressively (avoids stale SW / React Query edge cases). */
+  richLinkVariant?: "default" | "report";
 }
 
 
@@ -51,7 +53,13 @@ interface TextWithLinksProps {
  * - **bold** and *italic*
  * - Optional: edit chip on link hover when onEditLink provided
  */
-export function TextWithLinks({ text, onEditLink, onRemoveLink, onUpdateLink }: TextWithLinksProps) {
+export function TextWithLinks({
+  text,
+  onEditLink,
+  onRemoveLink,
+  onUpdateLink,
+  richLinkVariant = "default",
+}: TextWithLinksProps) {
   const parts: Array<LinkPart | PlainPart> = [];
   let lastIndex = 0;
   let match;
@@ -83,6 +91,7 @@ export function TextWithLinks({ text, onEditLink, onRemoveLink, onUpdateLink }: 
               onUpdateLink={onUpdateLink}
               onRemoveLink={onRemoveLink}
               rich={part.text === part.url}
+              eagerRichPreview={richLinkVariant === "report"}
             />
           );
         }
@@ -98,12 +107,14 @@ function LinkWithPreview({
   onUpdateLink,
   onRemoveLink,
   rich,
+  eagerRichPreview,
 }: {
   part: LinkPart;
   onEditLink?: (linkText: string, linkUrl: string, start: number, end: number, anchor: HTMLElement | null) => void;
   onUpdateLink?: (start: number, end: number, newUrl: string) => void;
   onRemoveLink?: (start: number, end: number) => void;
   rich?: boolean;
+  eagerRichPreview?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [editingUrl, setEditingUrl] = useState(false);
@@ -144,7 +155,7 @@ function LinkWithPreview({
       <HoverCardTrigger asChild>
         <span ref={linkRef} className="cursor-pointer">
           {rich ? (
-            <RichLink url={part.url} />
+            <RichLink url={part.url} eagerPreview={eagerRichPreview} />
           ) : (
             <a
               href={part.url}

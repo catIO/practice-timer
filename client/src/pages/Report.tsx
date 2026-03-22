@@ -73,7 +73,7 @@ function ReportItem({
           </span>
         ) : null}
         <span>
-          <TextWithLinks text={item.text || "\u00A0"} />
+          <TextWithLinks text={item.text || "\u00A0"} richLinkVariant="report" />
         </span>
       </div>
       {item.children.length > 0 && (
@@ -112,7 +112,10 @@ export default function Report() {
     }
     setIdLoading(true);
     setIdError(false);
-    fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`)
+    fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'practice-timer-v2';
+const CACHE_NAME = 'practice-timer-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -246,10 +246,12 @@ self.addEventListener('fetch', (event) => {
   // 2. Source files
   // 3. API requests
   // 4. HMR (Hot Module Replacement) requests
+  // Let Netlify functions hit the network — cache-first below would serve stale JSON (e.g. progress reports).
   if (url.hostname === 'localhost' || 
       url.pathname.includes('/src/') ||
       url.pathname.includes('/@vite/') ||
       url.pathname.includes('/api/') ||
+      url.pathname.includes('/.netlify/functions/') ||
       url.pathname.includes('hmr')) {
     return;
   }
