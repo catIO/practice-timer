@@ -3,6 +3,7 @@ import { useParams, useLocation, Link } from "react-router-dom";
 import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /** Decode token during render so the first paint has snapshot data (RichLink metadata queries mount immediately). */
 function useTokenSnapshot(token: string | null): ReportSnapshot | null {
@@ -15,9 +16,11 @@ function useTokenSnapshot(token: string | null): ReportSnapshot | null {
 function ReportItem({
   item,
   depth = 0,
+  numberIndex = 0,
 }: {
   item: ReportSnapshotItem;
   depth?: number;
+  numberIndex?: number;
 }) {
   const isDivider = item.blockType === "divider" || (item.text === "---" && !item.blockType);
   const isHeader =
@@ -57,9 +60,10 @@ function ReportItem({
         >
           <TextWithLinks text={item.text || "\u00A0"} />
         </Tag>
-        {item.children.map((child, i) => (
-          <ReportItem key={i} item={child} depth={depth + 1} />
-        ))}
+        {item.children.map((child, i, arr) => {
+          const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+          return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
+        })}
       </>
     );
   }
@@ -67,9 +71,15 @@ function ReportItem({
   return (
     <div className="py-0.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
       <div className="flex items-start gap-2 text-foreground">
-        {(item.text.trim() || isTodo) ? (
+        {item.blockType === "todo" ? (
+          <Checkbox checked={item.checked} disabled className="mt-1 shrink-0" />
+        ) : item.blockType === "bullet" ? (
           <span className="shrink-0 mt-0.5 text-muted-foreground" aria-hidden>
             •
+          </span>
+        ) : item.blockType === "number" ? (
+          <span className="shrink-0 mt-0.5 min-w-[1.2rem] text-right text-sm text-muted-foreground tabular-nums select-none" aria-hidden>
+            {numberIndex + 1}.
           </span>
         ) : null}
         <span>
@@ -78,9 +88,10 @@ function ReportItem({
       </div>
       {item.children.length > 0 && (
         <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
-          {item.children.map((child, i) => (
-            <ReportItem key={i} item={child} depth={depth + 1} />
-          ))}
+          {item.children.map((child, i, arr) => {
+            const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+            return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
+          })}
         </div>
       )}
     </div>
@@ -206,9 +217,10 @@ export default function Report() {
           </header>
           <main className="p-8 w-full">
             <div className="space-y-1">
-              {snapshot.items.map((item, i) => (
-                <ReportItem key={i} item={item} />
-              ))}
+              {snapshot.items.map((item, i, arr) => {
+                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+                return <ReportItem key={i} item={item} numberIndex={numIdx} />;
+              })}
             </div>
           </main>
         </div>
