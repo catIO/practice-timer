@@ -254,23 +254,6 @@ export default function Home() {
     navigate('/practice-log');
   }, [isRunning, pauseTimer, navigate]);
 
-  // Handle keyboard events
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Only handle spacebar if it's not being used in an input field
-      if (event.key === ' ' && !['INPUT', 'TEXTAREA'].includes((event.target as HTMLElement).tagName)) {
-        event.preventDefault(); // Prevent page scroll
-        if (isRunning) {
-          handlePause();
-        } else {
-          handleStart();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRunning, handleStart, handlePause]);
 
   // Monitor wake lock status
   useEffect(() => {
@@ -401,6 +384,8 @@ export default function Home() {
       totalTime={totalTime}
       mode={mode}
       isRunning={isRunning}
+      onStart={handleStart}
+      onPause={handlePause}
     />
   );
 }

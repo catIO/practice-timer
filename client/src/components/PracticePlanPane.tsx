@@ -76,6 +76,8 @@ interface PracticePlanPaneProps {
   totalTime?: number;
   mode?: 'work' | 'break';
   isRunning?: boolean;
+  onStart?: () => void;
+  onPause?: () => void;
 }
 
 const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
@@ -1155,7 +1157,9 @@ export function PracticePlanPane({
   timeRemaining,
   totalTime,
   mode,
-  isRunning
+  isRunning,
+  onStart,
+  onPause
 }: PracticePlanPaneProps) {
 
 
@@ -1626,16 +1630,28 @@ export function PracticePlanPane({
     <div className="text-foreground font-sans min-h-screen w-full">
       <div className="max-w-2xl mx-auto pt-8 pb-32 px-4 sm:px-0">
         <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
-          <header className="relative p-4 flex items-center justify-between overflow-hidden border-b border-border/40 bg-background/20 backdrop-blur-md rounded-t-2xl">
+          <header className="sticky top-0 z-20 p-4 flex items-center justify-between overflow-hidden border-b border-border/40 bg-background/50 backdrop-blur-md rounded-t-2xl">
             <div className="relative z-10 flex items-center justify-between w-full">
               <div className="flex items-center gap-4">
                 <h2 className="text-2xl font-bold text-foreground">Practice Plan</h2>
                 {typeof timeRemaining === 'number' && (
-                  <div className={cn(
-                    "font-mono text-xl font-medium tabular-nums",
-                    mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
-                  )}>
-                    {formatTime(timeRemaining)}
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "font-mono text-xl font-medium tabular-nums",
+                      mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
+                    )}>
+                      {formatTime(timeRemaining)}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-primary hover:text-primary/80"
+                      onClick={isRunning ? onPause : onStart}
+                    >
+                      <span className="material-icons text-xl">
+                        {isRunning ? 'pause' : 'play_arrow'}
+                      </span>
+                    </Button>
                   </div>
                 )}
               </div>
