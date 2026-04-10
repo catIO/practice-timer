@@ -78,6 +78,7 @@ interface PracticePlanPaneProps {
   isRunning?: boolean;
   onStart?: () => void;
   onPause?: () => void;
+  onSkip?: () => void;
 }
 
 const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
@@ -1159,7 +1160,8 @@ export function PracticePlanPane({
   mode,
   isRunning,
   onStart,
-  onPause
+  onPause,
+  onSkip
 }: PracticePlanPaneProps) {
 
 
@@ -1650,6 +1652,17 @@ export function PracticePlanPane({
                     >
                       <span className="material-icons text-xl">
                         {isRunning ? 'pause' : 'play_arrow'}
+                      </span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-primary hover:text-primary/80"
+                      onClick={onSkip}
+                      title="Skip to next session"
+                    >
+                      <span className="material-icons text-xl">
+                        skip_next
                       </span>
                     </Button>
                   </div>

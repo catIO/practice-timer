@@ -386,6 +386,7 @@ export default function Home() {
       isRunning={isRunning}
       onStart={handleStart}
       onPause={handlePause}
+      onSkip={skipTimer}
     />
   );
 }
