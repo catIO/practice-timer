@@ -10,9 +10,14 @@ import {
   formatDate,
 } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
+import { useTimerStore } from "@/stores/timerStore";
 import "@/assets/headerBlur.css";
 
 export default function PracticeLog() {
+  // Subscribe to timeRemaining to seamlessly trigger re-renders every second
+  // while the timer runs, dynamically refreshing the localStorage readouts below.
+  const timeRemaining = useTimerStore((state) => state.timeRemaining);
+
   const settings = getSettings();
   const weekStartsOn = settings?.weekStartsOn ?? "monday";
   const last10Days = getDailyBreakdown().slice(0, 10);

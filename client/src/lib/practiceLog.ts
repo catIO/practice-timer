@@ -155,10 +155,15 @@ export function getLastWeekSeconds(weekStartsOn: WeekStartsOn = 'monday'): numbe
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  
   if (h > 0) {
-    return `${h}h ${m}m`;
+    return `${h}h ${m}m ${s}s`;
   }
-  return `${m} min`;
+  if (m > 0) {
+    return `${m}m ${s}s`;
+  }
+  return `${s}s`;
 }
 
 export function formatDate(dateStr: string): string {

@@ -248,11 +248,9 @@ export default function Home() {
 
   // Handle practice log navigation
   const handlePracticeLogClick = useCallback(() => {
-    if (isRunning) {
-      pauseTimer();
-    }
+    // Allowing timer to continue running while user checks their practice log
     navigate('/practice-log');
-  }, [isRunning, pauseTimer, navigate]);
+  }, [navigate]);
 
 
   // Monitor wake lock status
@@ -384,9 +382,11 @@ export default function Home() {
       totalTime={totalTime}
       mode={mode}
       isRunning={isRunning}
+      isPracticeComplete={isPracticeComplete}
       onStart={handleStart}
       onPause={handlePause}
       onSkip={skipTimer}
+      onStartNewSession={startNewSession}
     />
   );
 }

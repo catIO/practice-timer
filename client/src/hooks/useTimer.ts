@@ -513,9 +513,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   // Cleanup on unmount (PRESERVED)
   useEffect(() => {
     return () => {
-      if (isRunning) {
-        storePauseTimer();
-      }
+      // Intentionally not pausing the timer here so users can navigate away 
+      // to check practice logs without disrupting their active session
       
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
@@ -526,7 +525,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         wakeLockFallbackRef.current = null;
       }
     };
-  }, [isRunning, storePauseTimer]);
+  }, [isRunning]);
 
   // Sync iOS background timer with store state when timer starts (PRESERVED)
   // Only react to isRunning changes - don't trigger on mode/iteration changes when not running

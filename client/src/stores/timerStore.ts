@@ -175,6 +175,16 @@ export const useTimerStore = create<TimerState>((set, get) => {
               // Update sequence number for valid messages
               set({ lastMessageSequence: sequence });
             }
+            
+            // Log elapsed time if we are in work mode and it's a valid tick down
+            const oldState = get();
+            if (oldState.mode === 'work' && oldState.isRunning && oldState.timeRemaining > payload.timeRemaining) {
+              const diff = oldState.timeRemaining - payload.timeRemaining;
+              if (diff > 0) {
+                addPracticeTime(diff);
+              }
+            }
+            
             // Update state with new timeRemaining
             set({ 
               timeRemaining: payload.timeRemaining,
@@ -355,11 +365,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
                 pendingMessages.delete(sequence);
               }
             }
-            // Log practice time when we complete a work session (new mode is 'break' = we came from work)
-            if (payload.mode === 'break') {
-              const workSeconds = get().settings.workDuration * 60;
-              addPracticeTime(workSeconds);
-            }
+            // Practice time is now logged incrementally during TICK events
             const newTimeRemaining = payload.timeRemaining || (
               payload.mode === 'work' 
                 ? get().settings.workDuration * 60 
@@ -399,9 +405,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
               }
               set({ lastMessageSequence: sequence });
             }
-            // Log practice time for the last work session
-            const workSeconds = get().settings.workDuration * 60;
-            addPracticeTime(workSeconds);
+            // Practice time is now logged incrementally during TICK events
             // Don't set isPracticeComplete immediately - wait for sound to finish
             // The practice-complete event handler will play sound first, then set isPracticeComplete
             // Trigger completion callback via custom event (will handle sound first)
@@ -458,7 +462,16 @@ export const useTimerStore = create<TimerState>((set, get) => {
     lastMessageSequence: 0,
 
     // Simple setters
-    setTimeRemaining: (time) => set({ timeRemaining: time }),
+    setTimeRemaining: (time) => {
+      const state = get();
+      if (state.mode === 'work' && state.isRunning && state.timeRemaining > time) {
+        const diff = state.timeRemaining - time;
+        if (diff > 0) {
+          addPracticeTime(diff);
+        }
+      }
+      set({ timeRemaining: time });
+    },
     setTotalTime: (time) => set({ totalTime: time }),
     setIsRunning: (isRunning) => set({ isRunning }),
     setMode: (mode) => set({ mode }),
