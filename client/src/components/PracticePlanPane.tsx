@@ -76,9 +76,11 @@ interface PracticePlanPaneProps {
   totalTime?: number;
   mode?: 'work' | 'break';
   isRunning?: boolean;
+  isPracticeComplete?: boolean;
   onStart?: () => void;
   onPause?: () => void;
   onSkip?: () => void;
+  onStartNewSession?: () => void;
 }
 
 const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
@@ -1159,9 +1161,11 @@ export function PracticePlanPane({
   totalTime,
   mode,
   isRunning,
+  isPracticeComplete,
   onStart,
   onPause,
-  onSkip
+  onSkip,
+  onStartNewSession,
 }: PracticePlanPaneProps) {
 
 
@@ -1638,33 +1642,47 @@ export function PracticePlanPane({
                 <h2 className="text-2xl font-bold text-foreground">Practice Plan</h2>
                 {typeof timeRemaining === 'number' && (
                   <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "font-mono text-xl font-medium tabular-nums",
-                      mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
-                    )}>
-                      {formatTime(timeRemaining)}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-primary hover:text-primary/80"
-                      onClick={isRunning ? onPause : onStart}
-                    >
-                      <span className="material-icons text-xl">
-                        {isRunning ? 'pause' : 'play_arrow'}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-primary hover:text-primary/80"
-                      onClick={onSkip}
-                      title="Skip to next session"
-                    >
-                      <span className="material-icons text-xl">
-                        skip_next
-                      </span>
-                    </Button>
+                    {isPracticeComplete ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-primary hover:text-primary/80"
+                        onClick={onStartNewSession}
+                        title="Start New Session"
+                      >
+                        <span className="material-icons text-xl">refresh</span>
+                      </Button>
+                    ) : (
+                      <>
+                        <div className={cn(
+                          "font-mono text-xl font-medium tabular-nums",
+                          mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
+                        )}>
+                          {formatTime(timeRemaining)}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-primary/80"
+                          onClick={isRunning ? onPause : onStart}
+                        >
+                          <span className="material-icons text-xl">
+                            {isRunning ? 'pause' : 'play_arrow'}
+                          </span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-primary/80"
+                          onClick={onSkip}
+                          title="Skip to next session"
+                        >
+                          <span className="material-icons text-xl">
+                            skip_next
+                          </span>
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
