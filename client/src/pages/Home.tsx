@@ -316,8 +316,8 @@ export default function Home() {
                     size="icon"
                     className="text-primary hover:text-primary/80"
                     onClick={handlePracticeLogClick}
-                    aria-label="View practice time log"
-                    title="Practice time"
+                    aria-label="View practice log"
+                    title="Practice log"
                   >
                     <span className="material-icons font-semibold">history</span>
                   </Button>

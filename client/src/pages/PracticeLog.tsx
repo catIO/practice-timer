@@ -31,7 +31,7 @@ export default function PracticeLog() {
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
-              <h1 className="text-2xl font-bold text-primary">Practice Time</h1>
+              <h1 className="text-2xl font-bold text-primary">Practice Log</h1>
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/">
                   <span className="material-icons text-primary hover:text-primary/80">
