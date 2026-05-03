@@ -12,7 +12,7 @@ body { font-family: 'Roboto', sans-serif;  color: #ccc;}
 }
 
 .img-circle{
-    clip-path: circle(50px at center);
+    clip-path: circle(50% at center);
 }
 
 a:link, a:visited {

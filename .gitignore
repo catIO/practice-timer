@@ -4,3 +4,8 @@
 # macOS system files
 .DS_Store
 **/.DS_Store
+
+# Config and binaries
+config.json
+dg.zip
+config.js
