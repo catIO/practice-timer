@@ -38,6 +38,11 @@ yarn-error.log*
 .DS_Store
 **/.DS_Store
 
+# Config and binaries
+config.json
+dg.zip
+config.js
+
 # Generated files
 generated-icon.png
 *.generated.*

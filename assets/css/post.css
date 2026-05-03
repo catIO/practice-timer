@@ -1,0 +1,54 @@
+body {
+    justify-content: center;
+}
+
+  .header {
+    text-align: center;
+    padding: 20px;
+  }
+
+  .header img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .post-container {
+    width: 90%;
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .post-container h2 {
+    font-size: 24px;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+
+  .post-container img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .post-container p {
+    text-align: left;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  @media only screen and (max-width: 600px) {
+      .post-container {
+       width: 80%;
+       padding: 10px;
+   }
+}
+
+.post-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  .post-thumbnail img {
+    max-width: 90%;
+    height: auto;
+}

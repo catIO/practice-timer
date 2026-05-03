@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contentful Image Gallery</title>
+  <script src="https://cdn.jsdelivr.net/npm/contentful@latest/dist/contentful.browser.min.js"></script>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/gallery.css">
+  <link rel="icon" href="../assets/img/favicon.ico" type="image/x-icon" sizes="16x16">
+</head>
+<body>
+
+  <div class="header"><a href="/"><img src="../assets/img/catherina-sm-bw.png" width="140px" class="img-circle" /></a></div>
+  <div class="gallery" id="gallery"></div>
+
+  <script>
+  
+        var client = contentful.createClient({
+          space: 'lo3m691vqqd4',
+          accessToken: 'YMPcoA0Omm11ib0fCsw219bCLX9IWbhnUk_ZiCbNO9w',
+        });
+
+        const galleryElement = document.getElementById('gallery');
+
+        client.getEntry('3p5qS0PlMwoCrHGgqinjfR').then(function (entry) {
+
+            entry.fields.gallery.forEach(function (field) {
+
+              const container = document.createElement('div');
+              galleryElement.appendChild(container);
+
+                imageUrl = field.fields.promoImage.fields.file.url;
+                imageAlt = field.fields.promoImage.fields.title || 'Image';
+                galleryURL = `gallery.html?id=${field.sys.id}`;
+                anchorElement = document.createElement('a');
+
+                anchorElement.href = galleryURL;  
+                const imgElement = document.createElement('img');
+                imgElement.src = `https:${imageUrl}`;
+                imgElement.alt = imageAlt;
+                imgElement.classList.add('image');
+
+
+                // Create caption element
+                const captionElement = document.createElement('p');
+                captionElement.textContent = field.fields.title;
+
+
+                anchorElement.appendChild(imgElement);
+                
+                container.appendChild(anchorElement);
+                container.appendChild(captionElement);
+
+                galleryElement.appendChild(container);
+
+            });
+
+        });
+
+
+        var slideIndex = 0;
+
+        function plusSlides(n) {
+          showSlides(slideIndex += n);
+        }
+
+        function currentSlide(n) {
+          showSlides(slideIndex = n);
+        }
+
+        function showSlides(n) {
+          var slides = document.getElementsByClassName("modal-content");
+          if (n >= slides.length) {
+            slideIndex = 0;
+          }
+          if (n < 0) {
+            slideIndex = slides.length - 1;
+          }
+          for (var i = 0; i < slides.length; i++) {
+            slides[i].style.display = "none";
+          }
+          slides[slideIndex].style.display = "block";
+        }
+
+      
+    </script>   
+      
+</body>
+</html>

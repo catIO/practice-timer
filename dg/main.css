@@ -1,0 +1,482 @@
+/* Import fonts at the top of the file */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Source+Sans+Pro:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&display=swap');
+
+body {
+    background-image: url('./images/bg.jpg');
+    background-position: left bottom;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    font-family: 'Source Sans Pro', sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+.content-wrapper {
+    display: grid;
+    grid-template-columns: 267px 1fr;
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.homepage-wrapper {
+    display: grid;
+    grid-template-columns: 500px 1fr;
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.homepage-left{
+}
+
+.left {
+}
+
+.middle {
+    padding: 2rem 2rem;
+    margin-top: 2rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 16px;
+}
+
+.topnav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+}
+
+.topnav ul {
+    display: contents; /* This allows list items to participate in grid layout */
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.topnav li {
+    text-align: center;
+}
+
+.topnav a {
+    display: block;
+    padding: 0.5rem;
+    text-decoration: none;
+    color: #333;
+    transition: color 0.2s;
+}
+
+.topnav a:hover {
+    color: #666;
+    background-color: #f0f0f0;  /* Highlight on hover */
+}
+
+/* Dropdown styling */
+.topnav li {
+    position: relative;
+}
+
+/* Navigation dropdown styles */
+.topnav .subnavigation {
+    display: none;  /* Hide by default */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    min-width: 200px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 100;
+}
+
+.topnav li:hover .subnavigation {
+    display: block;  /* Show only on hover */
+}
+
+.topnav .subnavigation li {
+    display: block;
+    width: 100%;
+}
+
+.topnav .subnavigation a {
+    padding: 0.75rem 1rem;
+    text-align: left;
+}
+
+/* Media query for small screens */
+@media screen and (max-width: 768px) {
+    .content-wrapper {
+        grid-template-columns: 1fr;  /* Stack columns on small screens */
+    }
+    .homepage-wrapper {
+        grid-template-columns: 1fr;  /* Stack columns on small screens */
+    }
+
+    .middle {
+        margin: 2rem 1rem;
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    body {
+        background-size: contain;  /* Adjust background image size */
+        background-position: bottom left;
+    }
+
+    .left {
+        display: none;  /* Hide the left column on small screens */
+    }
+
+    .hamburger {
+        display: block; /* Show hamburger on small screens */
+    }
+    .nav-content {
+        display: none; /* Hide navigation by default on small screens */
+    }
+    .nav-content.active {
+        display: block; /* Show navigation when active */
+    }
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 1000px) {
+    .gallery-grid {
+        grid-template-columns: repeat(2, 300px);
+    }
+}
+
+
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+}
+
+/* Guitar grid styles */
+.guitar-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 350px);  /* Fixed width columns */
+    gap: 2rem;
+    padding: 1rem 0;
+    justify-content: center;  /* Center the grid */
+}
+
+.guitar-card {
+    width: 300px;  /* Fixed width */
+    position: relative;
+    display: block;
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.guitar-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.guitar-card img {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.guitar-card h3 {
+    color: #333;
+    margin: 0.5rem 0;
+    font-size: 1.2em;
+}
+
+.guitar-card p {
+    color: #666;
+    margin: 0.5rem 0;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.guitar-card .price {
+    display: block;
+    color: #2c5282;
+    font-weight: 600;
+    margin-top: 1rem;
+}
+
+.sold-badge {
+    position: absolute;
+    bottom: calc(50% + 10px);  /* Position relative to bottom of image */
+    left: 10px;               /* Offset from left edge */
+    background: #e53e3e;
+    color: white;
+    padding: 6px 20px;
+    transform: none;          /* Remove rotation */
+    font-weight: 600;
+    font-size: 0.9em;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 2;
+    border-radius: 4px;      /* Add rounded corners */
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 1000px) {
+    .guitar-grid {
+        grid-template-columns: repeat(2, 300px);  /* 2 columns on medium screens */
+    }
+}
+
+@media screen and (max-width: 680px) {
+    .guitar-grid {
+        grid-template-columns: 300px;  /* Single column on small screens */
+    }
+}
+
+/* Add this class to the sales page body */
+.sales-page, .gallery-page, .content-page {
+    background-image: none;
+    background-color: #f8f9fa;  /* Light gray background instead */
+}
+
+/* Adjust content wrapper for sales page */
+.sales-page .content-wrapper {
+    grid-template-columns: 1fr;  /* Full width, no left column */
+    max-width: 1200px;  /* Can be wider since we don't need space for bg image */
+    padding: 0 2rem;    /* Add some padding on the sides */
+}
+
+.sales-page .left {
+    display: none;  /* Hide the left column */
+}
+
+.sales-page .middle {
+    width: 100%;
+}
+
+/* Update h1 styling */
+h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 2.4em;  /* Adjust size as needed */
+    text-align: center;
+    margin: 20px 0;
+    color: #333;
+}
+
+.topnav li.active {
+    background-color: #f0f0f0;  /* Light gray background */
+}
+
+.topnav li.active > a {
+    color: #2c5282;  /* Darker blue color for active text */
+    font-weight: 600;  /* Make text slightly bolder */
+}
+
+/* Gallery styles */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 300px);
+    gap: 2rem;
+    padding: 1rem 0;
+    justify-content: center;
+    margin-bottom: 3rem;
+}
+
+.gallery-card {
+    width: 300px;
+    position: relative;
+    display: block;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.gallery-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.gallery-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+}
+
+.gallery-card .caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.5rem;
+    font-size: 0.9em;
+    transform: translateY(100%);
+    transition: transform 0.3s;
+}
+
+.gallery-card:hover .caption {
+    transform: translateY(0);
+}
+
+/* Gallery page specific */
+.gallery-page {
+    background-image: none;
+    background-color: #f8f9fa;
+}
+
+.gallery-page .content-wrapper {
+    grid-template-columns: 1fr;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.gallery-page .left {
+    display: none;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    padding: 2rem;
+    box-sizing: border-box;  /* Add this to include padding in width calculation */
+}
+
+.modal-content {
+    max-width: 80%;        /* Reduced from 90% to give more space for buttons */
+    max-height: 90vh;
+    margin: auto;
+    display: block;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.close-modal {
+    position: absolute;
+    right: 2rem;
+    top: 1rem;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+.modal-prev,
+.modal-next {
+    position: fixed;       /* Changed from absolute to fixed */
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    font-size: 2rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+    z-index: 1001;        /* Ensure buttons are above modal content */
+}
+
+.modal-prev:hover,
+.modal-next:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-prev {
+    left: 2rem;
+}
+
+.modal-next {
+    right: 2rem;
+}
+
+.modal-caption {
+    color: white;
+    text-align: center;
+    padding: 1rem;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.subnavigation {
+    display: none;  /* Hide subnav by default */
+    position: absolute;
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 150px;  /* Set a minimum width for the dropdown */
+}
+
+.topnav li {
+    position: relative;  /* Position relative for absolute positioning of subnav */
+}
+
+.topnav li:hover .subnavigation {
+    display: block;  /* Show subnav on hover */
+}
+
+.subnavigation li {
+    padding: 0.5rem 0;  /* Add padding for subnav items */
+    white-space: nowrap;  /* Prevent text wrapping */
+}
+
+.subnavigation li a {
+    color: #333;  /* Subnav link color */
+    text-decoration: none;  /* Remove underline */
+    display: block;  /* Make the link a block element */
+}
+
+.subnavigation li a:hover {
+    background-color: #f0f0f0;  /* Highlight on hover */
+}
+
+.subnav-left {
+    list-style-type: none;  /* Remove default list styling */
+    padding: 40px 0;  /* Remove default padding */
+    margin: 0;  /* Remove default margin */
+}
+
+.subnav-left li {
+    margin: 0.2rem 0;  /* Add margin between items */
+}
+
+.subnav-left li a {
+    font-size: 1.1rem;
+    display: block;  /* Make the link a block element */
+    padding: 0.5rem 1rem;  /* Add padding for links */
+    color: #333;  /* Link color */
+    text-decoration: none;  /* Remove underline */
+    border-radius: 4px;  /* Rounded corners */
+    transition: background-color 0.3s;  /* Smooth background transition */
+}
+
+.subnav-left li:hover{
+    font-weight: 600;
+}
+
+

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contentful Image Gallery</title>
+  <script src="https://cdn.jsdelivr.net/npm/contentful@latest/dist/contentful.browser.min.js"></script>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/post.css">
+  <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon" sizes="16x16">
+</head>
+<body>
+
+  <div class="header"><a href="/"><img src="assets/img/catherina-sm-bw.png" width="140px" class="img-circle" /></a></div>
+
+  <div id="post-container" class="post-container"></div>
+  
+  <script>
+
+    const client = contentful.createClient({
+          space: 'lo3m691vqqd4',
+          accessToken: 'YMPcoA0Omm11ib0fCsw219bCLX9IWbhnUk_ZiCbNO9w',
+    });
+    
+    // Function to fetch and render posts
+    async function fetchPostById(postId) {
+        try {
+            const response = await client.getEntry(postId);
+            return response;
+        } catch (error) {
+            console.error('Error fetching post:', error);
+            
+            return null;
+        }
+    }
+
+ // Function to render posts on the page
+ async function renderPosts(post) {
+
+        const postContainer = document.getElementById('post-container');
+        const title = post.fields.title;
+        const paragraphsDocument = post.fields.content;
+
+        const coverImageId = post.fields.coverImage.sys.id;
+        
+        //console.log(post.fields.coverImage)
+        const postElement = document.createElement('div');
+        postElement.innerHTML = `<h2>${title}</h2>`;
+
+        // Render cover image
+        if (coverImageId) {
+          const coverImage = await fetchAsset(coverImageId);
+          console.log(coverImage)
+
+          const coverImageElement = document.createElement('img');
+          coverImageElement.src = 'https:' + coverImage.file.url;
+          coverImageElement.alt = coverImage.title;
+          postElement.appendChild(coverImageElement);
+        }
+
+        // Render paragraphs
+        const paragraphs = paragraphsDocument.content;
+        paragraphs.forEach(paragraph => {
+        const paragraphElement = document.createElement('p');
+        
+        paragraph.content.forEach(contentNode => {
+          if (contentNode.nodeType === 'text') {
+            // Handle text nodes
+            paragraphElement.innerHTML += contentNode.value;
+          } else if (contentNode.nodeType === 'hyperlink') {
+            // Handle hyperlink nodes
+            const linkElement = document.createElement('a');
+            linkElement.href = contentNode.data.uri;
+            linkElement.textContent = contentNode.content[0].value;
+            paragraphElement.appendChild(linkElement);
+          }
+        });
+        postElement.appendChild(paragraphElement);
+      });
+
+        postContainer.appendChild(postElement);
+    }
+
+    // Function to fetch asset by ID
+    async function fetchAsset(assetId) {
+      try {
+        const response = await client.getAsset(assetId);
+        return response.fields;
+
+      } catch (error) {
+        console.error('Error fetching asset:', error);
+        return null;
+      }
+    }
+
+    // Fetch posts and render them when the page loads
+    window.onload = async function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id')
+
+      if (postId){
+        const posts = await fetchPostById(postId);
+        renderPosts(posts);
+       }else{
+        window.location.href = "/posts.html";
+      }
+    
+    };
+  </script>
+
+
+</body>
+</html>

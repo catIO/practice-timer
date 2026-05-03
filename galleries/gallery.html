@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contentful Image Gallery</title>
+  <script src="https://cdn.jsdelivr.net/npm/contentful@latest/dist/contentful.browser.min.js"></script>
+  <script src="https://kit.fontawesome.com/df526e0587.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/gallery.css">
+  <link rel="icon" href="../assets/img/favicon.ico" type="image/x-icon" sizes="16x16">
+
+</head>
+
+<body>
+
+  <div class="header" id="header"><a href="/"><img src="../assets/img/catherina-sm-bw.png" width="140px" class="img-circle" /></a></div>
+  <div class="gallery" id="gallery"></div>
+
+  <!-- Modal -->
+  <div id="myModal" class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <span class="modal-btn prev" onclick="plusSlides(-1)"><i class="fa fa-chevron-circle-left"></i></span>
+    <span class="modal-btn next" onclick="plusSlides(1)"><i class="fa fa-chevron-circle-right"></i></span>
+    <img class="modal-content" id="modalImage">
+  </div>
+  
+  <script>
+
+    var client = contentful.createClient({
+      space: 'lo3m691vqqd4',
+      accessToken: 'YMPcoA0Omm11ib0fCsw219bCLX9IWbhnUk_ZiCbNO9w',
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const galleryID = urlParams.get('id') ? urlParams.get('id') : "1xyFDFmKstsEcbg6Ytcti4";
+
+    const galleryElement = document.getElementById('gallery');
+    const headerElement = document.getElementById('header');
+
+    var slideIndex = 0;
+    var images = [];
+
+    client.getEntry(galleryID).then(function (entry) {
+
+      const titleElement = document.createElement('h1');
+      const anchorElement = document.createElement('a');
+      anchorElement.className = "fa fa-arrow-left";
+      anchorElement.href = "/galleries";
+  
+      
+      titleElement.textContent = entry.fields.title;
+      headerElement.appendChild(titleElement);
+      titleElement.prepend(anchorElement);
+
+      images = entry.fields.images;
+
+      images.forEach(function (image, index) {
+
+        const imageUrl = image.fields.file.url;
+        const imageAlt = image.fields.title || 'Image';
+        
+        const imgElement = document.createElement('img');
+        imgElement.src = `https:${imageUrl}`;
+        imgElement.alt = imageAlt;
+        imgElement.classList.add('image');
+
+        // Add click event listener to open modal on image click
+        imgElement.addEventListener('click', function() {
+          document.getElementById('myModal').style.display = "block";
+          document.getElementById('modalImage').src = imgElement.src;
+          slideIndex = index; // Set current slide index
+          modalImage.addEventListener('click', function() {
+            plusSlides(1);
+          });
+        });
+
+        galleryElement.appendChild(imgElement);
+      });
+    });
+
+    function plusSlides(n) {
+      slideIndex += n;
+      if (slideIndex >= images.length) {
+        slideIndex = 0;
+      }
+      if (slideIndex < 0) {
+        slideIndex = images.length - 1;
+      }
+      showSlides();
+    }
+
+    function showSlides() {
+      const modalImage = document.getElementById('modalImage');
+      if (images.length > 0) {
+        //console.log(images[slideIndex].fields.file.url);
+        modalImage.src = `https:${images[slideIndex].fields.file.url}`
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('myModal').style.display = "none";
+    }
+
+    window.onclick = function(event) {
+      if (event.target == document.getElementById('myModal')) {
+        closeModal();
+      }
+    };
+
+  </script>   
+
+</body>
+</html>

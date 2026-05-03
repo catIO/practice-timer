@@ -1,0 +1,74 @@
+.flexbin {
+  display: flex;
+  overflow: hidden;
+  flex-wrap: wrap;
+  margin: -2.5px; }
+  .flexbin:after {
+    content: '';
+    flex-grow: 999999999;
+    min-width: 400px;
+    height: 0; }
+  .flexbin > * {
+    position: relative;
+    display: block;
+    height: 450px;
+    margin: 2.5px;
+    flex-grow: 1; }
+    .flexbin > * > img {
+      height: 450px;
+      object-fit:contain;
+      max-width: 100%;
+      min-width: 100%;
+      vertical-align: bottom; }
+  .flexbin.flexbin-margin {
+    margin: 2.5px; }
+  @media (max-width: 980px) {
+    .flexbin {
+      display: flex;
+      overflow: hidden;
+      flex-wrap: wrap;
+      margin: -2.5px; }
+      .flexbin:after {
+        content: '';
+        flex-grow: 999999999;
+        min-width: 200px;
+        height: 0; }
+      .flexbin > * {
+        position: relative;
+        display: block;
+        height: 300px;
+        margin: 2.5px;
+        flex-grow: 1; }
+        .flexbin > * > img {
+          height: 300px;
+          object-fit: contain;
+          max-width: 100%;
+          min-width: 100%;
+          vertical-align: bottom; }
+      .flexbin.flexbin-margin {
+        margin: 2.5px; } }
+  @media (max-width: 400px) {
+    .flexbin {
+      display: flex;
+      overflow: hidden;
+      flex-wrap: wrap;
+      margin: -2.5px; }
+      .flexbin:after {
+        content: '';
+        flex-grow: 999999999;
+        min-width: 100px;
+        height: 0; }
+      .flexbin > * {
+        position: relative;
+        display: block;
+        height: 200px;
+        margin: 2.5px;
+        flex-grow: 1; }
+        .flexbin > * > img {
+          height: 200px;
+          object-fit: contain;
+          max-width: 100%;
+          min-width: 100%;
+          vertical-align: bottom; }
+      .flexbin.flexbin-margin {
+        margin: 2.5px; } }

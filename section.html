@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contentful Image Gallery</title>
+  <script src="https://cdn.jsdelivr.net/npm/contentful@latest/dist/contentful.browser.min.js"></script>
+  <script src="https://kit.fontawesome.com/df526e0587.js" crossorigin="anonymous"></script>
+
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/post.css">
+  <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon" sizes="16x16">
+
+</head>
+
+<body>
+
+  <div class="header" id="header"><a href="/"><img src="assets/img/catherina-sm-bw.png" width="140px" class="img-circle" /></a></div>
+  <div id="post-container" class="post-container post-grid"></div>
+  
+  <script>
+
+    var client = contentful.createClient({
+      space: 'lo3m691vqqd4',
+      accessToken: 'YMPcoA0Omm11ib0fCsw219bCLX9IWbhnUk_ZiCbNO9w',
+    });
+
+        // Function to fetch and render posts
+        async function fetchPostById(postId) {
+        try {
+            const response = await client.getEntry(postId);
+            return response;
+        } catch (error) {
+            console.error('Error fetching post:', error);
+            return null;
+        }
+    }
+
+    // Function to render posts on the page
+    async function renderPosts(section) {
+        const postContainer = document.getElementById('post-container');    
+        const headerElement = document.getElementById('header');
+        const titleElement = document.createElement('h1');
+
+        titleElement.textContent = section.fields.title;
+        headerElement.appendChild(titleElement);
+
+        posts = section.fields.list;
+        
+        posts.forEach(post => {
+
+          //console.log(post);
+
+          const postId = post.sys.id;
+          const title = post.fields.title;
+          const coverImageId = post.fields.coverImage.sys.id;
+          const postLink = `post.html?id=${postId}`;
+          const postThumbnail = document.createElement('div');
+          postThumbnail.classList.add('post-thumbnail');
+
+          // Render cover image
+          if (coverImageId) {
+            const coverImage = post.fields.coverImage.fields;
+            const coverImageElement = document.createElement('img');
+            coverImageElement.src = 'https:' + coverImage.file.url;
+            coverImageElement.alt = coverImage.title;
+            postThumbnail.appendChild(coverImageElement);
+          }
+
+        // Render title with link
+        const titleElement = document.createElement('h3');
+        const titleLink = document.createElement('a');
+        titleLink.href = postLink;
+        titleLink.textContent = title;
+        titleElement.appendChild(titleLink);
+        postThumbnail.appendChild(titleElement);
+        postContainer.appendChild(postThumbnail);
+       
+    });
+}
+
+    // Get the list containing posts
+    const urlParams = new URLSearchParams(window.location.search);
+    const sectionID = urlParams.get('id') ? urlParams.get('id') : "";
+
+    window.onload = async function() {
+      try {
+        client.getEntry(sectionID).then(function (entry) {
+            //console.log(entry)
+            renderPosts(entry);
+        })
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+      }
+    };
+
+  </script>   
+
+</body>
+</html>
