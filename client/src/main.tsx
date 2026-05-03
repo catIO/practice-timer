@@ -26,6 +26,13 @@ else if ('serviceWorker' in navigator && !import.meta.env.DEV) {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('SW registered: ', registration);
+        
+        // Check for updates when app becomes visible
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            registration.update();
+          }
+        });
       })
       .catch(registrationError => {
         console.log('SW registration failed: ', registrationError);

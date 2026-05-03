@@ -1,10 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs'
+
+const injectTimestampPlugin = () => ({
+  name: 'inject-timestamp-sw',
+  closeBundle() {
+    const swPath = path.resolve(__dirname, 'dist', 'sw.js');
+    if (fs.existsSync(swPath)) {
+      const timestamp = Date.now();
+      fs.appendFileSync(swPath, `\n// BUILD_TIMESTAMP: ${timestamp}\n`);
+    }
+  }
+});
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), injectTimestampPlugin()],
   server: {
     port: 5173,
     strictPort: true,

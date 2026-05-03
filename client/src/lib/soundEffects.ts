@@ -32,6 +32,18 @@ const getAudioContext = () => {
   return audioContext;
 };
 
+// Helper to normalize volume from 0-100 range to 0.0-1.0 range
+// Uses a quadratic curve to make lower volumes more sensitive and 50% feel like "medium"
+const getNormalizedVolume = (volume: number): number => {
+  // Ensure volume is in 0-100 range (handle legacy cases where it might be 0-1)
+  const volumeInRange = volume <= 1 && volume > 0 ? volume * 100 : volume;
+  // Map 0-100 to 0.0-1.0 linearly first
+  const linearVolume = Math.min(100, Math.max(0, volumeInRange)) / 100;
+  // Apply quadratic curve (v^2) for more natural volume control
+  // This means 50% slider = 0.25 gain (medium), 10% slider = 0.01 gain (very quiet)
+  return Math.pow(linearVolume, 2);
+};
+
 // Enhanced iOS audio unlock with better iPad support
 export const initializeAudioForIOS = async (): Promise<boolean> => {
   try {
@@ -360,8 +372,8 @@ const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volu
       await initializeAudioForIOS();
     }
     
-    // Convert volume from 0-100 to 0-1 range
-    const normalizedVolume = Math.min(1, volume / 100);
+    // Convert volume from 0-100 to 0-1 range using non-linear normalization
+    const normalizedVolume = getNormalizedVolume(volume);
     
     // Generate a simple beep sound using data URL
     const sampleRate = 44100;
@@ -458,8 +470,8 @@ const playSoundFallback = async (effect: SoundEffect, numberOfBeeps: number = 3,
     console.log(`Fallback: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
     console.log(`Fallback: Audio context state check...`);
     
-    // Convert volume from 0-100 to 0-1 range
-    const normalizedVolume = Math.min(1, volume / 100);
+    // Convert volume from 0-100 to 0-1 range using non-linear normalization
+    const normalizedVolume = getNormalizedVolume(volume);
     
     // Test audio context state
     try {
@@ -687,11 +699,8 @@ export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, 
 
 // Web Audio API implementation
 const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  // Convert volume from 0-100 to 0-1 range, respecting user's volume setting
-  // Ensure volume is in 0-100 range first (handle cases where it might be 0-1)
-  const volumeInRange = volume <= 1 ? volume * 100 : volume;
-  // Convert to 0-1 range for Web Audio API, capped at 1.0
-  const normalizedVolume = Math.min(1.0, volumeInRange / 100);
+  // Convert volume from 0-100 to 0-1 range using non-linear normalization
+  const normalizedVolume = getNormalizedVolume(volume);
   
   // Get audio context and ensure it's ready
   const context = getAudioContext();

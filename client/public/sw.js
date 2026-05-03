@@ -266,8 +266,14 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first for app: try network, fall back to cache (so updates load without hard refresh)
   if (isAppRequest) {
+    // If it's a document request (index.html), force network check without browser cache
+    // This ensures we don't accidentally fetch a stale version from HTTP cache.
+    const fetchOptions = (event.request.mode === 'navigate' || event.request.destination === 'document') 
+      ? { cache: 'no-cache' } 
+      : {};
+
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, fetchOptions)
         .then(response => {
           if (response && response.status === 200 && response.type === 'basic') {
             const responseToCache = response.clone();
