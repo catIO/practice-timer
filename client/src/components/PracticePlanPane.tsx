@@ -1376,7 +1376,11 @@ export function PracticePlanPane({
 
   useEffect(() => {
     const handlePieceComplete = async (event: Event) => {
-      const { name } = (event as CustomEvent).detail;
+      const { name, id } = (event as CustomEvent).detail;
+      // Auto-check the piece item when its goal time is met
+      if (id) {
+        applyChange((prev) => practicePlanApi.checkItem(prev, id));
+      }
       const store = useTimerStore.getState();
       if (store.settings.soundEnabled) {
         try {
@@ -1399,7 +1403,7 @@ export function PracticePlanPane({
 
     window.addEventListener('piece-timer-complete', handlePieceComplete);
     return () => window.removeEventListener('piece-timer-complete', handlePieceComplete);
-  }, [toast]);
+  }, [toast, applyChange]);
 
   const handleRowClick = useCallback(
     (id: string, e: React.MouseEvent<HTMLDivElement>) => {

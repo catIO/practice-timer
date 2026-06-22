@@ -197,6 +197,13 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
+  checkItem: (items: PracticePlanItem[], id: string): PracticePlanItem[] => {
+    const next = updateItemInTree(items, id, (item) =>
+      item.isHeader ? item : { ...item, checked: true }
+    );
+    savePracticePlan(next);
+    return next;
+  },
   updateText: (items: PracticePlanItem[], id: string, text: string): PracticePlanItem[] => {
     const next = updateItemInTree(items, id, (item) => ({ ...item, text }));
     savePracticePlan(next);

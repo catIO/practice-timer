@@ -197,7 +197,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
                     if (oldState.pieceTimeRemaining > 0 && nextPieceTime === 0) {
                       if (typeof window !== 'undefined') {
                         window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                          detail: { name: oldState.activePieceName }
+                          detail: { name: oldState.activePieceName, id: oldState.activePieceId }
                         }));
                       }
                     }
@@ -501,7 +501,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
             if (state.pieceTimeRemaining > 0 && nextPieceTime === 0) {
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                  detail: { name: state.activePieceName }
+                  detail: { name: state.activePieceName, id: state.activePieceId }
                 }));
               }
             }
