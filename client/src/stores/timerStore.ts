@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { SettingsType, DEFAULT_SETTINGS } from '@/lib/timerService';
 import { getSettings } from '@/lib/localStorage';
-import { addPracticeTime } from '@/lib/practiceLog';
+import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds } from '@/lib/practiceLog';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
@@ -21,6 +21,10 @@ interface TimerState {
   totalIterations: number;
   isPracticeComplete: boolean;
   isSkipping: boolean; // Flag to prevent concurrent skip operations
+  activePieceId: string | null;
+  activePieceName: string | null;
+  pieceTimeRemaining: number;
+  pieceTotalTime: number;
   
   // Settings
   settings: SettingsType;
@@ -39,6 +43,9 @@ interface TimerState {
   setIsPracticeComplete: (complete: boolean) => void;
   setSettings: (settings: SettingsType) => void;
   setWorkerReady: (ready: boolean) => void;
+  setActivePiece: (id: string | null, name: string | null) => void;
+  selectPiece: (id: string, name: string, allocatedMinutes: number, period: 'day' | 'week') => void;
+  clearPiece: () => void;
   
   // Complex actions
   startTimer: () => Promise<void>;
@@ -181,7 +188,20 @@ export const useTimerStore = create<TimerState>((set, get) => {
             if (oldState.mode === 'work' && oldState.isRunning && oldState.timeRemaining > payload.timeRemaining) {
               const diff = oldState.timeRemaining - payload.timeRemaining;
               if (diff > 0) {
-                addPracticeTime(diff);
+                if (oldState.activePieceId && oldState.activePieceName) {
+                  addDetailedPracticeTime(oldState.activePieceId, oldState.activePieceName, diff);
+                  const nextPieceTime = Math.max(0, oldState.pieceTimeRemaining - diff);
+                  set({ pieceTimeRemaining: nextPieceTime });
+                  if (oldState.pieceTimeRemaining > 0 && nextPieceTime === 0) {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+                        detail: { name: oldState.activePieceName }
+                      }));
+                    }
+                  }
+                } else {
+                  addPracticeTime(diff);
+                }
               }
             }
             
@@ -460,6 +480,10 @@ export const useTimerStore = create<TimerState>((set, get) => {
     settings: savedSettings,
     workerReady: false,
     lastMessageSequence: 0,
+    activePieceId: null,
+    activePieceName: null,
+    pieceTimeRemaining: 0,
+    pieceTotalTime: 0,
 
     // Simple setters
     setTimeRemaining: (time) => {
@@ -467,7 +491,20 @@ export const useTimerStore = create<TimerState>((set, get) => {
       if (state.mode === 'work' && state.isRunning && state.timeRemaining > time) {
         const diff = state.timeRemaining - time;
         if (diff > 0) {
-          addPracticeTime(diff);
+          if (state.activePieceId && state.activePieceName) {
+            addDetailedPracticeTime(state.activePieceId, state.activePieceName, diff);
+            const nextPieceTime = Math.max(0, state.pieceTimeRemaining - diff);
+            set({ pieceTimeRemaining: nextPieceTime });
+            if (state.pieceTimeRemaining > 0 && nextPieceTime === 0) {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+                  detail: { name: state.activePieceName }
+                }));
+              }
+            }
+          } else {
+            addPracticeTime(diff);
+          }
         }
       }
       set({ timeRemaining: time });
@@ -480,6 +517,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
     setIsPracticeComplete: (complete) => set({ isPracticeComplete: complete }),
     setSettings: (settings) => set({ settings }),
     setWorkerReady: (ready) => set({ workerReady: ready }),
+    setActivePiece: (id, name) => set({ activePieceId: id, activePieceName: name }),
 
     // Complex actions
     startTimer: async () => {
@@ -701,6 +739,32 @@ export const useTimerStore = create<TimerState>((set, get) => {
 
     startNewSession: async () => {
       await get().resetTimer();
+    },
+
+    selectPiece: (id, name, allocatedMinutes, period) => {
+      const settings = getSettings();
+      const weekStartsOn = settings?.weekStartsOn ?? 'monday';
+      const alreadySeconds = getPiecePracticedSeconds(id, period, weekStartsOn);
+      const targetSeconds = allocatedMinutes * 60;
+      let remaining = targetSeconds - alreadySeconds;
+      if (remaining <= 0) {
+        remaining = targetSeconds;
+      }
+      set({
+        activePieceId: id,
+        activePieceName: name,
+        pieceTimeRemaining: remaining,
+        pieceTotalTime: targetSeconds
+      });
+    },
+
+    clearPiece: () => {
+      set({
+        activePieceId: null,
+        activePieceName: null,
+        pieceTimeRemaining: 0,
+        pieceTotalTime: 0
+      });
     },
 
     initializeWorker

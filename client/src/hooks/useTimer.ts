@@ -320,16 +320,45 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       // For practice completion, we handle everything here (sound, notification, state update)
     };
 
+    const handlePieceComplete = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { name } = customEvent.detail;
+      
+      try {
+        const store = useTimerStore.getState();
+        if (store.settings.soundEnabled) {
+          await resumeAudioContext();
+          let volume = store.settings.volume;
+          if (volume <= 1) {
+            volume = volume * 100;
+          }
+          volume = Math.min(100, Math.max(0, volume));
+          if (volume > 0) {
+            await playSound('end', 1, volume, store.settings.soundType as any);
+          }
+        }
+      } catch (error) {
+        console.error('Error playing piece completion sound:', error);
+      }
+      
+      toast({
+        title: "Piece timer complete",
+        description: `You have completed your allocated time for ${name}.`,
+      });
+    };
+
     window.addEventListener('play-sound', handlePlaySound);
     window.addEventListener('timer-complete', handleTimerComplete);
     window.addEventListener('practice-complete', handlePracticeComplete);
+    window.addEventListener('piece-timer-complete', handlePieceComplete);
 
     return () => {
       window.removeEventListener('play-sound', handlePlaySound);
       window.removeEventListener('timer-complete', handleTimerComplete);
       window.removeEventListener('practice-complete', handlePracticeComplete);
+      window.removeEventListener('piece-timer-complete', handlePieceComplete);
     };
-  }, [workerReady, onComplete, showNotification, totalIterations]);
+  }, [workerReady, onComplete, showNotification, totalIterations, toast]);
 
   // Start timer with wake lock and background support (PRESERVED)
   const startTimer = useCallback(async () => {

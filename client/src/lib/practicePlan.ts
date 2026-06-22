@@ -24,6 +24,8 @@ export interface PracticePlanItem {
   isHeader?: boolean;
   /** Block style; default 'todo'. Headings set isHeader true. */
   blockType?: BlockType;
+  allocatedTime?: number; // Target duration in minutes
+  allocationPeriod?: "day" | "week";
 }
 
 export function generateId(): string {
@@ -197,6 +199,20 @@ export const practicePlanApi = {
   },
   updateText: (items: PracticePlanItem[], id: string, text: string): PracticePlanItem[] => {
     const next = updateItemInTree(items, id, (item) => ({ ...item, text }));
+    savePracticePlan(next);
+    return next;
+  },
+  updateAllocation: (
+    items: PracticePlanItem[],
+    id: string,
+    allocatedTime: number | undefined,
+    allocationPeriod: "day" | "week" | undefined
+  ): PracticePlanItem[] => {
+    const next = updateItemInTree(items, id, (item) => ({
+      ...item,
+      allocatedTime,
+      allocationPeriod,
+    }));
     savePracticePlan(next);
     return next;
   },

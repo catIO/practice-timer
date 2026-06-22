@@ -22,6 +22,15 @@ import "@/assets/headerBlur.css";
 
 export default function Home() {
   const navigate = useNavigate();
+  const activePieceName = useTimerStore((state) => state.activePieceName);
+  const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
+  const clearPiece = useTimerStore((state) => state.clearPiece);
+
+  const formatSeconds = (totalSecs: number) => {
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
   // Get settings from local storage
   const settings: SettingsType = getSettings();
   const [audioInitialized, setAudioInitialized] = useState(false);
@@ -343,6 +352,26 @@ export default function Home() {
                   />
                 ) : (
                   <div className="flex flex-col items-center space-y-6">
+                    {activePieceName && (
+                      <div className="w-full max-w-sm rounded-lg bg-muted/40 border border-border/40 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex flex-col min-w-0 items-start">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Active Piece</span>
+                          <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName}>{activePieceName}</span>
+                          <span className="text-lg font-bold text-primary font-mono mt-0.5">{formatSeconds(pieceTimeRemaining)}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground font-semibold"
+                          onClick={() => {
+                            clearPiece();
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+
                     <Timer
                       timeRemaining={timeRemaining}
                       totalTime={totalTime}

@@ -51,6 +51,9 @@ import { TextWithLinks } from "./TextWithLinks";
 import { InlineToolbar, type InlineToolbarProps } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
 import { formatTime } from "@/lib/formatTime";
+import { useTimerStore } from "@/stores/timerStore";
+import { getPiecePracticedSeconds } from "@/lib/practiceLog";
+import { getSettings } from "@/lib/localStorage";
 import "@/assets/headerBlur.css";
 import {
   DndContext,
@@ -224,6 +227,8 @@ interface PlanItemProps {
   onCutSelection: () => void;
   onPasteBelowSelection: (targetId: string) => void;
   onUndo: () => void;
+  onOpenAllocationDialog: (id: string, text: string, currentMinutes?: number, currentPeriod?: 'day' | 'week') => void;
+  onPlayPiece: (id: string, name: string, minutes: number, period: 'day' | 'week') => void;
 }
 
 function PlanItem({
@@ -251,6 +256,8 @@ function PlanItem({
   onCutSelection,
   onPasteBelowSelection,
   onUndo,
+  onOpenAllocationDialog,
+  onPlayPiece,
 }: PlanItemProps) {
   const {
     attributes,
@@ -1078,6 +1085,43 @@ function PlanItem({
             </span>
           )}
         </div>
+        {!editing && !isHeader && blockType !== "divider" && (
+          <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+            {item.allocatedTime ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded bg-muted/40 border border-border/40"
+                onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
+                title="Edit allocation"
+              >
+                {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                onClick={() => onOpenAllocationDialog(item.id, item.text, undefined, 'day')}
+                title="Add time allocation"
+              >
+                <span className="material-icons text-sm">schedule</span>
+              </Button>
+            )}
+
+            {item.allocatedTime && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-primary hover:text-primary/80"
+                onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
+                title="Start countdown"
+              >
+                <span className="material-icons text-sm">play_arrow</span>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       {hasChildren && (
         <div className={cn("mt-0", isHeader ? "" : "border-l border-border/60 pl-2 ml-2")}>
@@ -1112,7 +1156,8 @@ function PlanItem({
                 onCutSelection={onCutSelection}
                 onPasteBelowSelection={onPasteBelowSelection}
                 onUndo={onUndo}
-
+                onOpenAllocationDialog={onOpenAllocationDialog}
+                onPlayPiece={onPlayPiece}
               />
             ))}
           </SortableContext>
@@ -1218,6 +1263,57 @@ export function PracticePlanPane({
     savePracticePlan(undoSnapshot);
     setUndoSnapshot(null);
   }, [undoSnapshot]);
+
+  const selectPiece = useTimerStore((state) => state.selectPiece);
+  const [allocationDialogOpen, setAllocationDialogOpen] = useState(false);
+  const [allocationItemId, setAllocationItemId] = useState<string | null>(null);
+  const [allocationItemText, setAllocationItemText] = useState("");
+  const [allocationMinutes, setAllocationMinutes] = useState("");
+  const [allocationPeriod, setAllocationPeriod] = useState<'day' | 'week'>('day');
+
+  const handleOpenAllocationDialog = useCallback((id: string, text: string, currentMinutes?: number, currentPeriod?: 'day' | 'week') => {
+    setAllocationItemId(id);
+    setAllocationItemText(text);
+    setAllocationMinutes(currentMinutes !== undefined ? String(currentMinutes) : "");
+    setAllocationPeriod(currentPeriod || 'day');
+    setAllocationDialogOpen(true);
+  }, []);
+
+  const handleSaveAllocation = useCallback(() => {
+    if (!allocationItemId) return;
+    const mins = parseInt(allocationMinutes, 10);
+    if (isNaN(mins) || mins <= 0) {
+      applyChange((prev) => practicePlanApi.updateAllocation(prev, allocationItemId, undefined, undefined));
+    } else {
+      applyChange((prev) => practicePlanApi.updateAllocation(prev, allocationItemId, mins, allocationPeriod));
+    }
+    setAllocationDialogOpen(false);
+    setAllocationItemId(null);
+  }, [allocationItemId, allocationMinutes, allocationPeriod, applyChange]);
+
+  const handleRemoveAllocation = useCallback(() => {
+    if (!allocationItemId) return;
+    applyChange((prev) => practicePlanApi.updateAllocation(prev, allocationItemId, undefined, undefined));
+    setAllocationDialogOpen(false);
+    setAllocationItemId(null);
+  }, [allocationItemId, applyChange]);
+
+  const handlePlayPiece = useCallback((id: string, name: string, minutes: number, period: 'day' | 'week') => {
+    onOpenChange(false);
+    
+    // Select the piece independently
+    selectPiece(id, name, minutes, period);
+    
+    // If the main session is not running, start it
+    if (!isRunning && onStart) {
+      onStart();
+    }
+    
+    toast({
+      title: "Piece timer active",
+      description: `Practicing: ${name}`,
+    });
+  }, [selectPiece, isRunning, onStart, onOpenChange, toast]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1803,7 +1899,8 @@ export function PracticePlanPane({
                       onCutSelection={handleCutSelection}
                       onPasteBelowSelection={handlePasteBelowSelection}
                       onUndo={handleUndo}
-
+                      onOpenAllocationDialog={handleOpenAllocationDialog}
+                      onPlayPiece={handlePlayPiece}
                     />
                   ))}
                 </div>
@@ -1921,6 +2018,57 @@ export function PracticePlanPane({
                   Cancel
                 </Button>
                 <Button onClick={handleImportPlan}>Import</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={allocationDialogOpen} onOpenChange={setAllocationDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Set Allocation</DialogTitle>
+                <DialogDescription>
+                  Allocate practice time for "{allocationItemText}".
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="allocation-minutes">Minutes</Label>
+                  <Input
+                    id="allocation-minutes"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 20"
+                    value={allocationMinutes}
+                    onChange={(e) => setAllocationMinutes(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="allocation-period">Period</Label>
+                  <select
+                    id="allocation-period"
+                    value={allocationPeriod}
+                    onChange={(e) => setAllocationPeriod(e.target.value as 'day' | 'week')}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="day">Daily</option>
+                    <option value="week">Weekly</option>
+                  </select>
+                </div>
+              </div>
+              <DialogFooter className="flex sm:justify-between gap-2">
+                <div>
+                  <Button type="button" variant="destructive" onClick={handleRemoveAllocation}>
+                    Remove
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setAllocationDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={handleSaveAllocation}>
+                    Save
+                  </Button>
+                </div>
               </DialogFooter>
             </DialogContent>
           </Dialog>
