@@ -163,6 +163,12 @@ export default function Report() {
       setIdLoading(false);
       return;
     }
+    // In dev, Netlify Functions aren't available — skip the fetch
+    if (import.meta.env.DEV) {
+      setIdError(true);
+      setIdLoading(false);
+      return;
+    }
     setIdLoading(true);
     setIdError(false);
     fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
@@ -224,9 +230,13 @@ export default function Report() {
   if (error || !snapshot) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold text-primary mb-2">Invalid or expired link</h1>
+        <h1 className="text-2xl font-bold text-primary mb-2">
+          {import.meta.env.DEV && id ? "Not available in dev" : "Invalid or expired link"}
+        </h1>
         <p className="text-muted-foreground text-center max-w-sm mb-6">
-          This report link is invalid or has expired. Ask for a new link.
+          {import.meta.env.DEV && id
+            ? "Permalink links require the production server. Use the Share dialog to generate a local test link instead."
+            : "This report link is invalid or has expired. Ask for a new link."}
         </p>
         <Button variant="outline" asChild>
           <Link to="/">Open Practice Mate</Link>

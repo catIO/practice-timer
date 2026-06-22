@@ -98,10 +98,10 @@ export function decodeReportToken(token: string): ReportSnapshot | null {
 }
 
 export async function shareReport(snapshot: ReportSnapshot, id?: string): Promise<string> {
-  // In dev, Blobs often unavailable. Use legacy URL to avoid 500.
-  // if (import.meta.env.DEV) {
-  //   return getReportShareUrl(snapshot);
-  // }
+  // In dev, Netlify Functions/Blobs are unavailable — use encoded URL directly.
+  if (import.meta.env.DEV) {
+    return getReportShareUrl(snapshot);
+  }
 
   const response = await fetch("/.netlify/functions/share-report", {
     method: "POST",
