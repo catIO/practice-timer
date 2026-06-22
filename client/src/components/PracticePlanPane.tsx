@@ -54,7 +54,7 @@ import { LinkPopover } from "./LinkPopover";
 import { Link } from "react-router-dom";
 import { formatTime } from "@/lib/formatTime";
 import { useTimerStore } from "@/stores/timerStore";
-import { getPiecePracticedSeconds } from "@/lib/practiceLog";
+import { getPiecePracticedSeconds, getLast7DaysSummary } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
 import "@/assets/headerBlur.css";
 import {
@@ -1646,7 +1646,7 @@ export function PracticePlanPane({
   const handlePublishUpdate = useCallback(async () => {
     setIsPublishing(true);
     try {
-      const snapshot = createReportSnapshot(items);
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items));
       // If we already have a permalinkId, update it. Otherwise create a new one.
       const url = await shareReport(snapshot, permalinkId || undefined);
 
@@ -1678,7 +1678,7 @@ export function PracticePlanPane({
   const handleCreateVersion = useCallback(async () => {
     setIsSharing(true);
     try {
-      const snapshot = createReportSnapshot(items);
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items));
       // Create a new unique version by not passing an ID
       const url = await shareReport(snapshot);
       setShareUrl(url);

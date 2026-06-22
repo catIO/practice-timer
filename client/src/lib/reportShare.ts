@@ -12,11 +12,25 @@ export interface ReportSnapshotItem {
   children: ReportSnapshotItem[];
 }
 
+export interface ReportLogEntry {
+  itemId: string;
+  itemName: string;
+  seconds: number;
+}
+
+export interface ReportLogSummary {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  totalSeconds: number;
+  pieces: ReportLogEntry[];
+}
+
 export interface ReportSnapshot {
   v: number;
   date: string; // ISO
   title?: string;
   items: ReportSnapshotItem[];
+  logSummary?: ReportLogSummary;
 }
 
 function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
@@ -28,12 +42,13 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
   };
 }
 
-export function createReportSnapshot(items: PracticePlanItem[], title?: string): ReportSnapshot {
+export function createReportSnapshot(items: PracticePlanItem[], title?: string, logSummary?: ReportLogSummary): ReportSnapshot {
   return {
     v: 1,
     date: new Date().toISOString(),
     title: title ?? "Progress Report",
     items: items.map(itemToSnapshot),
+    logSummary,
   };
 }
 

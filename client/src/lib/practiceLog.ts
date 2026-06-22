@@ -352,3 +352,48 @@ export function getPiecePracticedSeconds(
   
   return totalSeconds;
 }
+
+export interface Last7DaysSummary {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  totalSeconds: number;
+  pieces: Array<{ itemId: string; itemName: string; seconds: number }>;
+}
+
+export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSummary {
+  const endDate = getLocalYMD();
+  const endD = new Date(endDate + 'T12:00:00');
+  const startD = new Date(endD);
+  startD.setDate(startD.getDate() - 6);
+  const startDate = getLocalYMD(startD);
+
+  const pieceMap: Record<string, { itemName: string; seconds: number }> = {};
+  const log = getDetailedPracticeLog();
+  const overallLog = getPracticeLog();
+
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+
+  let totalSeconds = 0;
+  for (const [dateStr, secs] of Object.entries(overallLog)) {
+    const d = new Date(dateStr + 'T12:00:00');
+    if (d >= start && d <= end) totalSeconds += secs;
+  }
+
+  for (const [dateStr, pieces] of Object.entries(log)) {
+    const d = new Date(dateStr + 'T12:00:00');
+    if (d >= start && d <= end) {
+      for (const [itemId, entry] of Object.entries(pieces)) {
+        if (!pieceMap[itemId]) pieceMap[itemId] = { itemName: entry.itemName, seconds: 0 };
+        pieceMap[itemId].seconds += entry.seconds;
+      }
+    }
+  }
+
+  const pieces = Object.entries(pieceMap)
+    .map(([itemId, { itemName, seconds }]) => ({ itemId, itemName, seconds }))
+    .sort((a, b) => b.seconds - a.seconds);
+
+  return { startDate, endDate, totalSeconds, pieces };
+}
+

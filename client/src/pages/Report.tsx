@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
-import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem } from "@/lib/reportShare";
+import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type ReportLogSummary } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,6 +95,48 @@ function ReportItem({
         </div>
       )}
     </div>
+  );
+}
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m} min`;
+}
+
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function LogSummarySection({ summary }: { summary: ReportLogSummary }) {
+  const practiced = summary.pieces.filter((p) => p.seconds > 0);
+  return (
+    <section className="border-t border-border/40 px-8 py-6">
+      <h2 className="text-lg font-semibold text-foreground mb-1">
+        Practice summary
+      </h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        {formatShortDate(summary.startDate)} – {formatShortDate(summary.endDate)} (last 7 days)
+      </p>
+      <div className="rounded-lg border border-border/50 bg-muted/30 px-4 py-3 mb-4 inline-flex gap-2 items-baseline">
+        <span className="text-2xl font-bold text-primary">{formatDuration(summary.totalSeconds)}</span>
+        <span className="text-sm text-muted-foreground">total</span>
+      </div>
+      {practiced.length > 0 && (
+        <div className="space-y-2">
+          {practiced.map((piece) => (
+            <div key={piece.itemId} className="flex items-center justify-between text-sm">
+              <span className="text-foreground truncate max-w-[70%]">{piece.itemName}</span>
+              <span className="text-muted-foreground font-mono tabular-nums shrink-0 ml-2">
+                {formatDuration(piece.seconds)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -223,6 +265,9 @@ export default function Report() {
               })}
             </div>
           </main>
+          {snapshot.logSummary && (
+            <LogSummarySection summary={snapshot.logSummary} />
+          )}
         </div>
       </div>
     </div>
