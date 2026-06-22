@@ -25,6 +25,7 @@ interface TimerState {
   activePieceName: string | null;
   pieceTimeRemaining: number;
   pieceTotalTime: number;
+  isPiecePaused: boolean;
   
   // Settings
   settings: SettingsType;
@@ -46,6 +47,7 @@ interface TimerState {
   setActivePiece: (id: string | null, name: string | null) => void;
   selectPiece: (id: string, name: string, allocatedMinutes: number, period: 'day' | 'week') => void;
   clearPiece: () => void;
+  togglePausePiece: () => void;
   
   // Complex actions
   startTimer: () => Promise<void>;
@@ -190,7 +192,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
               if (diff > 0) {
                 if (oldState.activePieceId && oldState.activePieceName) {
                   addDetailedPracticeTime(oldState.activePieceId, oldState.activePieceName, diff);
-                  const nextPieceTime = Math.max(0, oldState.pieceTimeRemaining - diff);
+                  const nextPieceTime = oldState.isPiecePaused ? oldState.pieceTimeRemaining : Math.max(0, oldState.pieceTimeRemaining - diff);
                   set({ pieceTimeRemaining: nextPieceTime });
                   if (oldState.pieceTimeRemaining > 0 && nextPieceTime === 0) {
                     if (typeof window !== 'undefined') {
@@ -484,6 +486,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
     activePieceName: null,
     pieceTimeRemaining: 0,
     pieceTotalTime: 0,
+    isPiecePaused: false,
 
     // Simple setters
     setTimeRemaining: (time) => {
@@ -493,7 +496,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
         if (diff > 0) {
           if (state.activePieceId && state.activePieceName) {
             addDetailedPracticeTime(state.activePieceId, state.activePieceName, diff);
-            const nextPieceTime = Math.max(0, state.pieceTimeRemaining - diff);
+            const nextPieceTime = state.isPiecePaused ? state.pieceTimeRemaining : Math.max(0, state.pieceTimeRemaining - diff);
             set({ pieceTimeRemaining: nextPieceTime });
             if (state.pieceTimeRemaining > 0 && nextPieceTime === 0) {
               if (typeof window !== 'undefined') {
@@ -754,7 +757,8 @@ export const useTimerStore = create<TimerState>((set, get) => {
         activePieceId: id,
         activePieceName: name,
         pieceTimeRemaining: remaining,
-        pieceTotalTime: targetSeconds
+        pieceTotalTime: targetSeconds,
+        isPiecePaused: false
       });
     },
 
@@ -763,8 +767,13 @@ export const useTimerStore = create<TimerState>((set, get) => {
         activePieceId: null,
         activePieceName: null,
         pieceTimeRemaining: 0,
-        pieceTotalTime: 0
+        pieceTotalTime: 0,
+        isPiecePaused: false
       });
+    },
+
+    togglePausePiece: () => {
+      set((state) => ({ isPiecePaused: !state.isPiecePaused }));
     },
 
     initializeWorker

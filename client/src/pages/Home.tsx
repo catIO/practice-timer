@@ -25,6 +25,8 @@ export default function Home() {
   const activePieceName = useTimerStore((state) => state.activePieceName);
   const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
   const clearPiece = useTimerStore((state) => state.clearPiece);
+  const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
+  const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
 
   const formatSeconds = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -314,7 +316,7 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     className="text-primary hover:text-primary/80"
-                    onClick={() => setPlanPaneOpen(true)}
+                    onClick={() => navigate("/practice-plan")}
                     aria-label="Practice plan"
                     title="Practice plan"
                   >
@@ -359,16 +361,25 @@ export default function Home() {
                           <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName}>{activePieceName}</span>
                           <span className="text-lg font-bold text-primary font-mono mt-0.5">{formatSeconds(pieceTimeRemaining)}</span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground font-semibold"
-                          onClick={() => {
-                            clearPiece();
-                          }}
-                        >
-                          Clear
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={togglePausePiece}
+                            title={isPiecePaused ? "Resume piece timer" : "Pause piece timer"}
+                          >
+                            <span className="material-icons text-sm">{isPiecePaused ? "play_arrow" : "pause"}</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground font-semibold"
+                            onClick={() => { clearPiece(); }}
+                          >
+                            Clear
+                          </Button>
+                        </div>
                       </div>
                     )}
 

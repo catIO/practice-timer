@@ -9,6 +9,7 @@ import Home from '@/pages/Home';
 import Settings from '@/pages/Settings';
 import PracticeLog from '@/pages/PracticeLog';
 import Report from '@/pages/Report';
+import PracticePlan from '@/pages/PracticePlan';
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ function App() {
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/practice-plan" element={<PracticePlan />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/practice-log" element={<PracticeLog />} />
             <Route path="/report" element={<Report />} />

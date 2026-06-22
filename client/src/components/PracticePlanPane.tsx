@@ -47,9 +47,11 @@ import {
 } from "@/lib/reportShare";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { playSound, resumeAudioContext } from "@/lib/soundEffects";
 import { TextWithLinks } from "./TextWithLinks";
 import { InlineToolbar, type InlineToolbarProps } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
+import { Link } from "react-router-dom";
 import { formatTime } from "@/lib/formatTime";
 import { useTimerStore } from "@/stores/timerStore";
 import { getPiecePracticedSeconds } from "@/lib/practiceLog";
@@ -259,6 +261,12 @@ function PlanItem({
   onOpenAllocationDialog,
   onPlayPiece,
 }: PlanItemProps) {
+  const activePieceId = useTimerStore((state) => state.activePieceId);
+  const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
+  const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
+  const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
+  const clearPiece = useTimerStore((state) => state.clearPiece);
+  const isActivePiece = item.id === activePieceId;
   const {
     attributes,
     listeners,
@@ -894,7 +902,7 @@ function PlanItem({
                     try {
                       const url = new URL(pastedText);
                       if (url.protocol === "http:" || url.protocol === "https:") isUrl = true;
-                    } catch {}
+                    } catch { }
                     if (isUrl) {
                       const start = e.currentTarget.selectionStart;
                       const end = e.currentTarget.selectionEnd;
@@ -924,67 +932,67 @@ function PlanItem({
                   ref={(el) => { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el; }}
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                onSelect={(e) => {
-                  const { selectionStart, selectionEnd } = e.currentTarget;
-                  if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
-                    setToolbarSelection({ start: selectionStart, end: selectionEnd });
-                  } else {
-                    setToolbarSelection(null);
-                  }
-                }}
-                onBlur={() => {
-                  if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                  saveTimeoutRef.current = setTimeout(() => {
-                    saveTimeoutRef.current = null;
-                    saveEdit();
-                  }, 150);
-                }}
-                onKeyDown={handleInputKeyDown}
-                onPaste={(e) => {
-                  const rawText = e.clipboardData.getData("text");
-                  const pastedText = rawText.trim();
-
-                  let isUrl = false;
-                  try {
-                    // Try constructing a URL. We require a protocol to be considered a "link paste" event.
-                    // Otherwise "Apple" would be valid (relative URL).
-                    const url = new URL(pastedText);
-                    if (url.protocol === "http:" || url.protocol === "https:") {
-                      isUrl = true;
+                  onSelect={(e) => {
+                    const { selectionStart, selectionEnd } = e.currentTarget;
+                    if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
+                      setToolbarSelection({ start: selectionStart, end: selectionEnd });
+                    } else {
+                      setToolbarSelection(null);
                     }
-                  } catch (e) {
-                    // Not a valid URL
-                  }
+                  }}
+                  onBlur={() => {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    saveTimeoutRef.current = setTimeout(() => {
+                      saveTimeoutRef.current = null;
+                      saveEdit();
+                    }, 150);
+                  }}
+                  onKeyDown={handleInputKeyDown}
+                  onPaste={(e) => {
+                    const rawText = e.clipboardData.getData("text");
+                    const pastedText = rawText.trim();
 
-                  if (isUrl) {
-                    // Check if we have a selection
-                    const start = e.currentTarget.selectionStart;
-                    const end = e.currentTarget.selectionEnd;
-                    if (start !== null && end !== null && start !== end) {
-                      e.preventDefault();
-                      const selectedText = editValue.slice(start, end);
-                      const newText = editValue.slice(0, start) + `[${selectedText}](${pastedText})` + editValue.slice(end);
-                      setEditValue(newText);
-                      onUpdateText(item.id, newText);
-
-                      // Restore cursor after the link
-                      const newCursorPos = start + selectedText.length + pastedText.length + 4; // [ + ] + ( + )
-                      requestAnimationFrame(() => {
-                        if (inputRef.current) {
-                          inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
-                        }
-                      });
+                    let isUrl = false;
+                    try {
+                      // Try constructing a URL. We require a protocol to be considered a "link paste" event.
+                      // Otherwise "Apple" would be valid (relative URL).
+                      const url = new URL(pastedText);
+                      if (url.protocol === "http:" || url.protocol === "https:") {
+                        isUrl = true;
+                      }
+                    } catch (e) {
+                      // Not a valid URL
                     }
-                  }
-                }}
-                className={cn(
-                  "block min-h-[1.5rem] leading-[1.25rem] h-auto py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent",
-                  blockType === "heading1" && "text-xl font-semibold",
-                  blockType === "heading2" && "text-lg font-semibold",
-                  blockType === "heading3" && "text-base font-semibold"
-                )}
-                autoFocus
-              />
+
+                    if (isUrl) {
+                      // Check if we have a selection
+                      const start = e.currentTarget.selectionStart;
+                      const end = e.currentTarget.selectionEnd;
+                      if (start !== null && end !== null && start !== end) {
+                        e.preventDefault();
+                        const selectedText = editValue.slice(start, end);
+                        const newText = editValue.slice(0, start) + `[${selectedText}](${pastedText})` + editValue.slice(end);
+                        setEditValue(newText);
+                        onUpdateText(item.id, newText);
+
+                        // Restore cursor after the link
+                        const newCursorPos = start + selectedText.length + pastedText.length + 4; // [ + ] + ( + )
+                        requestAnimationFrame(() => {
+                          if (inputRef.current) {
+                            inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                          }
+                        });
+                      }
+                    }
+                  }}
+                  className={cn(
+                    "block min-h-[1.5rem] leading-[1.25rem] h-auto py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent",
+                    blockType === "heading1" && "text-xl font-semibold",
+                    blockType === "heading2" && "text-lg font-semibold",
+                    blockType === "heading3" && "text-base font-semibold"
+                  )}
+                  autoFocus
+                />
               )}
               <InlineToolbar
                 anchorRef={inputRef}
@@ -1069,7 +1077,7 @@ function PlanItem({
             </div>
           ) : (
             <span
-                className={cn(
+              className={cn(
                 "cursor-text text-sm block min-h-[1.5rem] leading-[1.25rem] select-text outline-none border-0",
                 blockType === "text" && "whitespace-pre-wrap",
                 !isHeader && blockType !== "text" && "flex items-center",
@@ -1085,40 +1093,70 @@ function PlanItem({
             </span>
           )}
         </div>
-        {!editing && !isHeader && blockType !== "divider" && (
+        {!editing && !isHeader && blockType === "todo" && (
           <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-            {item.allocatedTime ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded bg-muted/40 border border-border/40"
-                onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
-                title="Edit allocation"
-              >
-                {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
-              </Button>
+            {isActivePiece ? (
+              <>
+                <span className={cn(
+                  "font-mono text-sm font-semibold tabular-nums px-1.5 py-0.5 rounded bg-muted/40 border border-amber-500/40",
+                  pieceTimeRemaining < 60 ? "text-red-400" : "text-amber-300"
+                )}>
+                  {formatTime(pieceTimeRemaining)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={togglePausePiece}
+                  title={isPiecePaused ? 'Resume' : 'Pause'}
+                >
+                  <span className="material-icons text-sm">{isPiecePaused ? 'play_arrow' : 'pause'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={clearPiece}
+                  title="Stop"
+                >
+                  <span className="material-icons text-sm">close</span>
+                </Button>
+              </>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                onClick={() => onOpenAllocationDialog(item.id, item.text, undefined, 'day')}
-                title="Add time allocation"
-              >
-                <span className="material-icons text-sm">schedule</span>
-              </Button>
-            )}
-
-            {item.allocatedTime && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-primary hover:text-primary/80"
-                onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
-                title="Start countdown"
-              >
-                <span className="material-icons text-sm">play_arrow</span>
-              </Button>
+              <>
+                {item.allocatedTime ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded bg-muted/40 border border-border/40"
+                    onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
+                    title="Edit allocation"
+                  >
+                    {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground border border-border/60 rounded"
+                    onClick={() => onOpenAllocationDialog(item.id, item.text, undefined, 'day')}
+                    title="Add time allocation"
+                  >
+                    <span className="material-icons text-sm">schedule</span>
+                  </Button>
+                )}
+                {item.allocatedTime && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-primary hover:text-primary/80"
+                    onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
+                    title="Start countdown"
+                  >
+                    <span className="material-icons text-sm">play_arrow</span>
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1265,6 +1303,12 @@ export function PracticePlanPane({
   }, [undoSnapshot]);
 
   const selectPiece = useTimerStore((state) => state.selectPiece);
+  const activePieceName = useTimerStore((state) => state.activePieceName);
+  const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
+  const pieceTotalTime = useTimerStore((state) => state.pieceTotalTime);
+  const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
+  const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
+  const clearPiece = useTimerStore((state) => state.clearPiece);
   const [allocationDialogOpen, setAllocationDialogOpen] = useState(false);
   const [allocationItemId, setAllocationItemId] = useState<string | null>(null);
   const [allocationItemText, setAllocationItemText] = useState("");
@@ -1299,21 +1343,19 @@ export function PracticePlanPane({
   }, [allocationItemId, applyChange]);
 
   const handlePlayPiece = useCallback((id: string, name: string, minutes: number, period: 'day' | 'week') => {
-    onOpenChange(false);
-    
     // Select the piece independently
     selectPiece(id, name, minutes, period);
-    
+
     // If the main session is not running, start it
     if (!isRunning && onStart) {
       onStart();
     }
-    
+
     toast({
       title: "Piece timer active",
       description: `Practicing: ${name}`,
     });
-  }, [selectPiece, isRunning, onStart, onOpenChange, toast]);
+  }, [selectPiece, isRunning, onStart, toast]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1331,6 +1373,33 @@ export function PracticePlanPane({
       setItems(getPracticePlan());
     }
   }, [open]);
+
+  useEffect(() => {
+    const handlePieceComplete = async (event: Event) => {
+      const { name } = (event as CustomEvent).detail;
+      const store = useTimerStore.getState();
+      if (store.settings.soundEnabled) {
+        try {
+          await resumeAudioContext();
+          let volume = store.settings.volume;
+          if (volume <= 1) volume = volume * 100;
+          volume = Math.min(100, Math.max(0, volume));
+          if (volume > 0) {
+            await playSound('end', 1, volume, store.settings.soundType as any);
+          }
+        } catch (e) {
+          console.error('Error playing piece completion sound:', e);
+        }
+      }
+      toast({
+        title: "Piece timer complete",
+        description: `You have completed your allocated time for ${name}.`,
+      });
+    };
+
+    window.addEventListener('piece-timer-complete', handlePieceComplete);
+    return () => window.removeEventListener('piece-timer-complete', handlePieceComplete);
+  }, [toast]);
 
   const handleRowClick = useCallback(
     (id: string, e: React.MouseEvent<HTMLDivElement>) => {
@@ -1580,7 +1649,7 @@ export function PracticePlanPane({
       const snapshot = createReportSnapshot(items);
       // If we already have a permalinkId, update it. Otherwise create a new one.
       const url = await shareReport(snapshot, permalinkId || undefined);
-      
+
       // If it was a new ID, save it
       if (!permalinkId) {
         const newId = url.split('/').pop() || "";
@@ -1590,7 +1659,7 @@ export function PracticePlanPane({
       } else {
         setShareUrl(url);
       }
-      
+
       toast({
         title: "Link Updated",
         description: "Your practice plan has been published to the permalink.",
@@ -1732,57 +1801,26 @@ export function PracticePlanPane({
     <div className="text-foreground font-sans min-h-screen w-full">
       <div className="max-w-2xl mx-auto pt-8 pb-32 px-4 sm:px-0">
         <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
-          <header className="sticky top-0 z-20 p-4 flex items-center justify-between overflow-hidden border-b border-border/40 bg-background/50 backdrop-blur-md rounded-t-2xl">
+          <header className="sticky top-0 z-20 p-4 flex items-center justify-between border-b border-border/40 bg-background/50 backdrop-blur-md rounded-t-2xl">
             <div className="relative z-10 flex items-center justify-between w-full">
               <div className="flex items-center gap-4">
                 <h2 className="text-2xl font-bold text-foreground">Practice Plan</h2>
-                {typeof timeRemaining === 'number' && (
-                  <div className="flex items-center gap-2">
-                    {isPracticeComplete ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-primary hover:text-primary/80"
-                        onClick={onStartNewSession}
-                        title="Start New Session"
-                      >
-                        <span className="material-icons text-xl">refresh</span>
-                      </Button>
-                    ) : (
-                      <>
-                        <div className={cn(
-                          "font-mono text-xl font-medium tabular-nums",
-                          mode === 'break' ? "text-green-500" : (timeRemaining < 60 ? "text-red-500" : "text-primary/80")
-                        )}>
-                          {formatTime(timeRemaining)}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80"
-                          onClick={isRunning ? onPause : onStart}
-                        >
-                          <span className="material-icons text-xl">
-                            {isRunning ? 'pause' : 'play_arrow'}
-                          </span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80"
-                          onClick={onSkip}
-                          title="Skip to next session"
-                        >
-                          <span className="material-icons text-xl">
-                            skip_next
-                          </span>
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
               <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                        <Link to="/practice-log">
+                          <span className="material-icons text-muted-foreground">history</span>
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Practice Log</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1918,7 +1956,7 @@ export function PracticePlanPane({
                   Anyone with this link can view your progress.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-6 py-4">
                 {/* Permalink Section */}
                 <div className="space-y-4">
@@ -1949,8 +1987,8 @@ export function PracticePlanPane({
                       </>
                     )}
                   </div>
-                  <Button 
-                    className="w-full gap-2 h-9" 
+                  <Button
+                    className="w-full gap-2 h-9"
                     onClick={handlePublishUpdate}
                     disabled={isPublishing}
                   >
@@ -1971,9 +2009,9 @@ export function PracticePlanPane({
                     <h4 className="text-sm font-semibold text-foreground">Snapshot version</h4>
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Static backup</span>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full gap-2 h-9 border-dashed" 
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 h-9 border-dashed"
                     onClick={handleCreateVersion}
                     disabled={isSharing}
                   >
@@ -1984,7 +2022,7 @@ export function PracticePlanPane({
                   </Button>
                   {shareUrl && !shareUrl.includes(permalinkId || "___") && (
                     <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                       <Input
+                      <Input
                         value={shareUrl}
                         readOnly
                         className="flex-1 h-8 bg-muted/30 text-[11px] font-mono"
@@ -2074,6 +2112,65 @@ export function PracticePlanPane({
           </Dialog>
         </div>
       </div>
+
+      {/* Sticky bottom timer bar */}
+      {typeof timeRemaining === 'number' && !isPracticeComplete && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center px-4 pb-4 pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-background/80 backdrop-blur-md shadow-2xl overflow-hidden">
+            {/* Session timer row */}
+            {typeof timeRemaining === 'number' && !isPracticeComplete && (
+              <>
+                {/* Progress bar */}
+                <div className="h-1 w-full bg-muted">
+                  <div
+                    className={cn(
+                      "h-full transition-all duration-1000 ease-linear",
+                      mode === 'break' ? "bg-green-500" : "bg-red-500"
+                    )}
+                    style={{ width: `${totalTime ? Math.max(0, (timeRemaining / totalTime) * 100) : 0}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className={cn(
+                      "text-[10px] uppercase tracking-widest font-bold",
+                      mode === 'break' ? "text-green-500" : "text-primary"
+                    )}>
+                      {mode === 'break' ? 'Break' : 'Work'}
+                    </span>
+                    <span className={cn(
+                      "font-mono text-3xl font-semibold tabular-nums",
+                      mode === 'break' ? "text-green-400" : (timeRemaining < 60 ? "text-red-400" : "text-foreground")
+                    )}>
+                      {formatTime(timeRemaining)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-foreground hover:text-foreground/80"
+                      onClick={isRunning ? onPause : onStart}
+                      title={isRunning ? 'Pause' : 'Play'}
+                    >
+                      <span className="material-icons">{isRunning ? 'pause' : 'play_arrow'}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                      onClick={onSkip}
+                      title="Skip"
+                    >
+                      <span className="material-icons">skip_next</span>
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
