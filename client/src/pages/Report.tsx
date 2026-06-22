@@ -113,23 +113,25 @@ function formatShortDate(dateStr: string): string {
 function LogSummarySection({ summary }: { summary: ReportLogSummary }) {
   const practiced = summary.pieces.filter((p) => p.seconds > 0);
   return (
-    <section className="border-t border-border/40 px-8 py-6">
-      <h2 className="text-lg font-semibold text-foreground mb-1">
-        Practice summary
-      </h2>
-      <p className="text-xs text-muted-foreground mb-4">
-        {formatShortDate(summary.startDate)} – {formatShortDate(summary.endDate)} (last 7 days)
-      </p>
-      <div className="rounded-lg border border-border/50 bg-muted/30 px-4 py-3 mb-4 inline-flex gap-2 items-baseline">
-        <span className="text-2xl font-bold text-primary">{formatDuration(summary.totalSeconds)}</span>
-        <span className="text-sm text-muted-foreground">total</span>
+    <section className="px-6 py-6 border-b border-border/40 bg-primary/5">
+      <div className="flex items-baseline justify-between mb-4">
+        <h2 className="text-base font-semibold text-foreground uppercase tracking-wider">
+          Practice summary
+        </h2>
+        <span className="text-xs text-muted-foreground">
+          {formatShortDate(summary.startDate)} – {formatShortDate(summary.endDate)}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-2 mb-5">
+        <span className="text-4xl font-bold text-primary tabular-nums">{formatDuration(summary.totalSeconds)}</span>
+        <span className="text-sm text-muted-foreground">total in last 7 days</span>
       </div>
       {practiced.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {practiced.map((piece) => (
-            <div key={piece.itemId} className="flex items-center justify-between text-sm">
-              <span className="text-foreground truncate max-w-[70%]">{piece.itemName}</span>
-              <span className="text-muted-foreground font-mono tabular-nums shrink-0 ml-2">
+            <div key={piece.itemId} className="flex items-center justify-between">
+              <span className="text-sm text-foreground truncate max-w-[65%]">{piece.itemName}</span>
+              <span className="text-sm font-semibold text-primary tabular-nums shrink-0 ml-2">
                 {formatDuration(piece.seconds)}
               </span>
             </div>
@@ -263,10 +265,13 @@ export default function Report() {
         <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
           <header className="border-b border-border/40 px-6 py-6 bg-background/20 backdrop-blur-md rounded-t-2xl">
             <h1 className="text-2xl font-bold text-foreground">
-              {snapshot.title ?? "Practice plan progress"}
+              {snapshot.title ?? "Practice Plan & Progress Report"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
           </header>
+          {snapshot.logSummary && (
+            <LogSummarySection summary={snapshot.logSummary} />
+          )}
           <main className="p-8 w-full">
             <div className="space-y-1">
               {snapshot.items.map((item, i, arr) => {
@@ -275,9 +280,6 @@ export default function Report() {
               })}
             </div>
           </main>
-          {snapshot.logSummary && (
-            <LogSummarySection summary={snapshot.logSummary} />
-          )}
         </div>
       </div>
     </div>
