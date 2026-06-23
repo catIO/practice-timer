@@ -79,6 +79,10 @@ export function TextWithLinks({
     parts.push({ type: "plain", text: text.slice(lastIndex) });
   }
 
+  // Only show a plain URL as a RichLink card when it is the sole content in the block.
+  // When mixed with surrounding text the card style breaks inline text flow.
+  const isUrlOnlyBlock = parts.length === 1;
+
   return (
     <>
       {parts.map((part, i) => {
@@ -90,7 +94,7 @@ export function TextWithLinks({
               onEditLink={onEditLink}
               onUpdateLink={onUpdateLink}
               onRemoveLink={onRemoveLink}
-              rich={part.text === part.url}
+              rich={part.text === part.url && isUrlOnlyBlock}
               eagerRichPreview={richLinkVariant === "report"}
             />
           );

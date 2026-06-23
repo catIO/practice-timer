@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { SettingsType, DEFAULT_SETTINGS } from '@/lib/timerService';
 import { getSettings } from '@/lib/localStorage';
 import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds } from '@/lib/practiceLog';
+import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
@@ -195,6 +196,10 @@ export const useTimerStore = create<TimerState>((set, get) => {
                     const nextPieceTime = oldState.isPiecePaused ? oldState.pieceTimeRemaining : Math.max(0, oldState.pieceTimeRemaining - diff);
                     set({ pieceTimeRemaining: nextPieceTime });
                     if (oldState.pieceTimeRemaining > 0 && nextPieceTime === 0) {
+                      // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
+                      if (oldState.activePieceId) {
+                        practicePlanApi.checkItem(getPracticePlan(), oldState.activePieceId);
+                      }
                       if (typeof window !== 'undefined') {
                         window.dispatchEvent(new CustomEvent('piece-timer-complete', {
                           detail: { name: oldState.activePieceName, id: oldState.activePieceId }
@@ -499,6 +504,10 @@ export const useTimerStore = create<TimerState>((set, get) => {
             const nextPieceTime = state.isPiecePaused ? state.pieceTimeRemaining : Math.max(0, state.pieceTimeRemaining - diff);
             set({ pieceTimeRemaining: nextPieceTime });
             if (state.pieceTimeRemaining > 0 && nextPieceTime === 0) {
+              // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
+              if (state.activePieceId) {
+                practicePlanApi.checkItem(getPracticePlan(), state.activePieceId);
+              }
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('piece-timer-complete', {
                   detail: { name: state.activePieceName, id: state.activePieceId }
