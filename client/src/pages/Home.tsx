@@ -249,6 +249,18 @@ export default function Home() {
     pauseTimer();
   }, [pauseTimer]);
 
+  // Handle piece timer play/pause — also starts main timer if it's not running
+  const handlePiecePlayPause = useCallback(async () => {
+    if (!isRunning) {
+      await handleStart();
+      if (isPiecePaused) {
+        togglePausePiece();
+      }
+    } else {
+      togglePausePiece();
+    }
+  }, [isRunning, isPiecePaused, handleStart, togglePausePiece]);
+
   // Handle settings navigation
   const handleSettingsClick = useCallback(() => {
     if (isRunning) {
@@ -366,10 +378,10 @@ export default function Home() {
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            onClick={togglePausePiece}
-                            title={isPiecePaused ? "Resume piece timer" : "Pause piece timer"}
+                            onClick={handlePiecePlayPause}
+                            title={(isPiecePaused || !isRunning) ? "Resume piece timer" : "Pause piece timer"}
                           >
-                            <span className="material-icons text-sm">{isPiecePaused ? "play_arrow" : "pause"}</span>
+                            <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? "play_arrow" : "pause"}</span>
                           </Button>
                           <Button
                             variant="ghost"

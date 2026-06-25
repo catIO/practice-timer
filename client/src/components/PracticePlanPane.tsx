@@ -264,7 +264,9 @@ function PlanItem({
   const activePieceId = useTimerStore((state) => state.activePieceId);
   const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
   const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
+  const isRunning = useTimerStore((state) => state.isRunning);
   const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
+  const startTimer = useTimerStore((state) => state.startTimer);
   const clearPiece = useTimerStore((state) => state.clearPiece);
   const isActivePiece = item.id === activePieceId;
   const {
@@ -1107,10 +1109,17 @@ function PlanItem({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  onClick={togglePausePiece}
-                  title={isPiecePaused ? 'Resume' : 'Pause'}
+                  onClick={() => {
+                    if (!isRunning) {
+                      startTimer();
+                      if (isPiecePaused) togglePausePiece();
+                    } else {
+                      togglePausePiece();
+                    }
+                  }}
+                  title={(isPiecePaused || !isRunning) ? 'Resume' : 'Pause'}
                 >
-                  <span className="material-icons text-sm">{isPiecePaused ? 'play_arrow' : 'pause'}</span>
+                  <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? 'play_arrow' : 'pause'}</span>
                 </Button>
                 <Button
                   variant="ghost"

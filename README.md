@@ -11,6 +11,7 @@ A practice mate application built with React, TypeScript, and Vite.
 - **PWA Support**: Install as a Progressive Web App
 - **iOS Background Support**: Enhanced background functionality for iOS devices
 - **Dark Mode**: Automatic theme switching
+- **Prevent lock screene**: Prevent lock sceren when the timer is running
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 
 ## iOS Background Functionality
