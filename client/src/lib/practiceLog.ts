@@ -209,10 +209,10 @@ export function saveDetailedPracticeLog(log: DetailedPracticeLog): void {
 
 export function addDetailedPracticeTime(itemId: string, itemName: string, seconds: number): void {
   const date = getLocalYMD();
-  
+
   // 1. Log overall time
   addPracticeTime(seconds);
-  
+
   // 2. Log detailed time
   const log = getDetailedPracticeLog();
   if (!log[date]) {
@@ -252,11 +252,11 @@ export function getPieceTimeForRange(
 ): PieceTimeSummary[] {
   const log = getDetailedPracticeLog();
   const summaryMap: Record<string, { itemName: string; seconds: number }> = {};
-  
+
   // Parse ranges
   const start = new Date(startDateStr + 'T00:00:00');
   const end = new Date(endDateStr + 'T23:59:59');
-  
+
   // Gather actual seconds from logs
   for (const [dateStr, pieces] of Object.entries(log)) {
     const d = new Date(dateStr + 'T12:00:00');
@@ -269,10 +269,10 @@ export function getPieceTimeForRange(
       }
     }
   }
-  
+
   const flatItems = flattenPlan(planItems);
   const result: PieceTimeSummary[] = [];
-  
+
   // Add entries that were practiced
   for (const [itemId, summary] of Object.entries(summaryMap)) {
     const planItem = flatItems.find(item => item.id === itemId);
@@ -284,7 +284,7 @@ export function getPieceTimeForRange(
       allocationPeriod: planItem?.allocationPeriod
     });
   }
-  
+
   // Include items that have allocations but weren't practiced
   for (const planItem of flatItems) {
     if (planItem.allocatedTime !== undefined && !summaryMap[planItem.id]) {
@@ -304,7 +304,7 @@ export function getPieceTimeForRange(
       }
     }
   }
-  
+
   return result;
 }
 
@@ -333,7 +333,7 @@ export function getPiecePracticedSeconds(
 ): number {
   const log = getDetailedPracticeLog();
   let totalSeconds = 0;
-  
+
   if (period === 'day') {
     const today = getLocalYMD();
     return log[today]?.[itemId]?.seconds ?? 0;
@@ -341,7 +341,7 @@ export function getPiecePracticedSeconds(
     const { start, end } = getThisWeekRange(weekStartsOn);
     const startDate = new Date(start + 'T00:00:00');
     const endDate = new Date(end + 'T23:59:59');
-    
+
     for (const [dateStr, pieces] of Object.entries(log)) {
       const d = new Date(dateStr + 'T12:00:00');
       if (d >= startDate && d <= endDate) {
@@ -349,7 +349,7 @@ export function getPiecePracticedSeconds(
       }
     }
   }
-  
+
   return totalSeconds;
 }
 
@@ -361,7 +361,11 @@ export interface Last7DaysSummary {
 }
 
 export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSummary {
-  const endDate = getLocalYMD();
+  // Use the 7 most recent *complete* days (yesterday and the 6 days before it)
+  const todayD = new Date();
+  const yesterdayD = new Date(todayD);
+  yesterdayD.setDate(todayD.getDate() - 1);
+  const endDate = getLocalYMD(yesterdayD);
   const endD = new Date(endDate + 'T12:00:00');
   const startD = new Date(endD);
   startD.setDate(startD.getDate() - 6);

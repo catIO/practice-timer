@@ -28,6 +28,7 @@ function ReportItem({
     item.blockType === "heading2" ||
     item.blockType === "heading3";
   const isTodo = item.blockType === "todo";
+  const isSegment = item.blockType === "segment";
 
   const paddingLeft = depth * 16;
 
@@ -65,6 +66,42 @@ function ReportItem({
           return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
         })}
       </>
+    );
+  }
+
+  if (isSegment) {
+    return (
+      <div className="py-1" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
+        <div className="rounded-lg border border-muted/40 bg-muted/10 px-3 py-2 space-y-1">
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: "1rem", lineHeight: 1 }}>
+              {item.checked ? "✅" : "⏱️"}
+            </span>
+            <span
+              style={{ fontWeight: 600, fontSize: "0.875rem", flex: 1 }}
+              className={item.checked ? "text-muted-foreground" : "text-foreground"}
+            >
+              {item.text || <span className="text-muted-foreground italic font-normal">Untitled segment</span>}
+            </span>
+            {item.allocatedTime != null && (
+              <span className="text-xs text-muted-foreground font-mono shrink-0">
+                {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
+              </span>
+            )}
+          </div>
+          {item.segmentGoal && (
+            <p className="text-xs text-muted-foreground pl-7 leading-relaxed">{item.segmentGoal}</p>
+          )}
+        </div>
+        {item.children.length > 0 && (
+          <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
+            {item.children.map((child, i, arr) => {
+              const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+              return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
+            })}
+          </div>
+        )}
+      </div>
     );
   }
 

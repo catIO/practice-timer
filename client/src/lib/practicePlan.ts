@@ -13,7 +13,8 @@ export type BlockType =
   | "bullet"
   | "number"
   | "divider"
-  | "todo";
+  | "todo"
+  | "segment";
 
 export interface PracticePlanItem {
   id: string;
@@ -26,6 +27,8 @@ export interface PracticePlanItem {
   blockType?: BlockType;
   allocatedTime?: number; // Target duration in minutes
   allocationPeriod?: "day" | "week";
+  /** Goal description for practice segment blocks. */
+  segmentGoal?: string;
 }
 
 export function generateId(): string {
@@ -400,6 +403,24 @@ export const practicePlanApi = {
     savePracticePlan(next);
     return next;
   },
+  updateSegment: (
+    items: PracticePlanItem[],
+    id: string,
+    name: string,
+    segmentGoal: string | undefined,
+    allocatedTime: number | undefined,
+    allocationPeriod: "day" | "week" | undefined
+  ): PracticePlanItem[] => {
+    const next = updateItemInTree(items, id, (item) => ({
+      ...item,
+      text: name,
+      segmentGoal,
+      allocatedTime,
+      allocationPeriod,
+    }));
+    savePracticePlan(next);
+    return next;
+  },
   updateBlockType: (items: PracticePlanItem[], id: string, blockType: BlockType): PracticePlanItem[] => {
     const next = updateItemInTree(items, id, (item) => {
       const isHeader = blockType === "heading1" || blockType === "heading2" || blockType === "heading3";
@@ -459,6 +480,7 @@ function createBlock(blockType: BlockType, initialText?: string, id?: string): P
     number: "",
     divider: "---",
     todo: "",
+    segment: "",
   };
   return {
     id: id || generateId(),

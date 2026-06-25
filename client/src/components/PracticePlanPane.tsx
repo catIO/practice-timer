@@ -15,6 +15,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -88,7 +92,7 @@ interface PracticePlanPaneProps {
   onStartNewSession?: () => void;
 }
 
-const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
+const BASIC_BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
   { type: "text", label: "Text", icon: "T" },
   { type: "heading1", label: "Heading 1", icon: "H1" },
   { type: "heading2", label: "Heading 2", icon: "H2" },
@@ -98,6 +102,12 @@ const BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
   { type: "todo", label: "To-do list", icon: "☐" },
   { type: "divider", label: "Divider", icon: "—" },
 ];
+
+const PRACTICE_BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
+  { type: "segment", label: "Practice Segment", icon: "⏱" },
+];
+
+const ALL_BLOCK_OPTIONS = [...BASIC_BLOCK_OPTIONS, ...PRACTICE_BLOCK_OPTIONS];
 
 function EmptyLineSlot({
   index,
@@ -124,9 +134,21 @@ function EmptyLineSlot({
               <span className="material-icons text-base">add</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
             <DropdownMenuLabel className="text-muted-foreground">Basic blocks</DropdownMenuLabel>
-            {BLOCK_OPTIONS.map(({ type, label, icon }) => (
+            {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+              <DropdownMenuItem
+                key={type}
+                onSelect={() => onInsert(index, type)}
+                className="flex items-center gap-2"
+              >
+                <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                {label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-muted-foreground">Practice</DropdownMenuLabel>
+            {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
               <DropdownMenuItem
                 key={type}
                 onSelect={() => onInsert(index, type)}
@@ -231,6 +253,7 @@ interface PlanItemProps {
   onUndo: () => void;
   onOpenAllocationDialog: (id: string, text: string, currentMinutes?: number, currentPeriod?: 'day' | 'week') => void;
   onPlayPiece: (id: string, name: string, minutes: number, period: 'day' | 'week') => void;
+  onSaveSegment: (id: string, name: string, goal: string | undefined, allocatedTime: number | undefined, allocationPeriod: 'day' | 'week' | undefined) => void;
 }
 
 function PlanItem({
@@ -260,6 +283,7 @@ function PlanItem({
   onUndo,
   onOpenAllocationDialog,
   onPlayPiece,
+  onSaveSegment,
 }: PlanItemProps) {
   const activePieceId = useTimerStore((state) => state.activePieceId);
   const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
@@ -296,6 +320,27 @@ function PlanItem({
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
 
+  // Segment-specific editing state
+  const [segmentGoalValue, setSegmentGoalValue] = useState(item.segmentGoal ?? "");
+  const [segmentDurationValue, setSegmentDurationValue] = useState(
+    item.allocatedTime ? String(item.allocatedTime) : ""
+  );
+  const [segmentPeriodValue, setSegmentPeriodValue] = useState<'day' | 'week'>(item.allocationPeriod ?? 'day');
+  useEffect(() => { setSegmentGoalValue(item.segmentGoal ?? ""); }, [item.segmentGoal]);
+  useEffect(() => {
+    setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : "");
+    setSegmentPeriodValue(item.allocationPeriod ?? 'day');
+  }, [item.allocatedTime, item.allocationPeriod]);
+
+  // Slash command state
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashFilter, setSlashFilter] = useState("");
+  const [slashHighlight, setSlashHighlight] = useState(0);
+  const isSlashMenuOpenRef = useRef(false);
+
+  // Ref for segment form (used to detect focus leaving the form)
+  const segmentFormRef = useRef<HTMLDivElement>(null);
+
   const rowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -316,9 +361,22 @@ function PlanItem({
 
   // ...
 
+  const saveSegment = useCallback(() => {
+    setEditing(false);
+    const name = editValue.trim();
+    const goal = segmentGoalValue.trim() || undefined;
+    const mins = parseInt(segmentDurationValue, 10);
+    const duration = isNaN(mins) || mins <= 0 ? undefined : mins;
+    onSaveSegment(item.id, name, goal, duration, segmentPeriodValue);
+  }, [editValue, segmentGoalValue, segmentDurationValue, segmentPeriodValue, item.id, onSaveSegment]);
+
   const saveEdit = useCallback(() => {
     // If popover is open, don't exit edit mode on blur
     if (isLinkPopoverOpenRef.current) return;
+    // If slash menu is open, don't exit edit mode on blur
+    if (isSlashMenuOpenRef.current) return;
+    // Segment blocks use saveSegment instead
+    if (item.blockType === 'segment') { saveSegment(); return; }
 
     setEditing(false);
     setToolbarSelection(null);
@@ -328,7 +386,7 @@ function PlanItem({
     } else {
       setEditValue(item.text);
     }
-  }, [editValue, item.id, item.text, onUpdateText]);
+  }, [editValue, item.id, item.text, item.blockType, saveSegment, onUpdateText]);
 
   // ... (lines 402+ applyFormat)
 
@@ -348,6 +406,15 @@ function PlanItem({
   }, [editing]);
 
   const blockType = item.blockType ?? "todo";
+
+  // Filtered slash command options based on current filter text
+  const filteredSlashOptions = useMemo(() => {
+    if (!slashFilter) return ALL_BLOCK_OPTIONS;
+    const f = slashFilter.toLowerCase();
+    return ALL_BLOCK_OPTIONS.filter(
+      (o) => o.label.toLowerCase().includes(f) || o.type.toLowerCase().includes(f)
+    );
+  }, [slashFilter]);
 
   // Auto-resize textarea for text blocks when content changes (deferred to avoid resetting cursor)
   useEffect(() => {
@@ -468,11 +535,16 @@ function PlanItem({
     [item.text, item.id, onUpdateText]
   );
 
-
-
-
-
-
+  // Slash command: apply selected block type
+  const applySlashCommand = useCallback((type: BlockType) => {
+    setSlashMenuOpen(false);
+    setSlashFilter('');
+    setSlashHighlight(0);
+    isSlashMenuOpenRef.current = false;
+    setEditValue('');
+    onUpdateText(item.id, '');
+    onUpdateType(item.id, type);
+  }, [item.id, onUpdateText, onUpdateType]);
 
   const applyFormat = useCallback(
     (action: "bold" | "italic" | "link", url?: string, opts?: { linkText?: string }) => {
@@ -538,6 +610,11 @@ function PlanItem({
       }
       if (e.key === "Enter") {
         e.preventDefault();
+        if (blockType === "segment") {
+          // Enter on a segment in row mode → open editing form
+          setEditing(true);
+          return;
+        }
         if (e.shiftKey) {
           // Shift+Enter in row mode triggers insert before
           onInsertBefore(item.id, "text", true);
@@ -580,6 +657,68 @@ function PlanItem({
     (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const target = e.currentTarget;
       const isTextBlock = blockType === "text";
+
+      // Slash command keyboard navigation
+      if (slashMenuOpen) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSlashHighlight((h) => Math.min(h + 1, filteredSlashOptions.length - 1));
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSlashHighlight((h) => Math.max(h - 1, 0));
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (filteredSlashOptions[slashHighlight]) {
+            applySlashCommand(filteredSlashOptions[slashHighlight].type);
+          }
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setSlashMenuOpen(false);
+          setSlashFilter('');
+          isSlashMenuOpenRef.current = false;
+          return;
+        }
+        if (e.key === 'Backspace' && editValue === '/') {
+          setSlashMenuOpen(false);
+          setSlashFilter('');
+          isSlashMenuOpenRef.current = false;
+          // Let default backspace remove the slash
+        }
+      }
+
+      // Markdown shortcut: convert block type on Space key
+      if (e.key === ' ') {
+        const cursorPos = target.selectionStart ?? 0;
+        // Only trigger when cursor is at the very end (text IS the prefix)
+        if (cursorPos === editValue.length) {
+          const textBefore = editValue;
+          let newMdType: BlockType | null = null;
+          let stripLen = 0;
+
+          if (textBefore === '#') { newMdType = 'heading1'; stripLen = 1; }
+          else if (textBefore === '##') { newMdType = 'heading2'; stripLen = 2; }
+          else if (textBefore === '###') { newMdType = 'heading3'; stripLen = 3; }
+          else if (textBefore === '-' || textBefore === '*') { newMdType = 'bullet'; stripLen = 1; }
+          else if (/^\d+\.$/.test(textBefore)) { newMdType = 'number'; stripLen = textBefore.length; }
+          else if (textBefore === '[]') { newMdType = 'todo'; stripLen = 2; }
+          else if (textBefore === '---') { newMdType = 'divider'; stripLen = 3; }
+
+          if (newMdType) {
+            e.preventDefault();
+            const remaining = editValue.slice(stripLen);
+            setEditValue(remaining);
+            onUpdateText(item.id, remaining);
+            onUpdateType(item.id, newMdType);
+            return;
+          }
+        }
+      }
 
       // Standard interactions
       if (e.key === "Enter") {
@@ -659,7 +798,7 @@ function PlanItem({
         }
       }
     },
-    [item.id, blockType, depth, editValue, saveEdit, onUpdateType, onInsertBelow, onInsertBefore, onNavigate, onMergeWithPrevious, onUnindent]
+    [item.id, blockType, depth, editValue, saveEdit, onUpdateType, onInsertBelow, onInsertBefore, onNavigate, onMergeWithPrevious, onUnindent, slashMenuOpen, slashHighlight, filteredSlashOptions, applySlashCommand]
   );
 
   const focusRow = useCallback(() => {
@@ -679,10 +818,9 @@ function PlanItem({
           blockType === "text" ? "gap-0" : "gap-2",
           blockType === "number" ? "items-baseline" : "items-start",
           depth !== 0 && !isHeader && !parentIsHeader && "ml-4",
-          parentIsHeader && blockType !== "text" && "-ml-2",
           isHeader && !parentIsHeader && "ml-0",
           isHeader && "first:mt-0",
-          "my-0.5", // Minimal vertical margin
+          blockType === "segment" ? "my-1" : "my-0.5",
           blockType === "text" && "mb-2",
           selected && "bg-accent/40"
         )}
@@ -778,8 +916,8 @@ function PlanItem({
         }}
       >
         <div className={cn(
-          "flex shrink-0 items-center gap-0.1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
-          parentIsHeader && blockType === "text" ? "absolute left-0 top-0" : "relative -left-0 top-0"
+          "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
+          "absolute left-0 top-1 -translate-x-full"
         )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -794,9 +932,21 @@ function PlanItem({
                 <span className="material-icons text-lg">add</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
               <DropdownMenuLabel className="text-muted-foreground">Basic blocks</DropdownMenuLabel>
-              {BLOCK_OPTIONS.map(({ type, label, icon }) => (
+              {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                <DropdownMenuItem
+                  key={type}
+                  onSelect={() => onInsertBelow(item.id, type)}
+                  className="flex items-center gap-2"
+                >
+                  <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                  {label}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-muted-foreground">Practice</DropdownMenuLabel>
+              {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
                 <DropdownMenuItem
                   key={type}
                   onSelect={() => onInsertBelow(item.id, type)}
@@ -809,29 +959,76 @@ function PlanItem({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
-            title="Drag handle"
-            // Start of drag handle configuration
-            {...attributes}
-            {...listeners}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => {
-              // Prevent drag when clicking menu... handled by preventDefault in menu?
-              // DND-Kit handles this via sensors if configured correctly.
-              // But we need to make sure we don't block other clicks.
-              listeners?.onPointerDown?.(e);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') return; // Don't trigger drag on Enter if it conflicts
-              listeners?.onKeyDown?.(e);
-            }}
-          >
-            <span className="material-icons text-base">drag_indicator</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+                title="Drag to move · Click to open menu"
+                {...attributes}
+                {...listeners}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => { listeners?.onPointerDown?.(e); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') return;
+                  listeners?.onKeyDown?.(e);
+                }}
+              >
+                <span className="material-icons text-base">drag_indicator</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
+              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                {BASIC_BLOCK_OPTIONS.find(o => o.type === blockType)?.label ||
+                  PRACTICE_BLOCK_OPTIONS.find(o => o.type === blockType)?.label ||
+                  blockType}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {blockType !== "divider" && blockType !== "segment" && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <span className="material-icons mr-2 text-base">transform</span>
+                    Turn into
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-52">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Basic blocks</DropdownMenuLabel>
+                    {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                      <DropdownMenuItem
+                        key={type}
+                        className={cn(type === blockType && "bg-accent text-accent-foreground")}
+                        onSelect={() => { onUpdateType(item.id, type); }}
+                      >
+                        <span className="material-icons mr-2 text-base text-muted-foreground">{icon}</span>
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Practice</DropdownMenuLabel>
+                    {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                      <DropdownMenuItem
+                        key={type}
+                        className={cn(type === blockType && "bg-accent text-accent-foreground")}
+                        onSelect={() => { onUpdateType(item.id, type); }}
+                      >
+                        <span className="mr-2">{icon}</span>
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={() => onDelete(item.id)}
+              >
+                <span className="material-icons mr-2 text-base">delete</span>
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {showCheckbox ? (
           <Checkbox
@@ -846,14 +1043,205 @@ function PlanItem({
           <span className="w-7 shrink-0 text-right text-sm text-muted-foreground tabular-nums select-none pr-1.5" aria-hidden>
             {numberIndex + 1}.
           </span>
-        ) : isHeader || blockType === "text" ? null : (
+        ) : isHeader || blockType === "text" || blockType === "segment" ? null : (
           <span className="w-0 shrink-0" aria-hidden />
         )}
         <div
           ref={contentRef}
-          className={cn("min-w-0 flex-1 break-words select-text outline-none border-0", isHeader && "flex items-center", (isHeader || (parentIsHeader && blockType !== "text")) && "-ml-2", "cursor-text")}
+          className={cn("min-w-0 flex-1 break-words select-text outline-none border-0", isHeader && "flex items-center", "cursor-text")}
         >
-          {editing ? (
+          {blockType === "segment" ? (
+            editing ? (
+              /* Segment editing form */
+              <div
+                ref={segmentFormRef}
+                className="flex-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5 space-y-2"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-icons text-primary text-base shrink-0 select-none">timer</span>
+                  <Input
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    ref={(el) => { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el; }}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={(e) => {
+                      const relatedTarget = e.relatedTarget as Node | null;
+                      if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); saveSegment(); }
+                      if (e.key === 'Escape') {
+                        setEditValue(item.text);
+                        setSegmentGoalValue(item.segmentGoal ?? '');
+                        setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : '');
+                        setSegmentPeriodValue(item.allocationPeriod ?? 'day');
+                        setEditing(false);
+                        requestAnimationFrame(() => rowRef.current?.focus());
+                      }
+                    }}
+                    placeholder="Segment name..."
+                    className="flex-1 h-7 text-sm font-semibold border-none shadow-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    autoFocus
+                  />
+                </div>
+                <div className="pl-6 space-y-1.5">
+                  <input
+                    value={segmentGoalValue}
+                    onChange={(e) => setSegmentGoalValue(e.target.value)}
+                    onBlur={(e) => {
+                      const relatedTarget = e.relatedTarget as Node | null;
+                      if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); saveSegment(); }
+                      if (e.key === 'Escape') { setEditing(false); requestAnimationFrame(() => rowRef.current?.focus()); }
+                    }}
+                    placeholder="Goal — what do you want to achieve?"
+                    className="w-full text-xs bg-transparent border-none outline-none text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={segmentDurationValue}
+                      onChange={(e) => setSegmentDurationValue(e.target.value)}
+                      onBlur={(e) => {
+                        const relatedTarget = e.relatedTarget as Node | null;
+                        if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
+                        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                        saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveSegment(); } }}
+                      placeholder="Min"
+                      className="w-20 h-7 text-xs"
+                    />
+                    <span className="text-xs text-muted-foreground">min /</span>
+                    <select
+                      value={segmentPeriodValue}
+                      onChange={(e) => setSegmentPeriodValue(e.target.value as 'day' | 'week')}
+                      className="h-7 text-xs bg-background border border-input rounded px-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="day">day</option>
+                      <option value="week">week</option>
+                    </select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 ml-auto text-xs text-muted-foreground hover:text-foreground"
+                      onMouseDown={(e) => { e.preventDefault(); saveSegment(); }}
+                    >
+                      Done
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Segment card view */
+              <div
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-2 space-y-1.5 transition-colors",
+                  item.checked
+                    ? "border-muted bg-muted/20"
+                    : "border-primary/20 bg-primary/5 hover:border-primary/40"
+                )}
+                onDoubleClick={() => setEditing(true)}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "material-icons text-sm shrink-0 cursor-pointer select-none",
+                      item.checked ? "text-green-500" : "text-primary"
+                    )}
+                    onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+                    title={item.checked ? "Mark incomplete" : "Mark complete"}
+                  >
+                    {item.checked ? "task_alt" : "timer"}
+                  </span>
+                  <span className={cn(
+                    "font-semibold text-sm flex-1 truncate",
+                    item.checked && "text-muted-foreground"
+                  )}>
+                    {item.text || <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>}
+                  </span>
+                  {/* Timer controls */}
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {isActivePiece ? (
+                      <>
+                        <span className={cn(
+                          "font-mono text-xs tabular-nums px-1.5 py-0.5 rounded bg-muted/40 border border-amber-500/40",
+                          pieceTimeRemaining < 60 ? "text-red-400" : "text-amber-300"
+                        )}>
+                          {formatTime(pieceTimeRemaining)}
+                        </span>
+                        <Button
+                          variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            if (!isRunning) { startTimer(); if (isPiecePaused) togglePausePiece(); }
+                            else { togglePausePiece(); }
+                          }}
+                          title={(isPiecePaused || !isRunning) ? 'Resume' : 'Pause'}
+                        >
+                          <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? 'play_arrow' : 'pause'}</span>
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          onClick={clearPiece} title="Stop"
+                        >
+                          <span className="material-icons text-sm">close</span>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {item.allocatedTime ? (
+                          <Button
+                            variant="ghost" size="sm"
+                            className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded bg-muted/40 border border-border/40"
+                            onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
+                            title="Edit duration"
+                          >
+                            {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+                            onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+                            title="Set duration"
+                          >
+                            <span className="material-icons text-xs">schedule</span>
+                          </Button>
+                        )}
+                        {item.allocatedTime && (
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-6 w-6 text-primary hover:text-primary/80"
+                            onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
+                            title="Start segment timer"
+                          >
+                            <span className="material-icons text-sm">play_arrow</span>
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                {item.segmentGoal && (
+                  <p className="text-xs text-muted-foreground pl-6 leading-relaxed">{item.segmentGoal}</p>
+                )}
+                {!item.segmentGoal && !item.allocatedTime && !item.text && (
+                  <p className="text-xs text-muted-foreground/40 italic pl-6">Double-click to add name, goal & time...</p>
+                )}
+              </div>
+            )
+          ) : editing ? (
             <>
               {blockType === "divider" ? (
                 <div className="flex-1 flex items-center h-8" onMouseDown={(e) => e.stopPropagation()}>
@@ -923,6 +1311,7 @@ function PlanItem({
                     }
                   }}
                   className="block min-h-[1.5rem] leading-[1.25rem] py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent resize-none overflow-y-auto"
+                  placeholder="Type '/' for commands"
                   rows={1}
                   autoFocus
                 />
@@ -933,7 +1322,26 @@ function PlanItem({
                   onClick={(e) => e.stopPropagation()}
                   ref={(el) => { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el; }}
                   value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditValue(val);
+                    // Slash command detection
+                    if (val === '/') {
+                      setSlashMenuOpen(true);
+                      setSlashFilter('');
+                      setSlashHighlight(0);
+                      isSlashMenuOpenRef.current = true;
+                    } else if (slashMenuOpen) {
+                      if (val.startsWith('/')) {
+                        setSlashFilter(val.slice(1));
+                        setSlashHighlight(0);
+                      } else {
+                        setSlashMenuOpen(false);
+                        setSlashFilter('');
+                        isSlashMenuOpenRef.current = false;
+                      }
+                    }
+                  }}
                   onSelect={(e) => {
                     const { selectionStart, selectionEnd } = e.currentTarget;
                     if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
@@ -993,8 +1401,40 @@ function PlanItem({
                     blockType === "heading2" && "text-lg font-semibold",
                     blockType === "heading3" && "text-base font-semibold"
                   )}
+                  placeholder={
+                    blockType === "heading1" ? "Heading 1" :
+                      blockType === "heading2" ? "Heading 2" :
+                        blockType === "heading3" ? "Heading 3" :
+                          "Type '/' for commands"
+                  }
                   autoFocus
                 />
+              )}
+              {/* Slash command menu */}
+              {slashMenuOpen && (
+                <div className="absolute left-0 top-full z-[200] mt-1 w-56 rounded-md border bg-popover text-popover-foreground shadow-md overflow-hidden">
+                  {filteredSlashOptions.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No results</div>
+                  ) : (
+                    filteredSlashOptions.map((opt, i) => (
+                      <div
+                        key={opt.type}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm cursor-pointer",
+                          i === slashHighlight ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
+                        )}
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent blur
+                          e.stopPropagation();
+                          applySlashCommand(opt.type);
+                        }}
+                      >
+                        <span className="w-6 text-center font-semibold text-muted-foreground">{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
               <InlineToolbar
                 anchorRef={inputRef}
@@ -1083,92 +1523,21 @@ function PlanItem({
                 "cursor-text text-sm block min-h-[1.5rem] leading-[1.25rem] select-text outline-none border-0",
                 blockType === "text" && "whitespace-pre-wrap",
                 !isHeader && blockType !== "text" && "flex items-center",
-                item.checked && "text-muted-foreground"
+                item.checked && "text-muted-foreground",
+                !item.text && "text-muted-foreground/40 italic"
               )}
             >
-              <TextWithLinks
-                text={item.text}
-                onEditLink={handleEditLink}
-                onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
-                onRemoveLink={handleRemoveLink}
-              />
+              {item.text ? (
+                <TextWithLinks
+                  text={item.text}
+                  onEditLink={handleEditLink}
+                  onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
+                  onRemoveLink={handleRemoveLink}
+                />
+              ) : blockType === "text" ? "Type '/' for commands..." : ""}
             </span>
           )}
         </div>
-        {!editing && !isHeader && blockType === "todo" && (
-          <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-            {isActivePiece ? (
-              <>
-                <span className={cn(
-                  "font-mono text-sm font-semibold tabular-nums px-1.5 py-0.5 rounded bg-muted/40 border border-amber-500/40",
-                  pieceTimeRemaining < 60 ? "text-red-400" : "text-amber-300"
-                )}>
-                  {formatTime(pieceTimeRemaining)}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    if (!isRunning) {
-                      startTimer();
-                      if (isPiecePaused) togglePausePiece();
-                    } else {
-                      togglePausePiece();
-                    }
-                  }}
-                  title={(isPiecePaused || !isRunning) ? 'Resume' : 'Pause'}
-                >
-                  <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? 'play_arrow' : 'pause'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  onClick={clearPiece}
-                  title="Stop"
-                >
-                  <span className="material-icons text-sm">close</span>
-                </Button>
-              </>
-            ) : (
-              <>
-                {item.allocatedTime ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded bg-muted/40 border border-border/40"
-                    onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
-                    title="Edit allocation"
-                  >
-                    {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground border border-border/60 rounded"
-                    onClick={() => onOpenAllocationDialog(item.id, item.text, undefined, 'day')}
-                    title="Add time allocation"
-                  >
-                    <span className="material-icons text-sm">schedule</span>
-                  </Button>
-                )}
-                {item.allocatedTime && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-primary hover:text-primary/80"
-                    onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
-                    title="Start countdown"
-                  >
-                    <span className="material-icons text-sm">play_arrow</span>
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </div>
       {hasChildren && (
         <div className={cn("mt-0", isHeader ? "" : "border-l border-border/60 pl-2 ml-2")}>
@@ -1205,6 +1574,7 @@ function PlanItem({
                 onUndo={onUndo}
                 onOpenAllocationDialog={onOpenAllocationDialog}
                 onPlayPiece={onPlayPiece}
+                onSaveSegment={onSaveSegment}
               />
             ))}
           </SortableContext>
@@ -1365,6 +1735,16 @@ export function PracticePlanPane({
       description: `Practicing: ${name}`,
     });
   }, [selectPiece, isRunning, onStart, toast]);
+
+  const handleSaveSegment = useCallback((
+    id: string,
+    name: string,
+    goal: string | undefined,
+    allocatedTime: number | undefined,
+    allocationPeriod: 'day' | 'week' | undefined
+  ) => {
+    applyChange((prev) => practicePlanApi.updateSegment(prev, id, name, goal, allocatedTime, allocationPeriod));
+  }, [applyChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1897,7 +2277,7 @@ export function PracticePlanPane({
                 items={items.map(item => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-1 pb-20">
+                <div className="space-y-1 pb-20 pl-14">
                   {items.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
                       <p className="mb-4">Your practice plan is empty.</p>
@@ -1910,7 +2290,19 @@ export function PracticePlanPane({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="center" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
                           <DropdownMenuLabel>Choose first block</DropdownMenuLabel>
-                          {BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                          {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                            <DropdownMenuItem
+                              key={type}
+                              onSelect={() => handleInsertBlock(0, type)}
+                              className="flex items-center gap-2"
+                            >
+                              <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                              {label}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel>Practice</DropdownMenuLabel>
+                          {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
                             <DropdownMenuItem
                               key={type}
                               onSelect={() => handleInsertBlock(0, type)}
@@ -1952,6 +2344,7 @@ export function PracticePlanPane({
                       onUndo={handleUndo}
                       onOpenAllocationDialog={handleOpenAllocationDialog}
                       onPlayPiece={handlePlayPiece}
+                      onSaveSegment={handleSaveSegment}
                     />
                   ))}
                 </div>

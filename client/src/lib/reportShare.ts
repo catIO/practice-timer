@@ -10,6 +10,9 @@ export interface ReportSnapshotItem {
   checked: boolean;
   blockType?: string;
   children: ReportSnapshotItem[];
+  segmentGoal?: string;
+  allocatedTime?: number;
+  allocationPeriod?: 'day' | 'week';
 }
 
 export interface ReportLogEntry {
@@ -39,6 +42,11 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
     checked: item.checked ?? false,
     blockType: item.blockType,
     children: item.children.map(itemToSnapshot),
+    ...(item.blockType === 'segment' ? {
+      segmentGoal: item.segmentGoal,
+      allocatedTime: item.allocatedTime,
+      allocationPeriod: item.allocationPeriod,
+    } : {}),
   };
 }
 
@@ -121,7 +129,7 @@ export async function shareReport(snapshot: ReportSnapshot, id?: string): Promis
   let errJson: { error?: string; detail?: string } = {};
   try {
     errJson = JSON.parse(errBody);
-  } catch {}
+  } catch { }
   console.warn("[shareReport] Blobs failed:", response.status, errJson.detail || errBody);
 
   // Fallback if Blobs fails (e.g. unlinked site, MissingBlobsEnvironmentError)
