@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { TextWithLinks } from "@/components/TextWithLinks";
 import {
   getDailyBreakdown,
   getTodaySeconds,
@@ -153,7 +154,7 @@ export default function PracticeLog() {
                           <div key={summary.itemId} className="space-y-1">
                             <div className="flex items-center justify-between text-xs font-medium">
                               <span className="truncate text-foreground max-w-[200px]">
-                                {summary.itemName}
+                                <TextWithLinks text={summary.itemName} />
                               </span>
                               <span className={cn(
                                 "font-mono",

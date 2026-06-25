@@ -204,6 +204,22 @@ function headingLevel(blockType?: BlockType): 1 | 2 | 3 {
   return 1;
 }
 
+function parseSegmentLink(text: string): { label: string; url: string; hasLink: boolean } {
+  const match = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(text.trim());
+  if (match) {
+    return {
+      label: match[1],
+      url: match[2],
+      hasLink: true,
+    };
+  }
+  return {
+    label: text,
+    url: "",
+    hasLink: false,
+  };
+}
+
 type FocusRequest = {
   id: string;
   type: "row" | "edit";
@@ -315,8 +331,29 @@ function PlanItem({
     // This allows autoFocus to work on the Input without waiting for useEffect.
     return !!(focusRequest && focusRequest.id === item.id && focusRequest.type === "edit");
   });
-  const [editValue, setEditValue] = useState(item.text);
-  useEffect(() => setEditValue(item.text), [item.text]);
+  const [segmentLinkUrl, setSegmentLinkUrl] = useState("");
+  const [hasSegmentLink, setHasSegmentLink] = useState(false);
+  const [editValue, setEditValue] = useState(() => {
+    if (item.blockType === "segment") {
+      const parsed = parseSegmentLink(item.text);
+      return parsed.label;
+    }
+    return item.text;
+  });
+
+  useEffect(() => {
+    if (item.blockType === "segment") {
+      const parsed = parseSegmentLink(item.text);
+      setEditValue(parsed.label);
+      setSegmentLinkUrl(parsed.url);
+      setHasSegmentLink(parsed.hasLink);
+    } else {
+      setEditValue(item.text);
+      setSegmentLinkUrl("");
+      setHasSegmentLink(false);
+    }
+  }, [item.text, item.blockType]);
+
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
 
@@ -363,12 +400,15 @@ function PlanItem({
 
   const saveSegment = useCallback(() => {
     setEditing(false);
-    const name = editValue.trim();
+    const plainName = editValue.trim();
+    const name = (hasSegmentLink && segmentLinkUrl.trim())
+      ? `[${plainName}](${segmentLinkUrl.trim()})`
+      : plainName;
     const goal = segmentGoalValue.trim() || undefined;
     const mins = parseInt(segmentDurationValue, 10);
     const duration = isNaN(mins) || mins <= 0 ? undefined : mins;
     onSaveSegment(item.id, name, goal, duration, segmentPeriodValue);
-  }, [editValue, segmentGoalValue, segmentDurationValue, segmentPeriodValue, item.id, onSaveSegment]);
+  }, [editValue, hasSegmentLink, segmentLinkUrl, segmentGoalValue, segmentDurationValue, segmentPeriodValue, item.id, onSaveSegment]);
 
   const saveEdit = useCallback(() => {
     // If popover is open, don't exit edit mode on blur
@@ -822,7 +862,7 @@ function PlanItem({
           isHeader && "first:mt-0",
           blockType === "segment" ? "my-1" : "my-0.5",
           blockType === "text" && "mb-2",
-          selected && "bg-accent/40"
+          selected && blockType !== "segment" && "bg-accent/40"
         )}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
@@ -1067,16 +1107,28 @@ function PlanItem({
                     ref={(el) => { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el; }}
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
+                    onSelect={(e) => {
+                      const { selectionStart, selectionEnd } = e.currentTarget;
+                      if (selectionStart != null && selectionEnd != null && selectionStart !== selectionEnd) {
+                        setToolbarSelection({ start: selectionStart, end: selectionEnd });
+                      } else {
+                        setToolbarSelection(null);
+                      }
+                    }}
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as Node | null;
                       if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
+                      if (isLinkPopoverOpenRef.current) return;
                       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                       saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') { e.preventDefault(); saveSegment(); }
                       if (e.key === 'Escape') {
-                        setEditValue(item.text);
+                        const parsed = parseSegmentLink(item.text);
+                        setEditValue(parsed.label);
+                        setSegmentLinkUrl(parsed.url);
+                        setHasSegmentLink(parsed.hasLink);
                         setSegmentGoalValue(item.segmentGoal ?? '');
                         setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : '');
                         setSegmentPeriodValue(item.allocationPeriod ?? 'day');
@@ -1084,10 +1136,68 @@ function PlanItem({
                         requestAnimationFrame(() => rowRef.current?.focus());
                       }
                     }}
+                    onPaste={(e) => {
+                      const rawText = e.clipboardData.getData("text");
+                      const pastedText = rawText.trim();
+                      let isUrl = false;
+                      try {
+                        const url = new URL(pastedText);
+                        if (url.protocol === "http:" || url.protocol === "https:") {
+                          isUrl = true;
+                        }
+                      } catch {}
+
+                      if (isUrl) {
+                        const start = e.currentTarget.selectionStart;
+                        const end = e.currentTarget.selectionEnd;
+                        if (start !== null && end !== null && start !== end) {
+                          e.preventDefault();
+                          setSegmentLinkUrl(pastedText);
+                          setHasSegmentLink(true);
+                          setToolbarSelection(null);
+                        }
+                      }
+                    }}
                     placeholder="Segment name..."
                     className="flex-1 h-7 text-sm font-semibold border-none shadow-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     autoFocus
                   />
+                  {/* Link icon — always visible; click opens LinkPopover to add/edit */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-7 w-7 shrink-0",
+                      hasSegmentLink ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title={hasSegmentLink ? "Edit link" : "Add link"}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      isLinkPopoverOpenRef.current = true;
+                      setLinkPopoverAnchor(e.currentTarget);
+                    }}
+                  >
+                    <span className="material-icons text-base">link</span>
+                  </Button>
+                  {hasSegmentLink && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      title="Remove link"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setHasSegmentLink(false);
+                        setSegmentLinkUrl("");
+                      }}
+                    >
+                      <span className="material-icons text-sm">close</span>
+                    </Button>
+                  )}
                 </div>
                 <div className="pl-6 space-y-1.5">
                   <input
@@ -1096,6 +1206,7 @@ function PlanItem({
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as Node | null;
                       if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
+                      if (isLinkPopoverOpenRef.current) return;
                       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                       saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
                     }}
@@ -1115,6 +1226,7 @@ function PlanItem({
                       onBlur={(e) => {
                         const relatedTarget = e.relatedTarget as Node | null;
                         if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
+                        if (isLinkPopoverOpenRef.current) return;
                         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                         saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
                       }}
@@ -1148,11 +1260,14 @@ function PlanItem({
               <div
                 className={cn(
                   "flex-1 rounded-lg border px-3 py-2 space-y-1.5 transition-colors",
-                  item.checked
-                    ? "border-muted bg-muted/20"
-                    : "border-primary/20 bg-primary/5 hover:border-primary/40"
+                  selected 
+                    ? item.checked
+                      ? "border-muted-foreground/30 bg-muted/40"
+                      : "border-primary/40 bg-primary/10"
+                    : item.checked
+                      ? "border-muted bg-muted/20"
+                      : "border-primary/20 bg-primary/5 hover:border-primary/40"
                 )}
-                onDoubleClick={() => setEditing(true)}
               >
                 <div className="flex items-center gap-2">
                   <span
@@ -1169,7 +1284,16 @@ function PlanItem({
                     "font-semibold text-sm flex-1 truncate",
                     item.checked && "text-muted-foreground"
                   )}>
-                    {item.text || <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>}
+                    {item.text ? (
+                      <TextWithLinks
+                        text={item.text}
+                        onEditLink={handleEditLink}
+                        onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
+                        onRemoveLink={handleRemoveLink}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>
+                    )}
                   </span>
                   {/* Timer controls */}
                   <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1436,64 +1560,6 @@ function PlanItem({
                   )}
                 </div>
               )}
-              <InlineToolbar
-                anchorRef={inputRef}
-                visible={(!!toolbarSelection || turnIntoOpen) && !linkPopoverAnchor}
-                selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
-                currentBlockType={blockType}
-                onToolbarInteraction={() => {
-                  if (saveTimeoutRef.current) {
-                    clearTimeout(saveTimeoutRef.current);
-                    saveTimeoutRef.current = null;
-                  }
-                }}
-                onFormat={(action) => {
-                  if (action === "link") {
-                    isLinkPopoverOpenRef.current = true;
-                    setLinkPopoverAnchor(inputRef.current);
-                  } else {
-                    applyFormat(action);
-                  }
-                }}
-                onLinkClick={() => {
-                  isLinkPopoverOpenRef.current = true;
-                  setLinkPopoverAnchor(inputRef.current);
-                }}
-                turnIntoOpen={turnIntoOpen}
-                onTurnIntoOpenChange={setTurnIntoOpen}
-                onConvertType={(type) => {
-                  setTurnIntoOpen(false);
-                  saveEdit();
-                  onUpdateType(item.id, type);
-                }}
-              />
-              <LinkPopover
-                open={!!linkPopoverAnchor}
-                onOpenChange={(open) => {
-                  if (!open) {
-                    isLinkPopoverOpenRef.current = false;
-                    setLinkPopoverAnchor(null);
-                    saveEdit();
-                  }
-                }}
-                anchor={linkPopoverAnchor}
-                selectedText={
-                  toolbarSelection
-                    ? editValue.slice(toolbarSelection.start, toolbarSelection.end)
-                    : ""
-                }
-                onConfirm={(url) => {
-                  isLinkPopoverOpenRef.current = false;
-                  applyFormat("link", url);
-                  setLinkPopoverAnchor(null);
-                }}
-                onCancel={() => {
-                  isLinkPopoverOpenRef.current = false;
-                  setLinkPopoverAnchor(null);
-                  requestAnimationFrame(() => inputRef.current?.focus());
-                }}
-              />
-
             </>
           ) : isHeader ? (
             <span
@@ -1539,6 +1605,101 @@ function PlanItem({
           )}
         </div>
       </div>
+
+      {editing && (
+        <>
+          <InlineToolbar
+            anchorRef={inputRef}
+            visible={blockType !== "segment" && (!!toolbarSelection || turnIntoOpen) && !linkPopoverAnchor}
+            selectedText={toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : ""}
+            currentBlockType={blockType}
+            onToolbarInteraction={() => {
+              if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+                saveTimeoutRef.current = null;
+              }
+            }}
+            onFormat={(action) => {
+              if (action === "link") {
+                isLinkPopoverOpenRef.current = true;
+                setLinkPopoverAnchor(inputRef.current);
+              } else {
+                applyFormat(action);
+              }
+            }}
+            onLinkClick={() => {
+              isLinkPopoverOpenRef.current = true;
+              setLinkPopoverAnchor(inputRef.current);
+            }}
+            onConvertType={blockType !== "segment" ? (type) => {
+              setTurnIntoOpen(false);
+              saveEdit();
+              onUpdateType(item.id, type);
+            } : undefined}
+            turnIntoOpen={turnIntoOpen}
+            onTurnIntoOpenChange={setTurnIntoOpen}
+          />
+          <LinkPopover
+            open={!!linkPopoverAnchor}
+            onOpenChange={(open) => {
+              if (!open) {
+                isLinkPopoverOpenRef.current = false;
+                setLinkPopoverAnchor(null);
+                
+                const activeEl = document.activeElement;
+                const isInside = blockType === "segment"
+                  ? (segmentFormRef.current?.contains(activeEl) || activeEl === inputRef.current)
+                  : (inputRef.current === activeEl);
+                
+                if (isInside) return;
+
+                if (blockType === "segment") {
+                  saveSegment();
+                } else {
+                  saveEdit();
+                }
+              }
+            }}
+            anchor={linkPopoverAnchor}
+            selectedText={
+              blockType === "segment" && linkPopoverAnchor !== inputRef.current
+                ? editValue
+                : (toolbarSelection ? editValue.slice(toolbarSelection.start, toolbarSelection.end) : "")
+            }
+            initialUrl={
+              blockType === "segment"
+                ? segmentLinkUrl
+                : ""
+            }
+            onConfirm={(url) => {
+              isLinkPopoverOpenRef.current = false;
+              if (blockType === "segment") {
+                setSegmentLinkUrl(url);
+                setHasSegmentLink(true);
+                setLinkPopoverAnchor(null);
+                requestAnimationFrame(() => inputRef.current?.focus());
+              } else {
+                applyFormat("link", url);
+                setLinkPopoverAnchor(null);
+              }
+            }}
+            onCancel={() => {
+              isLinkPopoverOpenRef.current = false;
+              setLinkPopoverAnchor(null);
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
+            onRemove={
+              blockType === "segment"
+                ? () => {
+                    setHasSegmentLink(false);
+                    setSegmentLinkUrl("");
+                  }
+                : undefined
+            }
+          />
+        </>
+      )}
+
       {hasChildren && (
         <div className={cn("mt-0", isHeader ? "" : "border-l border-border/60 pl-2 ml-2")}>
           <SortableContext

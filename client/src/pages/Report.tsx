@@ -81,7 +81,11 @@ function ReportItem({
               style={{ fontWeight: 600, fontSize: "0.875rem", flex: 1 }}
               className={item.checked ? "text-muted-foreground" : "text-foreground"}
             >
-              {item.text || <span className="text-muted-foreground italic font-normal">Untitled segment</span>}
+              {item.text ? (
+                <TextWithLinks text={item.text} />
+              ) : (
+                <span className="text-muted-foreground italic font-normal">Untitled segment</span>
+              )}
             </span>
             {item.allocatedTime != null && (
               <span className="text-xs text-muted-foreground font-mono shrink-0">

@@ -17,8 +17,13 @@ import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import { cn } from "@/lib/utils";
 import { useTimerStore } from "@/stores/timerStore";
 import { PracticePlanPane } from "@/components/PracticePlanPane";
+import { TextWithLinks } from "@/components/TextWithLinks";
 
 import "@/assets/headerBlur.css";
+
+const stripMarkdownLinks = (str: string) => {
+  return str.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+};
 
 export default function Home() {
   const navigate = useNavigate();
@@ -370,7 +375,9 @@ export default function Home() {
                       <div className="w-full max-w-sm rounded-lg bg-muted/40 border border-border/40 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="flex flex-col min-w-0 items-start">
                           <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Active Piece</span>
-                          <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName}>{activePieceName}</span>
+                          <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName ? stripMarkdownLinks(activePieceName) : ""}>
+                            <TextWithLinks text={activePieceName || ""} />
+                          </span>
                           <span className="text-lg font-bold text-primary font-mono mt-0.5">{formatSeconds(pieceTimeRemaining)}</span>
                         </div>
                         <div className="flex items-center gap-1">
