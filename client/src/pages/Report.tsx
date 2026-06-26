@@ -103,8 +103,8 @@ function ReportItem({
               style={{ fontWeight: 600, fontSize: "0.875rem", flex: 1 }}
               className={item.checked ? "text-muted-foreground" : "text-foreground"}
             >
-              {title ? (
-                <span>{title}</span>
+              {item.text ? (
+                <TextWithLinks text={item.text} />
               ) : (
                 <span className="text-muted-foreground italic font-normal">Untitled segment</span>
               )}
@@ -304,9 +304,11 @@ export default function Report() {
             <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
           </header>
           {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
-            <div className="px-6 py-3 border-b border-border/30 flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Last 7 days:</span>
-              <span className="text-sm font-semibold text-primary tabular-nums">{formatDuration(snapshot.logSummary.totalSeconds)}</span>
+            <div className="px-6 py-5 border-b border-border/30">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-primary tabular-nums">{formatDuration(snapshot.logSummary.totalSeconds)}</span>
+                <span className="text-sm text-muted-foreground">total in last 7 days</span>
+              </div>
             </div>
           )}
           <main className="p-8 w-full">
