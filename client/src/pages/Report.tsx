@@ -5,6 +5,18 @@ import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import { Checkbox } from "@/components/ui/checkbox";
 
+/** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
+function stripMarkdown(text: string): string {
+  return text
+    // Replace [label](url) with label
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Replace plain URLs that remain (just show as-is, no change needed)
+    // Strip **bold**
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    // Strip *italic*
+    .replace(/\*(.+?)\*/g, "$1");
+}
+
 /** Decode token during render so the first paint has snapshot data (RichLink metadata queries mount immediately). */
 function useTokenSnapshot(token: string | null): ReportSnapshot | null {
   return useMemo(() => {
@@ -17,10 +29,12 @@ function ReportItem({
   item,
   depth = 0,
   numberIndex = 0,
+  logSummary,
 }: {
   item: ReportSnapshotItem;
   depth?: number;
   numberIndex?: number;
+  logSummary?: ReportLogSummary;
 }) {
   const isDivider = item.blockType === "divider" || (item.text === "---" && !item.blockType);
   const isHeader =
@@ -63,13 +77,19 @@ function ReportItem({
         </Tag>
         {item.children.map((child, i, arr) => {
           const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-          return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
+          return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} logSummary={logSummary} />;
         })}
       </>
     );
   }
 
   if (isSegment) {
+    const title = item.text ? stripMarkdown(item.text) : "";
+    // Look up practiced time for this segment from the log summary
+    const practicedEntry = logSummary?.pieces.find(
+      (p) => stripMarkdown(p.itemName) === title || p.itemName === item.text
+    );
+    const practicedSeconds = practicedEntry?.seconds ?? 0;
     return (
       <div className="py-1" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
         <div className="rounded-lg border border-muted/40 bg-muted/10 px-3 py-2 space-y-1">
@@ -81,17 +101,24 @@ function ReportItem({
               style={{ fontWeight: 600, fontSize: "0.875rem", flex: 1 }}
               className={item.checked ? "text-muted-foreground" : "text-foreground"}
             >
-              {item.text ? (
-                <TextWithLinks text={item.text} />
+              {title ? (
+                <span>{title}</span>
               ) : (
                 <span className="text-muted-foreground italic font-normal">Untitled segment</span>
               )}
             </span>
-            {item.allocatedTime != null && (
-              <span className="text-xs text-muted-foreground font-mono shrink-0">
-                {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {practicedSeconds > 0 && (
+                <span className="text-xs font-semibold text-primary font-mono">
+                  {formatDuration(practicedSeconds)}
+                </span>
+              )}
+              {item.allocatedTime != null && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  /{item.allocatedTime}m{item.allocationPeriod === "week" ? "/wk" : "/day"}
+                </span>
+              )}
+            </div>
           </div>
           {item.segmentGoal && (
             <p className="text-xs text-muted-foreground pl-7 leading-relaxed">{item.segmentGoal}</p>
@@ -101,7 +128,7 @@ function ReportItem({
           <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
             {item.children.map((child, i, arr) => {
               const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-              return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
+              return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} logSummary={logSummary} />;
             })}
           </div>
         )}
@@ -131,7 +158,7 @@ function ReportItem({
         <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
           {item.children.map((child, i, arr) => {
             const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-            return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} />;
+            return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} logSummary={logSummary} />;
           })}
         </div>
       )}
@@ -171,7 +198,7 @@ function LogSummarySection({ summary }: { summary: ReportLogSummary }) {
         <div className="space-y-2.5">
           {practiced.map((piece) => (
             <div key={piece.itemId} className="flex items-center justify-between">
-              <span className="text-sm text-foreground truncate max-w-[65%]">{piece.itemName}</span>
+              <span className="text-sm text-foreground truncate max-w-[65%]">{stripMarkdown(piece.itemName)}</span>
               <span className="text-sm font-semibold text-primary tabular-nums shrink-0 ml-2">
                 {formatDuration(piece.seconds)}
               </span>
@@ -317,7 +344,7 @@ export default function Report() {
             <div className="space-y-1">
               {snapshot.items.map((item, i, arr) => {
                 const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-                return <ReportItem key={i} item={item} numberIndex={numIdx} />;
+                return <ReportItem key={i} item={item} numberIndex={numIdx} logSummary={snapshot.logSummary} />;
               })}
             </div>
           </main>
