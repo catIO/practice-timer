@@ -6,6 +6,7 @@
 import type { PracticePlanItem } from "./practicePlan";
 
 export interface ReportSnapshotItem {
+  id?: string;
   text: string;
   checked: boolean;
   blockType?: string;
@@ -43,6 +44,7 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
     blockType: item.blockType,
     children: item.children.map(itemToSnapshot),
     ...(item.blockType === 'segment' ? {
+      id: item.id,
       segmentGoal: item.segmentGoal,
       allocatedTime: item.allocatedTime,
       allocationPeriod: item.allocationPeriod,

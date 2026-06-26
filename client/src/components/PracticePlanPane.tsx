@@ -2354,7 +2354,7 @@ export function PracticePlanPane({
   return (
     <div className="text-foreground font-sans min-h-screen w-full">
       <div className="max-w-2xl mx-auto pt-8 pb-32 px-4 sm:px-0">
-        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
+        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm min-h-[500px]">
           <header className="sticky top-0 z-20 p-4 flex items-center justify-between border-b border-border/40 bg-background/50 backdrop-blur-md rounded-t-2xl">
             <div className="relative z-10 flex items-center justify-between w-full">
               <div className="flex items-center gap-4">

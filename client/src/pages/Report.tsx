@@ -85,9 +85,11 @@ function ReportItem({
 
   if (isSegment) {
     const title = item.text ? stripMarkdown(item.text) : "";
-    // Look up practiced time for this segment from the log summary
+    // Match by itemId first (reliable), then fall back to name match
     const practicedEntry = logSummary?.pieces.find(
-      (p) => stripMarkdown(p.itemName) === title || p.itemName === item.text
+      (p) => (item.id && p.itemId === item.id) ||
+             stripMarkdown(p.itemName) === title ||
+             p.itemName === item.text
     );
     const practicedSeconds = practicedEntry?.seconds ?? 0;
     return (
@@ -173,42 +175,6 @@ function formatDuration(seconds: number): string {
   return `${m} min`;
 }
 
-function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function LogSummarySection({ summary }: { summary: ReportLogSummary }) {
-  const practiced = summary.pieces.filter((p) => p.seconds > 0);
-  return (
-    <section className="px-6 py-6 border-b border-border/40 bg-primary/5">
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-base font-semibold text-foreground uppercase tracking-wider">
-          Practice summary
-        </h2>
-        <span className="text-xs text-muted-foreground">
-          {formatShortDate(summary.startDate)} – {formatShortDate(summary.endDate)}
-        </span>
-      </div>
-      <div className="flex items-baseline gap-2 mb-5">
-        <span className="text-4xl font-bold text-primary tabular-nums">{formatDuration(summary.totalSeconds)}</span>
-        <span className="text-sm text-muted-foreground">total in last 7 days</span>
-      </div>
-      {practiced.length > 0 && (
-        <div className="space-y-2.5">
-          {practiced.map((piece) => (
-            <div key={piece.itemId} className="flex items-center justify-between">
-              <span className="text-sm text-foreground truncate max-w-[65%]">{stripMarkdown(piece.itemName)}</span>
-              <span className="text-sm font-semibold text-primary tabular-nums shrink-0 ml-2">
-                {formatDuration(piece.seconds)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
 
 export default function Report() {
   const { token: pathToken, id } = useParams<{ token?: string; id?: string }>();
@@ -330,15 +296,18 @@ export default function Report() {
   return (
     <div className="min-h-screen text-foreground font-sans">
       <div className="max-w-3xl mx-auto pt-8 pb-32 px-4 sm:px-0">
-        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black backdrop-blur-sm shadow-2xl border border-white/10 min-h-[500px]">
+        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm min-h-[500px]">
           <header className="border-b border-border/40 px-6 py-6 bg-background/20 backdrop-blur-md rounded-t-2xl">
             <h1 className="text-2xl font-bold text-foreground">
               {snapshot.title ?? "Practice Plan & Progress Report"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
           </header>
-          {snapshot.logSummary && (
-            <LogSummarySection summary={snapshot.logSummary} />
+          {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
+            <div className="px-6 py-3 border-b border-border/30 flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Last 7 days:</span>
+              <span className="text-sm font-semibold text-primary tabular-nums">{formatDuration(snapshot.logSummary.totalSeconds)}</span>
+            </div>
           )}
           <main className="p-8 w-full">
             <div className="space-y-1">
