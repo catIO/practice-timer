@@ -957,7 +957,7 @@ function PlanItem({
       >
         <div className={cn(
           "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
-          "absolute left-0 top-1 -translate-x-full"
+          "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full"
         )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1200,9 +1200,14 @@ function PlanItem({
                   )}
                 </div>
                 <div className="pl-6 space-y-1.5">
-                  <input
+                  <textarea
                     value={segmentGoalValue}
-                    onChange={(e) => setSegmentGoalValue(e.target.value)}
+                    onChange={(e) => {
+                      setSegmentGoalValue(e.target.value);
+                      // Auto-resize
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as Node | null;
                       if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
@@ -1211,11 +1216,11 @@ function PlanItem({
                       saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); saveSegment(); }
                       if (e.key === 'Escape') { setEditing(false); requestAnimationFrame(() => rowRef.current?.focus()); }
                     }}
                     placeholder="Goal — what do you want to achieve?"
-                    className="w-full text-xs bg-transparent border-none outline-none text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                    rows={1}
+                    className="w-full text-xs bg-transparent border-none outline-none text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none resize-none overflow-hidden"
                   />
                   <div className="flex items-center gap-2 flex-wrap">
                     <Input
@@ -1358,7 +1363,7 @@ function PlanItem({
                   </div>
                 </div>
                 {item.segmentGoal && (
-                  <p className="text-xs text-muted-foreground pl-6 leading-relaxed">{item.segmentGoal}</p>
+                  <p className="text-xs text-muted-foreground pl-6 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
                 )}
                 {!item.segmentGoal && !item.allocatedTime && !item.text && (
                   <p className="text-xs text-muted-foreground/40 italic pl-6">Double-click to add name, goal & time...</p>
