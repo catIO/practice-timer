@@ -3,6 +3,12 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import {
   getDailyBreakdown,
@@ -50,14 +56,66 @@ export default function PracticeLog() {
         <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
           <header className="relative p-4 flex items-center justify-between overflow-hidden">
             <div className="relative z-10 flex items-center justify-between w-full">
-              <h1 className="text-2xl font-bold text-primary">Practice Log</h1>
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/">
-                  <span className="material-icons text-primary hover:text-primary/80">
-                    arrow_back
-                  </span>
-                </Link>
-              </Button>
+              <div className="flex items-center gap-2 text-primary">
+                <span className="material-icons font-semibold">history</span>
+                <h1 className="text-2xl font-bold text-foreground">Practice Log</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary/80" asChild>
+                        <Link to="/">
+                          <svg 
+                            className="h-5 w-auto fill-current" 
+                            viewBox="0 0 46 79" 
+                            aria-hidden="true"
+                          >
+                            <path 
+                              fillRule="evenodd" 
+                              clipRule="evenodd" 
+                              d="M20.7463 39.5L1.33284 67.4349C0.536414 68.5779 0.0956646 69.8593 0.0138686 71.1723C-0.0679757 72.4759 0.21219 73.8015 0.860683 75.0421C1.50601 76.2763 2.43777 77.265 3.5585 77.9452C4.68857 78.6285 5.99183 79 7.37697 79H38.623C40.0082 79 41.3114 78.6285 42.4415 77.9452C43.5622 77.2651 44.4908 76.2795 45.1393 75.0421C45.7878 73.8015 46.0648 72.4759 45.9861 71.1723C45.9043 69.8593 45.4604 68.581 44.6672 67.4349L25.2537 39.5L44.6672 11.5651C45.4636 10.4221 45.9043 9.14066 45.9861 7.82767C46.068 6.5241 45.7878 5.19853 45.1393 3.95792C44.494 2.72368 43.5622 1.73496 42.4415 1.05481C41.3114 0.371548 40.0082 0 38.623 0H7.37697C5.99183 0 4.68865 0.371548 3.5585 1.05481C2.43785 1.73492 1.50917 2.72046 0.860683 3.95792C0.212206 5.19853 -0.0647845 6.5241 0.0138686 7.82767C0.095713 9.14066 0.539573 10.419 1.33284 11.5651L20.7463 39.5Z" 
+                            />
+                          </svg>
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Timer</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary/80" asChild>
+                        <Link to="/practice-plan">
+                          <span className="material-icons">assignment_add</span>
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Planning & Goals</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary/80" asChild>
+                        <Link to="/">
+                          <span className="material-icons">arrow_back</span>
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Back to Timer</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           </header>
 
@@ -145,10 +203,12 @@ export default function PracticeLog() {
                         }
                         
                         const percent = targetMins > 0 ? (practicedMins / targetMins) * 100 : 0;
+                        const roundedPercent = Math.round(percent);
                         const exceeded = targetMins > 0 && practicedMins > targetMins;
                         
-                        const spentLabel = `${practicedMins} min`;
-                        const targetLabel = targetMins > 0 ? `${targetMins} min allocated` : 'No limit';
+                        const progressText = targetMins > 0 
+                          ? `${practicedMins} / ${targetMins} min (${roundedPercent}%)` 
+                          : `${practicedMins} min (No limit)`;
                         
                         return (
                           <div key={summary.itemId} className="space-y-1">
@@ -160,7 +220,7 @@ export default function PracticeLog() {
                                 "font-mono",
                                 exceeded ? "text-amber-500 font-bold" : "text-muted-foreground"
                               )}>
-                                {spentLabel} / {targetLabel} {exceeded && "(limit exceeded)"}
+                                {progressText} {exceeded && "(limit exceeded)"}
                               </span>
                             </div>
                             
