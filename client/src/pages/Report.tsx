@@ -4,6 +4,7 @@ import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type R
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 /** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
 function stripMarkdown(text: string): string {
@@ -95,29 +96,36 @@ function ReportItem({
     return (
       <div className="py-1" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
         <div className="rounded-lg border border-muted/40 bg-muted/10 px-3 py-2 space-y-1">
-          <div className="flex items-center gap-2">
-            <span style={{ fontSize: "1rem", lineHeight: 1 }}>
-              {item.checked ? "✅" : "⏱️"}
-            </span>
-            <span
-              style={{ fontWeight: 600, fontSize: "0.875rem", flex: 1 }}
-              className={item.checked ? "text-muted-foreground" : "text-foreground"}
-            >
-              {item.text ? (
-                <TextWithLinks text={item.text} />
-              ) : (
-                <span className="text-muted-foreground italic font-normal">Untitled segment</span>
-              )}
-            </span>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {practicedSeconds > 0 && (
-                <span className="text-xs font-semibold text-primary font-mono">
-                  {formatDuration(practicedSeconds)}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={cn(
+                  "material-icons text-sm shrink-0 select-none",
+                  item.checked ? "text-green-500" : "text-primary"
+                )}
+              >
+                {item.checked ? "task_alt" : "timer"}
+              </span>
+              <span
+                style={{ fontWeight: 600, fontSize: "0.875rem" }}
+                className={cn("truncate", item.checked ? "text-muted-foreground" : "text-foreground")}
+              >
+                {item.text ? (
+                  <TextWithLinks text={item.text} />
+                ) : (
+                  <span className="text-muted-foreground italic font-normal">Untitled segment</span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0">
+              {item.allocatedTime != null && (
+                <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight">
+                  Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
                 </span>
               )}
-              {item.allocatedTime != null && (
-                <span className="text-xs text-muted-foreground font-mono">
-                  /{item.allocatedTime}m{item.allocationPeriod === "week" ? "/wk" : "/day"}
+              {practicedSeconds > 0 && (
+                <span className="inline-flex items-center bg-primary/10 border border-primary/25 text-primary px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight">
+                  Total: {formatDuration(practicedSeconds)}
                 </span>
               )}
             </div>
