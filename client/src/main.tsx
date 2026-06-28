@@ -11,6 +11,11 @@ if ('serviceWorker' in navigator && import.meta.env.DEV) {
     regs.forEach((r) => r.unregister());
   });
 }
+
+// Request durable storage so the browser won't silently evict our data under quota pressure.
+if (navigator.storage?.persist) {
+  navigator.storage.persist();
+}
 // Register service worker only in production (avoids aggressive caching during dev)
 else if ('serviceWorker' in navigator && !import.meta.env.DEV) {
   let refreshing = false;

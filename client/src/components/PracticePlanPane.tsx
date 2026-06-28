@@ -43,6 +43,7 @@ import {
   savePracticePlan,
   practicePlanApi,
   generateId,
+  saveSnapshot,
 } from "@/lib/practicePlan";
 import {
   createReportSnapshot,
@@ -343,16 +344,19 @@ function PlanItem({
 
   useEffect(() => {
     if (item.blockType === "segment") {
-      const parsed = parseSegmentLink(item.text);
-      setEditValue(parsed.label);
-      setSegmentLinkUrl(parsed.url);
-      setHasSegmentLink(parsed.hasLink);
+      // Don't overwrite in-progress edits while the form is open
+      if (!editing) {
+        const parsed = parseSegmentLink(item.text);
+        setEditValue(parsed.label);
+        setSegmentLinkUrl(parsed.url);
+        setHasSegmentLink(parsed.hasLink);
+      }
     } else {
       setEditValue(item.text);
       setSegmentLinkUrl("");
       setHasSegmentLink(false);
     }
-  }, [item.text, item.blockType]);
+  }, [item.text, item.blockType, editing]);
 
   const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
@@ -363,11 +367,14 @@ function PlanItem({
     item.allocatedTime ? String(item.allocatedTime) : ""
   );
   const [segmentPeriodValue, setSegmentPeriodValue] = useState<'day' | 'week'>(item.allocationPeriod ?? 'day');
-  useEffect(() => { setSegmentGoalValue(item.segmentGoal ?? ""); }, [item.segmentGoal]);
+  // Guard: don't clobber in-progress edits while the segment form is open
+  useEffect(() => { if (!editing) setSegmentGoalValue(item.segmentGoal ?? ""); }, [item.segmentGoal, editing]);
   useEffect(() => {
-    setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : "");
-    setSegmentPeriodValue(item.allocationPeriod ?? 'day');
-  }, [item.allocatedTime, item.allocationPeriod]);
+    if (!editing) {
+      setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : "");
+      setSegmentPeriodValue(item.allocationPeriod ?? 'day');
+    }
+  }, [item.allocatedTime, item.allocationPeriod, editing]);
 
   // Slash command state
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -377,6 +384,8 @@ function PlanItem({
 
   // Ref for segment form (used to detect focus leaving the form)
   const segmentFormRef = useRef<HTMLDivElement>(null);
+  // Ref for goal textarea — used to auto-resize to content height when the form opens
+  const goalTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const rowRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -398,8 +407,9 @@ function PlanItem({
 
   // ...
 
+  // saveSegment: persists segment data only — does NOT close the form.
+  // Separating data-save from form-close prevents premature collapse on blur.
   const saveSegment = useCallback(() => {
-    setEditing(false);
     const plainName = editValue.trim();
     const name = (hasSegmentLink && segmentLinkUrl.trim())
       ? `[${plainName}](${segmentLinkUrl.trim()})`
@@ -410,13 +420,21 @@ function PlanItem({
     onSaveSegment(item.id, name, goal, duration, segmentPeriodValue);
   }, [editValue, hasSegmentLink, segmentLinkUrl, segmentGoalValue, segmentDurationValue, segmentPeriodValue, item.id, onSaveSegment]);
 
+  // closeSegment: saves data AND closes the form. Called by Enter, Done button,
+  // and the form-container blur handler (when focus truly leaves the form).
+  const closeSegment = useCallback(() => {
+    saveSegment();
+    setEditing(false);
+    requestAnimationFrame(() => rowRef.current?.focus());
+  }, [saveSegment]);
+
   const saveEdit = useCallback(() => {
     // If popover is open, don't exit edit mode on blur
     if (isLinkPopoverOpenRef.current) return;
     // If slash menu is open, don't exit edit mode on blur
     if (isSlashMenuOpenRef.current) return;
-    // Segment blocks use saveSegment instead
-    if (item.blockType === 'segment') { saveSegment(); return; }
+    // Segment blocks use closeSegment instead
+    if (item.blockType === 'segment') { closeSegment(); return; }
 
     setEditing(false);
     setToolbarSelection(null);
@@ -426,7 +444,7 @@ function PlanItem({
     } else {
       setEditValue(item.text);
     }
-  }, [editValue, item.id, item.text, item.blockType, saveSegment, onUpdateText]);
+  }, [editValue, item.id, item.text, item.blockType, closeSegment, onUpdateText]);
 
   // ... (lines 402+ applyFormat)
 
@@ -456,7 +474,15 @@ function PlanItem({
     );
   }, [slashFilter]);
 
-  // Auto-resize textarea for text blocks when content changes (deferred to avoid resetting cursor)
+  // Auto-size goal textarea when the segment form first opens (existing multi-line content)
+  useEffect(() => {
+    if (editing && goalTextareaRef.current) {
+      const el = goalTextareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [editing]);
+
   useEffect(() => {
     if (blockType === "text" && editing && inputRef.current && "scrollHeight" in inputRef.current) {
       const ta = inputRef.current as HTMLTextAreaElement;
@@ -999,76 +1025,23 @@ function PlanItem({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
-                title="Drag to move · Click to open menu"
-                {...attributes}
-                {...listeners}
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => { listeners?.onPointerDown?.(e); }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') return;
-                  listeners?.onKeyDown?.(e);
-                }}
-              >
-                <span className="material-icons text-base">drag_indicator</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
-              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                {BASIC_BLOCK_OPTIONS.find(o => o.type === blockType)?.label ||
-                  PRACTICE_BLOCK_OPTIONS.find(o => o.type === blockType)?.label ||
-                  blockType}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {blockType !== "divider" && blockType !== "segment" && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <span className="material-icons mr-2 text-base">transform</span>
-                    Turn into
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-52">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Basic blocks</DropdownMenuLabel>
-                    {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
-                      <DropdownMenuItem
-                        key={type}
-                        className={cn(type === blockType && "bg-accent text-accent-foreground")}
-                        onSelect={() => { onUpdateType(item.id, type); }}
-                      >
-                        <span className="material-icons mr-2 text-base text-muted-foreground">{icon}</span>
-                        {label}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Practice</DropdownMenuLabel>
-                    {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
-                      <DropdownMenuItem
-                        key={type}
-                        className={cn(type === blockType && "bg-accent text-accent-foreground")}
-                        onSelect={() => { onUpdateType(item.id, type); }}
-                      >
-                        <span className="mr-2">{icon}</span>
-                        {label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onSelect={() => onDelete(item.id)}
-              >
-                <span className="material-icons mr-2 text-base">delete</span>
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+              title="Drag to reorder"
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => { listeners?.onPointerDown?.(e); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') return;
+                listeners?.onKeyDown?.(e);
+              }}
+            >
+              <span className="material-icons text-base">drag_indicator</span>
+            </Button>
         </div>
         {showCheckbox ? (
           <Checkbox
@@ -1098,6 +1071,15 @@ function PlanItem({
                 className="flex-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5 space-y-2"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  // focusout bubbles: fires when any child loses focus.
+                  // If focus stayed inside the form, don't save yet.
+                  if (segmentFormRef.current?.contains(e.relatedTarget as Node)) return;
+                  if (isLinkPopoverOpenRef.current) return;
+                  if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                  // 200ms gives native elements (select, link popover) time to settle focus
+                  saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; closeSegment(); }, 200);
+                }}
               >
                 <div className="flex items-center gap-2">
                   <span className="material-icons text-primary text-base shrink-0 select-none">timer</span>
@@ -1115,15 +1097,9 @@ function PlanItem({
                         setToolbarSelection(null);
                       }
                     }}
-                    onBlur={(e) => {
-                      const relatedTarget = e.relatedTarget as Node | null;
-                      if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
-                      if (isLinkPopoverOpenRef.current) return;
-                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                      saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
-                    }}
+                    onBlur={undefined}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); saveSegment(); }
+                      if (e.key === 'Enter') { e.preventDefault(); closeSegment(); }
                       if (e.key === 'Escape') {
                         const parsed = parseSegmentLink(item.text);
                         setEditValue(parsed.label);
@@ -1201,6 +1177,7 @@ function PlanItem({
                 </div>
                 <div className="pl-6 space-y-1.5">
                   <textarea
+                    ref={goalTextareaRef}
                     value={segmentGoalValue}
                     onChange={(e) => {
                       setSegmentGoalValue(e.target.value);
@@ -1208,13 +1185,7 @@ function PlanItem({
                       e.target.style.height = 'auto';
                       e.target.style.height = `${e.target.scrollHeight}px`;
                     }}
-                    onBlur={(e) => {
-                      const relatedTarget = e.relatedTarget as Node | null;
-                      if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
-                      if (isLinkPopoverOpenRef.current) return;
-                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                      saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
-                    }}
+                    onBlur={undefined}
                     onKeyDown={(e) => {
                       if (e.key === 'Escape') { setEditing(false); requestAnimationFrame(() => rowRef.current?.focus()); }
                     }}
@@ -1227,15 +1198,9 @@ function PlanItem({
                       type="number"
                       min="1"
                       value={segmentDurationValue}
+                      onBlur={undefined}
                       onChange={(e) => setSegmentDurationValue(e.target.value)}
-                      onBlur={(e) => {
-                        const relatedTarget = e.relatedTarget as Node | null;
-                        if (relatedTarget && segmentFormRef.current?.contains(relatedTarget)) return;
-                        if (isLinkPopoverOpenRef.current) return;
-                        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                        saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; saveSegment(); }, 150);
-                      }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveSegment(); } }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); closeSegment(); } }}
                       placeholder="Min"
                       className="w-20 h-7 text-xs"
                     />
@@ -1253,7 +1218,7 @@ function PlanItem({
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 ml-auto text-xs text-muted-foreground hover:text-foreground"
-                      onMouseDown={(e) => { e.preventDefault(); saveSegment(); }}
+                      onMouseDown={(e) => { e.preventDefault(); closeSegment(); }}
                     >
                       Done
                     </Button>
@@ -1827,25 +1792,35 @@ export function PracticePlanPane({
   const [permalinkId, setPermalinkId] = useState<string | null>(() => practicePlanApi.getPermalinkId());
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // One-level undo: snapshot before each mutation, restore on Cmd/Ctrl+Z
-  const [undoSnapshot, setUndoSnapshot] = useState<PracticePlanItem[] | null>(null);
+  // 20-level undo stack: each applyChange pushes the current state before mutating.
+  const MAX_UNDO = 20;
+  const [undoStack, setUndoStack] = useState<PracticePlanItem[][]>([]);
   const itemsRef = useRef<PracticePlanItem[]>(items);
   const contentRef = useRef<HTMLDivElement>(null);
+  // Throttle snapshot saves to at most once per minute
+  const lastSnapshotRef = useRef<number>(0);
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
 
   const applyChange = useCallback((updater: (prev: PracticePlanItem[]) => PracticePlanItem[]) => {
-    setUndoSnapshot(JSON.parse(JSON.stringify(itemsRef.current)));
+    setUndoStack(prev => [...prev.slice(-(MAX_UNDO - 1)), JSON.parse(JSON.stringify(itemsRef.current))]);
     setItems(updater);
+    // Throttled ring-buffer snapshot (at most once per minute)
+    const now = Date.now();
+    if (now - lastSnapshotRef.current > 60_000) {
+      lastSnapshotRef.current = now;
+      saveSnapshot(itemsRef.current);
+    }
   }, []);
 
   const handleUndo = useCallback(() => {
-    if (!undoSnapshot) return;
-    setItems(undoSnapshot);
-    savePracticePlan(undoSnapshot);
-    setUndoSnapshot(null);
-  }, [undoSnapshot]);
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack(s => s.slice(0, -1));
+    setItems(prev);
+    savePracticePlan(prev);
+  }, [undoStack]);
 
   const selectPiece = useTimerStore((state) => state.selectPiece);
   const activePieceName = useTimerStore((state) => state.activePieceName);

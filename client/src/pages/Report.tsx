@@ -131,7 +131,7 @@ function ReportItem({
             </div>
           </div>
           {item.segmentGoal && (
-            <p className="text-xs text-muted-foreground pl-7 leading-relaxed">{item.segmentGoal}</p>
+            <p className="text-xs text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
           )}
         </div>
         {item.children.length > 0 && (

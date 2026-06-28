@@ -117,6 +117,35 @@ export function savePracticePlan(items: PracticePlanItem[]): void {
   }
 }
 
+/** Snapshot ring buffer — stores up to 5 timestamped recovery points. */
+const SNAPSHOT_KEY = "practice-timer-plan-history";
+const MAX_SNAPSHOTS = 5;
+
+export interface PlanSnapshot {
+  ts: number; // Unix ms
+  items: PracticePlanItem[];
+}
+
+export function saveSnapshot(items: PracticePlanItem[]): void {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    const existing: PlanSnapshot[] = raw ? JSON.parse(raw) : [];
+    const next = [...existing, { ts: Date.now(), items }].slice(-MAX_SNAPSHOTS);
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(next));
+  } catch {
+    // Quota exceeded or parse error — skip silently
+  }
+}
+
+export function getSnapshots(): PlanSnapshot[] {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function resetPracticePlanChecks(items: PracticePlanItem[]): PracticePlanItem[] {
   return items.map((item) => ({
     ...item,
