@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Vite exposes VITE_* vars to the client. Netlify's Supabase integration sets
+// SUPABASE_DATABASE_URL and SUPABASE_ANON_KEY (no VITE_ prefix), so we also
+// check those at build time via define in vite.config.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
