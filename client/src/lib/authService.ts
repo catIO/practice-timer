@@ -82,7 +82,7 @@ export function onAuthStateChange(
 ) {
     if (!supabase) {
         // Return a no-op subscription when Supabase is not configured
-        return { data: { subscription: { unsubscribe: () => {} } } };
+        return { data: { subscription: { unsubscribe: () => { } } } };
     }
     return supabase.auth.onAuthStateChange((event, session) => {
         callback(event, session);
