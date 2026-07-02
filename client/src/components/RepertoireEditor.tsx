@@ -2,6 +2,9 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { RepertoireBlock } from "@/lib/repertoire.types";
 import { extractYouTubeId } from "./YouTubeEmbed";
+import { InlineToolbar } from "./InlineToolbar";
+import { LinkPopover } from "./LinkPopover";
+import { TextWithLinks } from "./TextWithLinks";
 import { Button } from "./ui/button";
 import {
     DropdownMenu,
@@ -53,11 +56,95 @@ function BlockItem({
     onFocusNext,
 }: BlockItemProps) {
     const taRef = useRef<HTMLTextAreaElement>(null);
+    const toolbarAnchorRef = useRef<HTMLInputElement>(null);
     const ytInputRef = useRef<HTMLInputElement>(null);
+    const [editing, setEditing] = useState(!block.text);
     const [slashOpen, setSlashOpen] = useState(false);
     const [slashFilter, setSlashFilter] = useState("");
     const [slashHighlight, setSlashHighlight] = useState(0);
     const slashOpenRef = useRef(false);
+    const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
+    const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+    const linkPopoverOpenRef = useRef(false);
+
+    // Position the toolbar anchor at the selection midpoint
+    const positionToolbarAnchor = useCallback(() => {
+        const ta = taRef.current;
+        const anchor = toolbarAnchorRef.current;
+        if (!ta || !anchor) return;
+        const { selectionStart, selectionEnd } = ta;
+        if (selectionStart === selectionEnd) return;
+
+        // Create a mirror div to measure caret position
+        const mirror = document.createElement("div");
+        const style = window.getComputedStyle(ta);
+        mirror.style.cssText = `
+            position: absolute; visibility: hidden; white-space: pre-wrap; word-wrap: break-word;
+            width: ${ta.clientWidth}px;
+            font: ${style.font}; letter-spacing: ${style.letterSpacing};
+            padding: ${style.padding}; border: ${style.border};
+            line-height: ${style.lineHeight};
+        `;
+        mirror.textContent = ta.value.slice(0, selectionStart);
+        const span = document.createElement("span");
+        span.textContent = ta.value.slice(selectionStart, selectionEnd) || ".";
+        mirror.appendChild(span);
+        document.body.appendChild(mirror);
+
+        const taRect = ta.getBoundingClientRect();
+        const spanRect = span.getBoundingClientRect();
+        const mirrorRect = mirror.getBoundingClientRect();
+
+        const top = taRect.top + (spanRect.top - mirrorRect.top) - ta.scrollTop;
+        const left = taRect.left + (spanRect.left - mirrorRect.left) + spanRect.width / 2;
+
+        anchor.style.position = "fixed";
+        anchor.style.top = `${top}px`;
+        anchor.style.left = `${left}px`;
+        anchor.style.width = "1px";
+        anchor.style.height = "1px";
+
+        document.body.removeChild(mirror);
+    }, []);
+
+    const handleSelect = useCallback(() => {
+        const ta = taRef.current;
+        if (!ta) return;
+        const { selectionStart, selectionEnd } = ta;
+        if (selectionStart !== selectionEnd) {
+            setSelection({ start: selectionStart, end: selectionEnd });
+            requestAnimationFrame(positionToolbarAnchor);
+        } else {
+            setSelection(null);
+        }
+    }, [positionToolbarAnchor]);
+
+    const applyFormat = useCallback(
+        (action: "bold" | "italic" | "link", url?: string) => {
+            if (!selection || selection.start === selection.end) return;
+            const text = block.text;
+            const sel = text.slice(selection.start, selection.end);
+            let newText: string;
+            let newEnd: number;
+            if (action === "bold") {
+                newText = text.slice(0, selection.start) + `**${sel}**` + text.slice(selection.end);
+                newEnd = selection.start + sel.length + 4;
+            } else if (action === "italic") {
+                newText = text.slice(0, selection.start) + `*${sel}*` + text.slice(selection.end);
+                newEnd = selection.start + sel.length + 2;
+            } else if (action === "link" && url) {
+                newText = text.slice(0, selection.start) + `[${sel}](${url})` + text.slice(selection.end);
+                newEnd = selection.start + sel.length + url.length + 4;
+            } else return;
+            onChange(block.id, { text: newText });
+            setSelection(null);
+            setTimeout(() => {
+                taRef.current?.focus();
+                taRef.current?.setSelectionRange(selection.start, newEnd);
+            }, 10);
+        },
+        [block.id, block.text, selection, onChange]
+    );
 
     // Auto-resize whenever block text changes
     useEffect(() => {
@@ -67,6 +154,7 @@ function BlockItem({
     // Respond to external focus requests (e.g. after inserting a new block)
     useEffect(() => {
         if (focusId === block.id) {
+            setEditing(true);
             const el = taRef.current ?? ytInputRef.current;
             if (el) {
                 el.focus();
@@ -77,6 +165,14 @@ function BlockItem({
             onFocused();
         }
     }, [focusId, block.id, onFocused]);
+
+    // Focus textarea when entering edit mode
+    useEffect(() => {
+        if (editing && taRef.current) {
+            taRef.current.focus();
+            autoResize(taRef.current);
+        }
+    }, [editing]);
 
     const filteredSlash = useMemo(() => {
         if (!slashFilter) return BLOCK_OPTIONS;
@@ -202,7 +298,7 @@ function BlockItem({
 
             {/* Left hover bar */}
             <div className={cn(
-                "absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/block:opacity-100 transition-opacity z-10 pr-1",
+                "absolute top-1 flex items-center gap-0.5 opacity-0 group-hover/block:opacity-100 transition-opacity z-10 pr-1",
                 isRenderedYouTube ? "-left-8 -translate-x-full" : "left-0 -translate-x-full"
             )}>
                 <DropdownMenu>
@@ -330,49 +426,124 @@ function BlockItem({
                     )}
 
                     <div className="flex-1 relative">
-                        <textarea
-                            ref={taRef}
-                            value={block.text}
-                            rows={1}
-                            onChange={handleChange}
-                            onKeyDown={handleKeyDown}
-                            placeholder={
-                                block.type === "heading1" ? "Heading 1" :
-                                    block.type === "heading2" ? "Heading 2" :
-                                        block.type === "bullet" ? "List item" :
-                                            block.type === "todo" ? "To-do item" :
-                                                "Type '/' for blocks..."
-                            }
-                            className={cn(
-                                taBase,
-                                block.type === "heading1" && "text-2xl font-bold py-1",
-                                block.type === "heading2" && "text-xl font-semibold py-0.5",
-                                (block.type === "text" || block.type === "bullet" || block.type === "number") && "text-sm",
-                                block.type === "todo" && cn("text-sm", block.checked && "line-through text-muted-foreground"),
-                            )}
-                        />
-
-                        {/* Slash command menu */}
-                        {slashOpen && filteredSlash.length > 0 && (
+                        {editing ? (
                             <>
-                                <div className="fixed inset-0 z-40" onMouseDown={() => { setSlashOpen(false); slashOpenRef.current = false; }} />
-                                <div className="absolute left-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg p-1 min-w-[200px]">
-                                    {filteredSlash.map((opt, i) => (
-                                        <button
-                                            key={opt.type}
-                                            type="button"
-                                            onMouseDown={(e) => { e.preventDefault(); applySlash(opt.type); }}
-                                            className={cn(
-                                                "w-full flex items-center gap-2 px-3 py-2 text-sm rounded text-left",
-                                                i === slashHighlight ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
-                                            )}
-                                        >
-                                            <span className="w-5 text-center font-semibold text-muted-foreground text-xs">{opt.icon}</span>
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
+                                <textarea
+                                    ref={taRef}
+                                    value={block.text}
+                                    rows={1}
+                                    onChange={handleChange}
+                                    onKeyDown={handleKeyDown}
+                                    onSelect={handleSelect}
+                                    onMouseUp={handleSelect}
+                                    onBlur={() => {
+                                        if (!linkPopoverOpenRef.current) {
+                                            setSelection(null);
+                                            setEditing(false);
+                                        }
+                                    }}
+                                    placeholder={
+                                        block.type === "heading1" ? "Heading 1" :
+                                            block.type === "heading2" ? "Heading 2" :
+                                                block.type === "bullet" ? "List item" :
+                                                    block.type === "todo" ? "To-do item" :
+                                                        "Type '/' for blocks..."
+                                    }
+                                    className={cn(
+                                        taBase,
+                                        block.type === "heading1" && "text-2xl font-bold py-1",
+                                        block.type === "heading2" && "text-xl font-semibold py-0.5",
+                                        (block.type === "text" || block.type === "bullet" || block.type === "number") && "text-sm",
+                                        block.type === "todo" && cn("text-sm", block.checked && "line-through text-muted-foreground"),
+                                    )}
+                                />
+
+                                {/* Slash command menu */}
+                                {slashOpen && filteredSlash.length > 0 && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onMouseDown={() => { setSlashOpen(false); slashOpenRef.current = false; }} />
+                                        <div className="absolute left-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg p-1 min-w-[200px]">
+                                            {filteredSlash.map((opt, i) => (
+                                                <button
+                                                    key={opt.type}
+                                                    type="button"
+                                                    onMouseDown={(e) => { e.preventDefault(); applySlash(opt.type); }}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-2 px-3 py-2 text-sm rounded text-left",
+                                                        i === slashHighlight ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
+                                                    )}
+                                                >
+                                                    <span className="w-5 text-center font-semibold text-muted-foreground text-xs">{opt.icon}</span>
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Inline formatting toolbar */}
+                                <input ref={toolbarAnchorRef} className="pointer-events-none absolute w-0 h-0 opacity-0 overflow-hidden" tabIndex={-1} aria-hidden="true" />
+                                <InlineToolbar
+                                    anchorRef={toolbarAnchorRef}
+                                    visible={!!selection && !slashOpen && !linkPopoverOpen}
+                                    selectedText={selection ? block.text.slice(selection.start, selection.end) : ""}
+                                    onFormat={(action) => {
+                                        if (action === "link") {
+                                            linkPopoverOpenRef.current = true;
+                                            setLinkPopoverOpen(true);
+                                        } else {
+                                            applyFormat(action);
+                                        }
+                                    }}
+                                    onLinkClick={() => {
+                                        linkPopoverOpenRef.current = true;
+                                        setLinkPopoverOpen(true);
+                                    }}
+                                    onToolbarInteraction={() => {}}
+                                />
+                                <LinkPopover
+                                    open={linkPopoverOpen}
+                                    onOpenChange={(open) => {
+                                        linkPopoverOpenRef.current = open;
+                                        setLinkPopoverOpen(open);
+                                        if (!open) {
+                                            setTimeout(() => taRef.current?.focus(), 10);
+                                        }
+                                    }}
+                                    anchor={taRef.current}
+                                    selectedText={selection ? block.text.slice(selection.start, selection.end) : ""}
+                                    onConfirm={(url) => {
+                                        applyFormat("link", url);
+                                        linkPopoverOpenRef.current = false;
+                                        setLinkPopoverOpen(false);
+                                    }}
+                                />
                             </>
+                        ) : (
+                            /* Rendered view — click to edit */
+                            <div
+                                onClick={() => setEditing(true)}
+                                className={cn(
+                                    "cursor-text min-h-[1.5rem] leading-relaxed whitespace-pre-wrap",
+                                    block.type === "heading1" && "text-2xl font-bold py-1",
+                                    block.type === "heading2" && "text-xl font-semibold py-0.5",
+                                    (block.type === "text" || block.type === "bullet" || block.type === "number") && "text-sm",
+                                    block.type === "todo" && cn("text-sm", block.checked && "line-through text-muted-foreground"),
+                                    !block.text && "text-muted-foreground/40"
+                                )}
+                            >
+                                {block.text ? (
+                                    <TextWithLinks text={block.text} />
+                                ) : (
+                                    <span className="select-none">
+                                        {block.type === "heading1" ? "Heading 1" :
+                                            block.type === "heading2" ? "Heading 2" :
+                                                block.type === "bullet" ? "List item" :
+                                                    block.type === "todo" ? "To-do item" :
+                                                        "Type '/' for blocks..."}
+                                    </span>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -470,7 +641,14 @@ export function RepertoireEditor({ blocks, onChange }: RepertoireEditorProps) {
             {blocks.length > 0 && (
                 <div
                     className="min-h-[3rem] cursor-text"
-                    onClick={() => insertBlock(blocks[blocks.length - 1].id, "text")}
+                    onClick={() => {
+                        const last = blocks[blocks.length - 1];
+                        if (last.text === "" && last.type === "text") {
+                            setFocusId(last.id);
+                        } else {
+                            insertBlock(last.id, "text");
+                        }
+                    }}
                 />
             )}
         </div>
