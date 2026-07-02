@@ -10,6 +10,10 @@ import { Slider } from "@/components/ui/slider";
 import { useNotification } from "@/hooks/useNotification";
 import { playSound, initializeAudioForIOS } from "@/lib/soundEffects";
 import { SoundType } from "@/lib/soundEffects";
+import { useAuth } from "@/contexts/AuthContext";
+import { updatePassword } from "@/lib/authService";
+import { Input } from "@/components/ui/input";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 
 import {
@@ -32,7 +36,14 @@ export default function Settings() {
   const [isVolumeChanging, setIsVolumeChanging] = useState(false);
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
   const { isRunning } = useTimerStore();
-  
+  const { isLoggedIn, user, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState<'general' | 'account'>('general');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
 
 
   // Handle settings update
@@ -40,39 +51,39 @@ export default function Settings() {
     // Always ensure dark mode is enabled
     const newSettings = { ...localSettings, ...updates, darkMode: true };
     setLocalSettings(newSettings);
-    
+
     // Save to localStorage first
     saveSettings(newSettings);
-    
+
     // Then update global settings
     // updateGlobalSettings(newSettings); // This line is removed as per the edit hint
-    
+
     // Ensure dark mode is always applied
     document.documentElement.classList.add('dark');
 
     // If timer duration settings changed, reset the timer only if it's not running
     if (
       (updates.workDuration !== undefined ||
-      updates.breakDuration !== undefined ||
-      updates.iterations !== undefined) &&
+        updates.breakDuration !== undefined ||
+        updates.iterations !== undefined) &&
       !isRunning // Only reset if timer is not running
     ) {
       console.log('Settings: Timer duration changed and timer is not running, resetting timer');
       const { setTimeRemaining, setTotalTime, setMode, setCurrentIteration, setTotalIterations, setSettings: setStoreSettings } = useTimerStore.getState();
-      
+
       // Update store settings first
       setStoreSettings(newSettings);
-      
+
       // Calculate new duration in seconds
       const newDuration = newSettings.workDuration * 60;
-      
+
       // Then update timer state
       setTimeRemaining(newDuration);
       setTotalTime(newDuration);
       setMode('work');
       setCurrentIteration(1);
       setTotalIterations(newSettings.iterations);
-      
+
       // Update worker state with the same values
       updateWorkerState(
         newDuration,
@@ -81,7 +92,7 @@ export default function Settings() {
         1,
         newSettings.iterations
       );
-      
+
       console.log('Settings: Updated timer state:', {
         timeRemaining: newDuration,
         totalTime: newDuration,
@@ -113,12 +124,12 @@ export default function Settings() {
       ...localSettings,
       volume: newVolume
     };
-    
+
     // Update settings
     setLocalSettings(newSettings);
-    
-    
-    
+
+
+
     playSound('end', 1, newVolume, localSettings.soundType as SoundType)
       .catch(error => {
         console.error('Error playing preview sound:', error);
@@ -138,44 +149,44 @@ export default function Settings() {
       ...localSettings,
       soundType: newSoundType
     };
-    
+
     // Update settings
     setLocalSettings(newSettings);
-    
+
     // For iOS, try to unlock audio on sound type change
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
       console.log('iOS: Sound type change detected, trying direct sound test...');
-      
+
       // Try to play a sound directly in the user gesture context
       try {
         const context = new (window.AudioContext || (window as any).webkitAudioContext)();
         console.log('iOS: Audio context created, state:', context.state);
-        
+
         if (context.state === 'suspended') {
           await context.resume();
           console.log('iOS: Audio context resumed');
         }
-        
+
         const oscillator = context.createOscillator();
         const gainNode = context.createGain();
-        
+
         oscillator.connect(gainNode);
         gainNode.connect(context.destination);
-        
+
         oscillator.frequency.setValueAtTime(800, context.currentTime);
         gainNode.gain.setValueAtTime(0.5, context.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-        
+
         oscillator.start(context.currentTime);
         oscillator.stop(context.currentTime + 0.3);
-        
+
         console.log('iOS: Direct sound test completed');
       } catch (error) {
         console.error('iOS: Direct sound test failed:', error);
       }
     }
-    
+
     playSound('end', 1, localSettings.volume, newSoundType)
       .catch(error => {
         console.error('Error playing preview sound:', error);
@@ -186,6 +197,42 @@ export default function Settings() {
   const handleSoundTypeChangeComplete = () => {
     saveSettings(localSettings);
     // updateGlobalSettings(localSettings); // This line is removed as per the edit hint
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { error } = await updatePassword(newPassword);
+      if (error) {
+        setPasswordError(error.message);
+      } else {
+        setPasswordSuccess(true);
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } catch {
+      setPasswordError('Failed to update password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
   };
 
   return (
@@ -203,225 +250,312 @@ export default function Settings() {
             </div>
           </header>
 
-          <section className="p-6">
-            <div className="space-y-6">
-              {/* Sound Settings */}
-              <div>
-                <h2 className="text-lg font-medium mb-4">Sound Settings</h2>
-                <div className="space-y-4">
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="volume" className="text-sm font-medium">
-                        Volume
-                      </label>
-                      <span className="text-sm text-muted-foreground">
-                        {localSettings.volume}%
-                      </span>
-                    </div>
-                    <Slider
-                      id="volume"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={[localSettings.volume]}
-                      onValueChange={handleVolumeChange}
-                      onValueCommit={handleVolumeChangeComplete}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">music_note</span>
-                      <Label htmlFor="sound-type-select">Sound Type</Label>
-                    </div>
-                    <div className="w-48">
-                      <Select
-                        value={localSettings.soundType || 'beep'}
-                        onValueChange={handleSoundTypeChange}
-                        onOpenChange={(open) => {
-                          if (!open) {
-                            handleSoundTypeChangeComplete();
-                          }
-                        }}
-                      >
-                        <SelectTrigger id="sound-type-select">
-                          <SelectValue placeholder="Select sound type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="beep">Beep</SelectItem>
-                          <SelectItem value="bell">Bell</SelectItem>
-                          <SelectItem value="chime">Chime</SelectItem>
-                          <SelectItem value="digital">Digital</SelectItem>
-                          <SelectItem value="woodpecker">Woodpecker</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">notifications</span>
-                      <Label htmlFor="beeps-count">Number of Beeps</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          numberOfBeeps: Math.max(1, localSettings.numberOfBeeps - 1)
-                        })}
-                      >
-                        -
-                      </Button>
-                      <span className="w-8 text-center">{localSettings.numberOfBeeps}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          numberOfBeeps: Math.min(5, localSettings.numberOfBeeps + 1)
-                        })}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timer Settings */}
-              <div>
-                <h2 className="text-lg font-medium mb-4">Timer Settings</h2>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">timer</span>
-                      <Label>Work Duration</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          workDuration: Math.max(5, localSettings.workDuration - 5)
-                        })}
-                      >
-                        -
-                      </Button>
-                      <span className="w-8 text-center">{localSettings.workDuration} min</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          workDuration: Math.min(60, localSettings.workDuration + 5)
-                        })}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">coffee</span>
-                      <Label>Break Duration</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          breakDuration: Math.max(1, localSettings.breakDuration - 1)
-                        })}
-                      >
-                        -
-                      </Button>
-                      <span className="w-8 text-center">{localSettings.breakDuration} min</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          breakDuration: Math.min(15, localSettings.breakDuration + 1)
-                        })}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">repeat</span>
-                      <Label>Number of Iterations</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          iterations: Math.max(1, localSettings.iterations - 1)
-                        })}
-                      >
-                        -
-                      </Button>
-                      <span className="w-8 text-center">{localSettings.iterations}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSettingsUpdate({
-                          ...localSettings,
-                          iterations: Math.min(8, localSettings.iterations + 1)
-                        })}
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Number of work-break cycles to complete before reset.
-                  </p>
-                </div>
-              </div>
-
-              {/* Display Settings */}
-              <div>
-                <h2 className="text-lg font-medium mb-4">Display</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="material-icons text-muted-foreground mr-3">calendar_view_week</span>
-                      <Label htmlFor="week-starts">Week starts on</Label>
-                    </div>
-                    <div className="w-32">
-                      <Select
-                        value={localSettings.weekStartsOn ?? 'monday'}
-                        onValueChange={(value) => handleSettingsUpdate({
-                          ...localSettings,
-                          weekStartsOn: value as 'monday' | 'sunday'
-                        })}
-                      >
-                        <SelectTrigger id="week-starts">
-                          <SelectValue placeholder="Week start" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monday">Monday</SelectItem>
-                          <SelectItem value="sunday">Sunday</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Affects how practice time is grouped by week.
-                  </p>
-                </div>
-              </div>
+          {isLoggedIn && (
+            <div className="px-6 flex gap-2 border-b border-border/40">
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'general'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                General
+              </button>
+              <button
+                onClick={() => setActiveTab('account')}
+                className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'account'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                Account
+              </button>
             </div>
-          </section>
+          )}
+
+          {activeTab === 'account' && isLoggedIn ? (
+            <section className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-medium mb-2">Account</h2>
+                  <p className="text-sm text-muted-foreground mb-4">{user?.email}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Change Password</h3>
+                  <form onSubmit={handlePasswordUpdate} className="space-y-3">
+                    {passwordError && (
+                      <div className="p-3 bg-red-900/20 border border-red-800 rounded-lg flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+                        <p className="text-sm text-red-200">{passwordError}</p>
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="p-3 bg-green-900/20 border border-green-800 rounded-lg flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                        <p className="text-sm text-green-200">Password updated successfully</p>
+                      </div>
+                    )}
+                    <div>
+                      <Label htmlFor="new-password" className="text-sm">New Password</Label>
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="New password"
+                        className="mt-1"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="confirm-new-password" className="text-sm">Confirm New Password</Label>
+                      <Input
+                        id="confirm-new-password"
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="mt-1"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <Button type="submit" size="sm" disabled={isUpdatingPassword}>
+                      {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+                    </Button>
+                  </form>
+                </div>
+
+                <div className="pt-4 border-t border-border/40">
+                  <Button variant="destructive" size="sm" onClick={handleSignOut}>
+                    Sign Out
+                  </Button>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="p-6">
+              <div className="space-y-6">
+                {/* Sound Settings */}
+                <div>
+                  <h2 className="text-lg font-medium mb-4">Sound Settings</h2>
+                  <div className="space-y-4">
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="volume" className="text-sm font-medium">
+                          Volume
+                        </label>
+                        <span className="text-sm text-muted-foreground">
+                          {localSettings.volume}%
+                        </span>
+                      </div>
+                      <Slider
+                        id="volume"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={[localSettings.volume]}
+                        onValueChange={handleVolumeChange}
+                        onValueCommit={handleVolumeChangeComplete}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="material-icons text-muted-foreground mr-3">music_note</span>
+                        <Label htmlFor="sound-type-select">Sound Type</Label>
+                      </div>
+                      <div className="w-48">
+                        <Select
+                          value={localSettings.soundType || 'beep'}
+                          onValueChange={handleSoundTypeChange}
+                          onOpenChange={(open) => {
+                            if (!open) {
+                              handleSoundTypeChangeComplete();
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="sound-type-select">
+                            <SelectValue placeholder="Select sound type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="beep">Beep</SelectItem>
+                            <SelectItem value="bell">Bell</SelectItem>
+                            <SelectItem value="chime">Chime</SelectItem>
+                            <SelectItem value="digital">Digital</SelectItem>
+                            <SelectItem value="woodpecker">Woodpecker</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="material-icons text-muted-foreground mr-3">notifications</span>
+                        <Label htmlFor="beeps-count">Number of Beeps</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            numberOfBeeps: Math.max(1, localSettings.numberOfBeeps - 1)
+                          })}
+                        >
+                          -
+                        </Button>
+                        <span className="w-8 text-center">{localSettings.numberOfBeeps}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            numberOfBeeps: Math.min(5, localSettings.numberOfBeeps + 1)
+                          })}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timer Settings */}
+                <div>
+                  <h2 className="text-lg font-medium mb-4">Timer Settings</h2>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="material-icons text-muted-foreground mr-3">timer</span>
+                        <Label>Work Duration</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            workDuration: Math.max(5, localSettings.workDuration - 5)
+                          })}
+                        >
+                          -
+                        </Button>
+                        <span className="w-8 text-center">{localSettings.workDuration} min</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            workDuration: Math.min(60, localSettings.workDuration + 5)
+                          })}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="material-icons text-muted-foreground mr-3">coffee</span>
+                        <Label>Break Duration</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            breakDuration: Math.max(1, localSettings.breakDuration - 1)
+                          })}
+                        >
+                          -
+                        </Button>
+                        <span className="w-8 text-center">{localSettings.breakDuration} min</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            breakDuration: Math.min(15, localSettings.breakDuration + 1)
+                          })}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="material-icons text-muted-foreground mr-3">repeat</span>
+                        <Label>Number of Iterations</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            iterations: Math.max(1, localSettings.iterations - 1)
+                          })}
+                        >
+                          -
+                        </Button>
+                        <span className="w-8 text-center">{localSettings.iterations}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSettingsUpdate({
+                            ...localSettings,
+                            iterations: Math.min(8, localSettings.iterations + 1)
+                          })}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Number of work-break cycles to complete before reset.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Display Settings */}
+                <div>
+                  <h2 className="text-lg font-medium mb-4">Display</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="material-icons text-muted-foreground mr-3">calendar_view_week</span>
+                        <Label htmlFor="week-starts">Week starts on</Label>
+                      </div>
+                      <div className="w-32">
+                        <Select
+                          value={localSettings.weekStartsOn ?? 'monday'}
+                          onValueChange={(value) => handleSettingsUpdate({
+                            ...localSettings,
+                            weekStartsOn: value as 'monday' | 'sunday'
+                          })}
+                        >
+                          <SelectTrigger id="week-starts">
+                            <SelectValue placeholder="Week start" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="monday">Monday</SelectItem>
+                            <SelectItem value="sunday">Sunday</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Affects how practice time is grouped by week.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>

@@ -15,6 +15,8 @@ interface AuthContextType {
     session: Session | null;
     isLoggedIn: boolean;
     isLoading: boolean;
+    isPasswordRecovery: boolean;
+    clearPasswordRecovery: () => void;
     signUp: (email: string, password: string) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
@@ -39,6 +41,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
+
+    const clearPasswordRecovery = () => setIsPasswordRecovery(false);
 
     useEffect(() => {
         let mounted = true;
@@ -71,6 +76,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (mounted) {
                 setSession(session);
                 setUser(session?.user ?? null);
+                if (_event === 'PASSWORD_RECOVERY') {
+                    setIsPasswordRecovery(true);
+                }
             }
         });
 
@@ -141,6 +149,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         session,
         isLoggedIn: !!user,
         isLoading,
+        isPasswordRecovery,
+        clearPasswordRecovery,
         signUp,
         signIn,
         signOut,

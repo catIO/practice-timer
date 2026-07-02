@@ -54,7 +54,7 @@ export async function signOut(): Promise<{ error: AuthError | null }> {
 export async function resetPassword(email: string): Promise<{ error: AuthError | null }> {
     if (!supabase) return { error: SUPABASE_UNAVAILABLE_ERROR };
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/settings`,
+        redirectTo: `${window.location.origin}/reset-password`,
     });
     return { error };
 }
