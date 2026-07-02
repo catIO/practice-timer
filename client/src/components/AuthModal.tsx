@@ -106,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { resetForm(); onClose(); } }}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'forgot' ? 'Reset Password' : mode === 'signin' ? 'Sign In' : 'Create Account'}
