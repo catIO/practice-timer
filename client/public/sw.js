@@ -61,13 +61,13 @@ async function registerBackgroundSync() {
   if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
     try {
       const registration = await navigator.serviceWorker.ready;
-      
+
       // Register periodic background sync if supported
       if ('periodicSync' in window.ServiceWorkerRegistration.prototype) {
         const status = await navigator.permissions.query({
           name: 'periodic-background-sync'
         });
-        
+
         if (status.state === 'granted') {
           await registration.periodicSync.register('timer-sync', {
             minInterval: 60000 // Minimum 1 minute interval
@@ -75,7 +75,7 @@ async function registerBackgroundSync() {
           console.log('Periodic background sync registered');
         }
       }
-      
+
       backgroundSyncRegistered = true;
     } catch (error) {
       console.log('Background sync registration failed:', error);
@@ -112,10 +112,10 @@ async function updateBackgroundTimer() {
   // Check if timer is complete
   if (newTimeRemaining <= 0) {
     backgroundTimerState.isRunning = false;
-    
+
     // Show notification
     await showBackgroundNotification();
-    
+
     // Store completion state for when app becomes active
     await storeTimerCompletion();
   }
@@ -125,7 +125,7 @@ async function updateBackgroundTimer() {
 async function showBackgroundNotification() {
   const title = backgroundTimerState.mode === 'work' ? 'Work Time Complete!' : 'Break Time Complete!';
   const body = backgroundTimerState.mode === 'work' ? 'Time for a break!' : 'Time to get back to work!';
-  
+
   try {
     await self.registration.showNotification(title, {
       body,
@@ -159,7 +159,7 @@ async function storeTimerCompletion() {
       iteration: backgroundTimerState.currentIteration,
       totalIterations: backgroundTimerState.totalIterations
     };
-    
+
     // Store in IndexedDB or localStorage equivalent
     const db = await openDB();
     await db.put('timerCompletions', completionData);
@@ -172,10 +172,10 @@ async function storeTimerCompletion() {
 async function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('PracticeTimerDB', 1);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains('timerCompletions')) {
@@ -188,7 +188,7 @@ async function openDB() {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   if (event.action === 'start-next') {
     // Start next session
     event.waitUntil(
@@ -207,12 +207,12 @@ self.addEventListener('notificationclick', (event) => {
 // Handle messages from main thread
 self.addEventListener('message', (event) => {
   const { type, payload } = event.data;
-  
+
   switch (type) {
     case 'UPDATE_BACKGROUND_TIMER':
       backgroundTimerState = { ...backgroundTimerState, ...payload };
       break;
-      
+
     case 'START_BACKGROUND_TIMER':
       backgroundTimerState = {
         ...backgroundTimerState,
@@ -221,11 +221,11 @@ self.addEventListener('message', (event) => {
         isRunning: true
       };
       break;
-      
+
     case 'STOP_BACKGROUND_TIMER':
       backgroundTimerState.isRunning = false;
       break;
-      
+
     case 'GET_BACKGROUND_STATE':
       event.ports[0].postMessage(backgroundTimerState);
       break;
@@ -235,24 +235,29 @@ self.addEventListener('message', (event) => {
 // Fetch event - network-first for app (HTML/JS/CSS) so updates load without hard refresh
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
+
+  // Skip non-http(s) schemes (e.g. chrome-extension://) — they can't be cached
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Never cache the service worker script - browser must get fresh sw.js to update
   if (url.pathname === '/sw.js') {
     return;
   }
-  
+
   // Skip caching for:
   // 1. Vite's development server requests
   // 2. Source files
   // 3. API requests
   // 4. HMR (Hot Module Replacement) requests
   // Let Netlify functions hit the network — cache-first below would serve stale JSON (e.g. progress reports).
-  if (url.hostname === 'localhost' || 
-      url.pathname.includes('/src/') ||
-      url.pathname.includes('/@vite/') ||
-      url.pathname.includes('/api/') ||
-      url.pathname.includes('/.netlify/functions/') ||
-      url.pathname.includes('hmr')) {
+  if (url.hostname === 'localhost' ||
+    url.pathname.includes('/src/') ||
+    url.pathname.includes('/@vite/') ||
+    url.pathname.includes('/api/') ||
+    url.pathname.includes('/.netlify/functions/') ||
+    url.pathname.includes('hmr')) {
     return;
   }
 
@@ -268,8 +273,8 @@ self.addEventListener('fetch', (event) => {
   if (isAppRequest) {
     // If it's a document request (index.html), force network check without browser cache
     // This ensures we don't accidentally fetch a stale version from HTTP cache.
-    const fetchOptions = (event.request.mode === 'navigate' || event.request.destination === 'document') 
-      ? { cache: 'no-cache' } 
+    const fetchOptions = (event.request.mode === 'navigate' || event.request.destination === 'document')
+      ? { cache: 'no-cache' }
       : {};
 
     event.respondWith(

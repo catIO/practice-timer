@@ -4,6 +4,7 @@ import { resetPassword } from '../lib/authService';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from './ui/dialog';
@@ -111,6 +112,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <DialogTitle>
                         {mode === 'forgot' ? 'Reset Password' : mode === 'signin' ? 'Sign In' : 'Create Account'}
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        {mode === 'forgot' ? 'Enter your email to receive a password reset link' : mode === 'signin' ? 'Sign in to your account' : 'Create a new account'}
+                    </DialogDescription>
                 </DialogHeader>
 
                 {emailConfirmationSent ? (
