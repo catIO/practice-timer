@@ -499,7 +499,7 @@ function BlockItem({
                                         linkPopoverOpenRef.current = true;
                                         setLinkPopoverOpen(true);
                                     }}
-                                    onToolbarInteraction={() => {}}
+                                    onToolbarInteraction={() => { }}
                                 />
                                 <LinkPopover
                                     open={linkPopoverOpen}
