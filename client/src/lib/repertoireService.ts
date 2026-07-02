@@ -3,6 +3,7 @@ import type { RepertoirePiece, RepertoirePieceInsert } from './repertoire.types'
 
 export const repertoireService = {
     async getAll(): Promise<RepertoirePiece[]> {
+        if (!supabase) throw new Error('Supabase is not configured');
         const { data, error } = await supabase
             .from('repertoire')
             .select('*')
@@ -13,6 +14,7 @@ export const repertoireService = {
     },
 
     async getById(id: string): Promise<RepertoirePiece | null> {
+        if (!supabase) throw new Error('Supabase is not configured');
         const { data, error } = await supabase
             .from('repertoire')
             .select('*')
@@ -27,6 +29,7 @@ export const repertoireService = {
     },
 
     async create(piece: RepertoirePieceInsert): Promise<RepertoirePiece> {
+        if (!supabase) throw new Error('Supabase is not configured');
         const { data, error } = await supabase
             .from('repertoire')
             .insert(piece)
@@ -38,6 +41,7 @@ export const repertoireService = {
     },
 
     async update(id: string, updates: Partial<RepertoirePieceInsert>): Promise<RepertoirePiece> {
+        if (!supabase) throw new Error('Supabase is not configured');
         const { data, error } = await supabase
             .from('repertoire')
             .update({ ...updates, updated_at: new Date().toISOString() })
@@ -50,6 +54,7 @@ export const repertoireService = {
     },
 
     async delete(id: string): Promise<void> {
+        if (!supabase) throw new Error('Supabase is not configured');
         const { error } = await supabase
             .from('repertoire')
             .delete()

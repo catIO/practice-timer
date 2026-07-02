@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 import {
     signUp as authSignUp,
     signIn as authSignIn,
@@ -41,6 +42,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     useEffect(() => {
         let mounted = true;
+
+        // If Supabase is not configured, skip auth initialization entirely
+        if (!isSupabaseConfigured) {
+            setIsLoading(false);
+            return;
+        }
 
         const initializeAuth = async () => {
             try {
