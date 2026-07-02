@@ -191,16 +191,20 @@ function BlockItem({
     const taBase =
         "w-full bg-transparent border-none outline-none resize-none overflow-hidden leading-relaxed placeholder:text-muted-foreground/40 focus:ring-0";
 
+    const isRenderedYouTube = block.type === "youtube" && !!extractYouTubeId(block.text);
+
     return (
         <div className="group/block relative">
-            {/* Invisible hover zone for YouTube blocks — extends into left gutter so
-          hovering near the left edge triggers group-hover (iframes eat mouse events) */}
-            {block.type === "youtube" && extractYouTubeId(block.text) && (
-                <div className="absolute -left-8 top-0 bottom-0 w-12 z-[1]" />
+            {/* Invisible hover zone for YouTube blocks — iframes eat mouse events */}
+            {isRenderedYouTube && (
+                <div className="absolute -left-10 top-0 bottom-0 w-12 z-[1]" />
             )}
 
             {/* Left hover bar */}
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full flex items-center gap-0.5 opacity-0 group-hover/block:opacity-100 transition-opacity z-10 pr-1">
+            <div className={cn(
+                "absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/block:opacity-100 transition-opacity z-10 pr-1",
+                isRenderedYouTube ? "-left-8 -translate-x-full" : "left-0 -translate-x-full"
+            )}>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
@@ -251,16 +255,16 @@ function BlockItem({
 
             ) : block.type === "youtube" ? (
                 /* YouTube */
-                <div className="py-2">
+                <div className="-ml-8 -mr-2">
                     {extractYouTubeId(block.text) ? (
                         <div className="relative">
-                            <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                            <div className="relative w-full aspect-video">
                                 <iframe
-                                    src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(block.text)}`}
+                                    src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(block.text)}?rel=0`}
                                     title="YouTube video"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
-                                    className="absolute inset-0 w-full h-full"
+                                    className="absolute top-0 left-0 w-full h-full border-0"
                                 />
                             </div>
                             {/* Three-dot menu — top-right corner */}
@@ -463,24 +467,12 @@ export function RepertoireEditor({ blocks, onChange }: RepertoireEditorProps) {
                 </div>
             )}
 
-            <div className="mt-2 opacity-0 hover:opacity-100 transition-opacity">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground h-7 gap-1">
-                            <span className="material-icons text-base">add</span>
-                            Add block
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48">
-                        {BLOCK_OPTIONS.map(({ type, label, icon }) => (
-                            <DropdownMenuItem key={type} onSelect={() => insertBlock(null, type)} className="flex items-center gap-2">
-                                <span className="w-6 text-center font-semibold text-muted-foreground text-xs">{icon}</span>
-                                {label}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            {blocks.length > 0 && (
+                <div
+                    className="min-h-[3rem] cursor-text"
+                    onClick={() => insertBlock(blocks[blocks.length - 1].id, "text")}
+                />
+            )}
         </div>
     );
 }
