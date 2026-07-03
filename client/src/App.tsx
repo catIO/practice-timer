@@ -17,6 +17,7 @@ import PracticePlan from '@/pages/PracticePlan';
 import RepertoireList from '@/pages/RepertoireList';
 import RepertoireDetail from '@/pages/RepertoireDetail';
 import ResetPassword from '@/pages/ResetPassword';
+import SharedPieceDetail from '@/pages/SharedPieceDetail';
 import { NavigationLayout } from '@/components/NavigationLayout';
 
 const queryClient = new QueryClient();
@@ -43,7 +44,10 @@ function AppRoutes() {
       <Route path="/practice-log" element={<PracticeLog />} />
       <Route path="/report" element={<Report />} />
       <Route path="/report/:token" element={<Report />} />
+      <Route path="/report/:token/piece/:pieceId" element={<SharedPieceDetail />} />
+      <Route path="/report/piece/:pieceId" element={<SharedPieceDetail />} />
       <Route path="/r/:id" element={<Report />} />
+      <Route path="/r/:id/piece/:pieceId" element={<SharedPieceDetail />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       {/* Repertoire routes (auth-gated / promo) */}
       <Route path="/repertoire" element={<RepertoireList />} />

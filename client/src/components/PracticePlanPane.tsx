@@ -51,6 +51,10 @@ import {
   shareReport
 } from "@/lib/reportShare";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { repertoireService } from "@/lib/repertoireService";
+import { useAuth } from "@/contexts/AuthContext";
+import type { RepertoirePiece } from "@/lib/repertoire.types";
 import { cn } from "@/lib/utils";
 import { playSound, resumeAudioContext } from "@/lib/soundEffects";
 import { TextWithLinks } from "./TextWithLinks";
@@ -95,7 +99,7 @@ interface PracticePlanPaneProps {
   onStartNewSession?: () => void;
 }
 
-const BASIC_BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
+const BASIC_BLOCK_OPTIONS: { type: BlockType | "repertoire-piece"; label: string; icon: string }[] = [
   { type: "text", label: "Text", icon: "T" },
   { type: "heading1", label: "Heading 1", icon: "H1" },
   { type: "heading2", label: "Heading 2", icon: "H2" },
@@ -106,8 +110,9 @@ const BASIC_BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = 
   { type: "divider", label: "Divider", icon: "—" },
 ];
 
-const PRACTICE_BLOCK_OPTIONS: { type: BlockType; label: string; icon: string }[] = [
+const PRACTICE_BLOCK_OPTIONS: { type: BlockType | "repertoire-piece"; label: string; icon: string }[] = [
   { type: "segment", label: "Practice Segment", icon: "⏱" },
+  { type: "repertoire-piece", label: "Repertoire Piece", icon: "🎵" },
 ];
 
 const ALL_BLOCK_OPTIONS = [...BASIC_BLOCK_OPTIONS, ...PRACTICE_BLOCK_OPTIONS];
@@ -117,7 +122,7 @@ function EmptyLineSlot({
   onInsert,
 }: {
   index: number;
-  onInsert: (index: number, blockType: BlockType) => void;
+  onInsert: (index: number, blockType: BlockType | "repertoire-piece") => void;
 }) {
   return (
     <div
@@ -255,12 +260,12 @@ interface PlanItemProps {
   selectedIdSet: Set<string>;
   onToggle: (id: string) => void;
   onUpdateText: (id: string, text: string) => void;
-  onUpdateType: (id: string, type: BlockType) => void;
+  onUpdateType: (id: string, type: BlockType | "repertoire-piece") => void;
   onDelete: (id: string) => void;
   onIndent: (id: string) => void;
   onUnindent: (id: string) => void;
-  onInsertBelow: (id: string, blockType: BlockType, empty?: boolean) => void;
-  onInsertBefore: (id: string, blockType: BlockType, empty?: boolean) => void;
+  onInsertBelow: (id: string, blockType: BlockType | "repertoire-piece", empty?: boolean) => void;
+  onInsertBefore: (id: string, blockType: BlockType | "repertoire-piece", empty?: boolean) => void;
   onNavigate: (id: string, direction: "up" | "down", fromEdit: boolean) => void;
   onMergeWithPrevious: (id: string, currentText?: string) => void;
   onInputFocus: (id: string) => void; // Notify parent that this item is focused
@@ -272,7 +277,8 @@ interface PlanItemProps {
   onUndo: () => void;
   onOpenAllocationDialog: (id: string, text: string, currentMinutes?: number, currentPeriod?: 'day' | 'week') => void;
   onPlayPiece: (id: string, name: string, minutes: number, period: 'day' | 'week') => void;
-  onSaveSegment: (id: string, name: string, goal: string | undefined, allocatedTime: number | undefined, allocationPeriod: 'day' | 'week' | undefined) => void;
+  onSaveSegment: (id: string, name: string, goal: string | undefined, allocatedTime: number | undefined, allocationPeriod: 'day' | 'week' | undefined, repertoirePieceId: string | undefined) => void;
+  repertoirePieces?: RepertoirePiece[];
 }
 
 function PlanItem({
@@ -303,7 +309,8 @@ function PlanItem({
   onOpenAllocationDialog,
   onPlayPiece,
   onSaveSegment,
-}: PlanItemProps) {
+  repertoirePieces,
+}: PlanItemProps & { repertoirePieces?: RepertoirePiece[] }) {
   const activePieceId = useTimerStore((state) => state.activePieceId);
   const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
   const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
@@ -312,6 +319,10 @@ function PlanItem({
   const startTimer = useTimerStore((state) => state.startTimer);
   const clearPiece = useTimerStore((state) => state.clearPiece);
   const isActivePiece = item.id === activePieceId;
+  const linkedPiece = useMemo(() => {
+    if (!item.repertoirePieceId || !repertoirePieces) return null;
+    return repertoirePieces.find((p) => p.id === item.repertoirePieceId) || null;
+  }, [item.repertoirePieceId, repertoirePieces]);
   const {
     attributes,
     listeners,
@@ -373,14 +384,16 @@ function PlanItem({
     item.allocatedTime ? String(item.allocatedTime) : ""
   );
   const [segmentPeriodValue, setSegmentPeriodValue] = useState<'day' | 'week'>(item.allocationPeriod ?? 'day');
+  const [segmentPieceId, setSegmentPieceId] = useState(item.repertoirePieceId ?? "");
   // Guard: don't clobber in-progress edits while the segment form is open
   useEffect(() => { if (!editing) setSegmentGoalValue(item.segmentGoal ?? ""); }, [item.segmentGoal, editing]);
   useEffect(() => {
     if (!editing) {
       setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : "");
       setSegmentPeriodValue(item.allocationPeriod ?? 'day');
+      setSegmentPieceId(item.repertoirePieceId ?? "");
     }
-  }, [item.allocatedTime, item.allocationPeriod, editing]);
+  }, [item.allocatedTime, item.allocationPeriod, item.repertoirePieceId, editing]);
 
   // Slash command state
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -401,17 +414,12 @@ function PlanItem({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // isLinkPopoverOpenRef is provided by useTextSelection hook above
 
-  // ... (lines 261-267 are omitted in replacement context, assuming they are okay to implicitly include or skip if not touching them)
-  // Actually, I need to match valid context.
-
   useEffect(() => {
     return () => {
       if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
-
-  // ...
 
   // saveSegment: persists segment data only — does NOT close the form.
   // Separating data-save from form-close prevents premature collapse on blur.
@@ -423,8 +431,8 @@ function PlanItem({
     const goal = segmentGoalValue.trim() || undefined;
     const mins = parseInt(segmentDurationValue, 10);
     const duration = isNaN(mins) || mins <= 0 ? undefined : mins;
-    onSaveSegment(item.id, name, goal, duration, segmentPeriodValue);
-  }, [editValue, hasSegmentLink, segmentLinkUrl, segmentGoalValue, segmentDurationValue, segmentPeriodValue, item.id, onSaveSegment]);
+    onSaveSegment(item.id, name, goal, duration, segmentPeriodValue, segmentPieceId || undefined);
+  }, [editValue, hasSegmentLink, segmentLinkUrl, segmentGoalValue, segmentDurationValue, segmentPeriodValue, segmentPieceId, item.id, onSaveSegment]);
 
   // closeSegment: saves data AND closes the form. Called by Enter, Done button,
   // and the form-container blur handler (when focus truly leaves the form).
@@ -608,14 +616,20 @@ function PlanItem({
   );
 
   // Slash command: apply selected block type
-  const applySlashCommand = useCallback((type: BlockType) => {
+  const applySlashCommand = useCallback((type: BlockType | "repertoire-piece") => {
     setSlashMenuOpen(false);
     setSlashFilter('');
     setSlashHighlight(0);
     isSlashMenuOpenRef.current = false;
     setEditValue('');
     onUpdateText(item.id, '');
-    onUpdateType(item.id, type);
+    const actualType = type === "repertoire-piece" ? "segment" : type;
+    onUpdateType(item.id, actualType);
+    if (type === "repertoire-piece") {
+      setTimeout(() => {
+        setEditing(true);
+      }, 0);
+    }
   }, [item.id, onUpdateText, onUpdateType]);
 
   const applyFormat = useCallback(
@@ -1099,6 +1113,7 @@ function PlanItem({
                         setSegmentGoalValue(item.segmentGoal ?? '');
                         setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : '');
                         setSegmentPeriodValue(item.allocationPeriod ?? 'day');
+                        setSegmentPieceId(item.repertoirePieceId ?? '');
                         setEditing(false);
                         requestAnimationFrame(() => rowRef.current?.focus());
                       }
@@ -1204,6 +1219,27 @@ function PlanItem({
                       <option value="day">day</option>
                       <option value="week">week</option>
                     </select>
+                    {repertoirePieces && repertoirePieces.length > 0 && (
+                      <select
+                        value={segmentPieceId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSegmentPieceId(val);
+                          const piece = repertoirePieces.find(p => p.id === val);
+                          if (piece && (!editValue.trim() || repertoirePieces.some(p => p.title === editValue.trim()))) {
+                            setEditValue(piece.title);
+                          }
+                        }}
+                        className="h-7 text-xs bg-background border border-input rounded px-1.5 max-w-[180px] truncate focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">No linked piece</option>
+                        {repertoirePieces.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.title} {p.composer ? `(${p.composer})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -1254,7 +1290,7 @@ function PlanItem({
                     </span>
                   </button>
                   <span className={cn(
-                    "font-semibold text-sm flex-1 truncate",
+                    "font-semibold text-sm flex-1 truncate flex items-center gap-2",
                     item.checked && "text-muted-foreground"
                   )}>
                     {item.text ? (
@@ -1266,6 +1302,16 @@ function PlanItem({
                       />
                     ) : (
                       <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>
+                    )}
+                    {linkedPiece && (
+                      <Link
+                        to={`/repertoire/${linkedPiece.id}`}
+                        className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full font-medium ml-1 shrink-0 transition-colors hover:bg-primary/20"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="material-icons text-xs shrink-0 select-none">music_note</span>
+                        <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
+                      </Link>
                     )}
                   </span>
                   {/* Timer controls */}
@@ -1709,6 +1755,7 @@ function PlanItem({
                 onOpenAllocationDialog={onOpenAllocationDialog}
                 onPlayPiece={onPlayPiece}
                 onSaveSegment={onSaveSegment}
+                repertoirePieces={repertoirePieces}
               />
             ))}
           </SortableContext>
@@ -1767,6 +1814,12 @@ export function PracticePlanPane({
 
   const [items, setItems] = useState<PracticePlanItem[]>([]);
   const { toast } = useToast();
+  const { isLoggedIn } = useAuth();
+  const { data: repertoirePieces = [] } = useQuery({
+    queryKey: ['repertoire'],
+    queryFn: repertoireService.getAll,
+    enabled: isLoggedIn,
+  });
   // Dismissed slots concept removed for cleaner UI
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const onFocusRequestFulfilled = useCallback(() => setFocusRequest(null), []);
@@ -1885,9 +1938,10 @@ export function PracticePlanPane({
     name: string,
     goal: string | undefined,
     allocatedTime: number | undefined,
-    allocationPeriod: 'day' | 'week' | undefined
+    allocationPeriod: 'day' | 'week' | undefined,
+    repertoirePieceId: string | undefined
   ) => {
-    applyChange((prev) => practicePlanApi.updateSegment(prev, id, name, goal, allocatedTime, allocationPeriod));
+    applyChange((prev) => practicePlanApi.updateSegment(prev, id, name, goal, allocatedTime, allocationPeriod, repertoirePieceId));
   }, [applyChange]);
 
   const sensors = useSensors(
@@ -2044,10 +2098,11 @@ export function PracticePlanPane({
     applyChange((prev) => practicePlanApi.updateText(prev, id, text));
   }, [applyChange]);
 
-  const handleUpdateType = useCallback((id: string, type: BlockType) => {
-    applyChange((prev) => practicePlanApi.updateBlockType(prev, id, type));
+  const handleUpdateType = useCallback((id: string, type: BlockType | "repertoire-piece") => {
+    const actualType = type === "repertoire-piece" ? "segment" : type;
+    applyChange((prev) => practicePlanApi.updateBlockType(prev, id, actualType));
     // Request focus back to ensure editing continues smoothly
-    setFocusRequest({ id, type: type === "divider" ? "row" : "edit", cursorPosition: "start" });
+    setFocusRequest({ id, type: actualType === "divider" ? "row" : "edit", cursorPosition: "start" });
   }, [applyChange]);
 
   const handleDelete = useCallback((id: string) => {
@@ -2066,46 +2121,49 @@ export function PracticePlanPane({
   }, [flatList, applyChange]);
 
   const handleInsertBlock = useCallback(
-    (index: number, blockType: BlockType, initialText?: string) => {
+    (index: number, blockType: BlockType | "repertoire-piece", initialText?: string) => {
       const newId = generateId();
+      const actualType = blockType === "repertoire-piece" ? "segment" : blockType;
       applyChange((prev) =>
-        practicePlanApi.insertRootAt(prev, index, blockType, initialText, newId)
+        practicePlanApi.insertRootAt(prev, index, actualType, initialText, newId)
       );
-      setFocusRequest({ id: newId, type: blockType === "divider" ? "row" : "edit", cursorPosition: "end" });
+      setFocusRequest({ id: newId, type: actualType === "divider" ? "row" : "edit", cursorPosition: "end" });
     },
     [applyChange]
   );
 
   const handleInsertBelow = useCallback(
-    (afterId: string, blockType: BlockType, empty?: boolean) => {
+    (afterId: string, blockType: BlockType | "repertoire-piece", empty?: boolean) => {
       const newId = generateId();
+      const actualType = blockType === "repertoire-piece" ? "segment" : blockType;
       applyChange((prev) =>
         practicePlanApi.insertBlockAfter(
           prev,
           afterId,
-          blockType,
+          actualType,
           empty ? "" : undefined,
           newId
         )
       );
-      setFocusRequest({ id: newId, type: blockType === "divider" ? "row" : "edit", cursorPosition: "end" });
+      setFocusRequest({ id: newId, type: actualType === "divider" ? "row" : "edit", cursorPosition: "end" });
     },
     [applyChange]
   );
 
   const handleInsertBefore = useCallback(
-    (beforeId: string, blockType: BlockType, empty?: boolean) => {
+    (beforeId: string, blockType: BlockType | "repertoire-piece", empty?: boolean) => {
       const newId = generateId();
+      const actualType = blockType === "repertoire-piece" ? "segment" : blockType;
       applyChange((prev) =>
         practicePlanApi.insertBlockBefore(
           prev,
           beforeId,
-          blockType,
+          actualType,
           empty ? "" : undefined,
           newId
         )
       );
-      setFocusRequest({ id: newId, type: blockType === "divider" ? "row" : "edit", cursorPosition: "end" });
+      setFocusRequest({ id: newId, type: actualType === "divider" ? "row" : "edit", cursorPosition: "end" });
     },
     [applyChange]
   );
@@ -2183,7 +2241,7 @@ export function PracticePlanPane({
   const handlePublishUpdate = useCallback(async () => {
     setIsPublishing(true);
     try {
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items));
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces);
       // If we already have a permalinkId, update it. Otherwise create a new one.
       const url = await shareReport(snapshot, permalinkId || undefined);
 
@@ -2210,12 +2268,12 @@ export function PracticePlanPane({
     } finally {
       setIsPublishing(false);
     }
-  }, [items, permalinkId, toast]);
+  }, [items, permalinkId, toast, repertoirePieces]);
 
   const handleCreateVersion = useCallback(async () => {
     setIsSharing(true);
     try {
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items));
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces);
       // Create a new unique version by not passing an ID
       const url = await shareReport(snapshot);
       setShareUrl(url);
@@ -2232,7 +2290,7 @@ export function PracticePlanPane({
     } finally {
       setIsSharing(false);
     }
-  }, [items, toast]);
+  }, [items, toast, repertoirePieces]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -2448,6 +2506,7 @@ export function PracticePlanPane({
                       onOpenAllocationDialog={handleOpenAllocationDialog}
                       onPlayPiece={handlePlayPiece}
                       onSaveSegment={handleSaveSegment}
+                      repertoirePieces={repertoirePieces}
                     />
                   ))}
                 </div>

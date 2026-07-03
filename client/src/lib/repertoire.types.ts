@@ -9,6 +9,7 @@ export interface RepertoirePiece {
     start_date: string | null;
     target_date: string | null;
     video_url: string | null;
+    score_url: string | null;
     notes: RepertoireBlock[];
     created_at: string;
     updated_at: string;

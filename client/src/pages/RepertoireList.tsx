@@ -66,7 +66,7 @@ export default function RepertoireList() {
     const createMutation = useMutation({
         mutationFn: () =>
             repertoireService.create({
-                title: 'Untitled Piece',
+                title: '',
                 composer: '',
                 level: '',
                 type: 'repertoire',
@@ -74,6 +74,7 @@ export default function RepertoireList() {
                 start_date: new Date().toISOString().split('T')[0],
                 target_date: null,
                 video_url: null,
+                score_url: null,
                 notes: [],
             }),
         onSuccess: (piece) => {
@@ -140,9 +141,9 @@ export default function RepertoireList() {
                 <Button 
                     onClick={() => createMutation.mutate()} 
                     disabled={createMutation.isPending}
-                    className="h-9 rounded-xl"
+                    className="h-10 !rounded-full px-5 font-semibold text-sm tracking-wide"
                 >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-1.5" />
                     Add Piece
                 </Button>
             </div>
@@ -211,7 +212,7 @@ export default function RepertoireList() {
                         >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold truncate text-foreground">{piece.title}</h3>
+                                    <h3 className="font-semibold truncate text-foreground">{piece.title || 'Untitled Piece'}</h3>
                                     {piece.level && (
                                         <Badge variant="outline" className={cn('text-xs shrink-0 rounded-full', levelColors[piece.level])}>
                                             {LEVELS.find(l => l.value === piece.level)?.label ?? piece.level}

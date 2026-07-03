@@ -29,6 +29,8 @@ export interface PracticePlanItem {
   allocationPeriod?: "day" | "week";
   /** Goal description for practice segment blocks. */
   segmentGoal?: string;
+  /** ID of linked repertoire piece, if any. */
+  repertoirePieceId?: string;
 }
 
 export function generateId(): string {
@@ -438,7 +440,8 @@ export const practicePlanApi = {
     name: string,
     segmentGoal: string | undefined,
     allocatedTime: number | undefined,
-    allocationPeriod: "day" | "week" | undefined
+    allocationPeriod: "day" | "week" | undefined,
+    repertoirePieceId: string | undefined
   ): PracticePlanItem[] => {
     const next = updateItemInTree(items, id, (item) => ({
       ...item,
@@ -446,6 +449,7 @@ export const practicePlanApi = {
       segmentGoal,
       allocatedTime,
       allocationPeriod,
+      repertoirePieceId,
     }));
     savePracticePlan(next);
     return next;

@@ -31,11 +31,17 @@ function ReportItem({
   depth = 0,
   numberIndex = 0,
   logSummary,
+  embeddedPieces,
+  sharedId,
+  sharedToken,
 }: {
   item: ReportSnapshotItem;
   depth?: number;
   numberIndex?: number;
   logSummary?: ReportLogSummary;
+  embeddedPieces?: Record<string, any>;
+  sharedId?: string;
+  sharedToken?: string | null;
 }) {
   const isDivider = item.blockType === "divider" || (item.text === "---" && !item.blockType);
   const isHeader =
@@ -78,7 +84,18 @@ function ReportItem({
         </Tag>
         {item.children.map((child, i, arr) => {
           const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-          return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} logSummary={logSummary} />;
+          return (
+            <ReportItem
+              key={i}
+              item={child}
+              depth={depth + 1}
+              numberIndex={childNumberIndex}
+              logSummary={logSummary}
+              embeddedPieces={embeddedPieces}
+              sharedId={sharedId}
+              sharedToken={sharedToken}
+            />
+          );
         })}
       </>
     );
@@ -93,6 +110,19 @@ function ReportItem({
              p.itemName === item.text
     );
     const practicedSeconds = practicedEntry?.seconds ?? 0;
+
+    const linkedPiece = item.repertoirePieceId && embeddedPieces
+      ? embeddedPieces[item.repertoirePieceId]
+      : null;
+
+    const linkUrl = item.repertoirePieceId
+      ? (sharedId
+          ? `/r/${sharedId}/piece/${item.repertoirePieceId}`
+          : (sharedToken
+              ? `/report/${sharedToken}/piece/${item.repertoirePieceId}`
+              : `/report/piece/${item.repertoirePieceId}${window.location.hash}`))
+      : "";
+
     return (
       <div className="py-1" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
         <div className="rounded-lg border border-muted/40 bg-muted/10 px-3 py-2 space-y-1">
@@ -108,12 +138,22 @@ function ReportItem({
               </span>
               <span
                 style={{ fontWeight: 600, fontSize: "0.875rem" }}
-                className={cn("truncate", item.checked ? "text-muted-foreground" : "text-foreground")}
+                className={cn("truncate flex items-center gap-2", item.checked ? "text-muted-foreground" : "text-foreground")}
               >
                 {item.text ? (
                   <TextWithLinks text={item.text} />
                 ) : (
                   <span className="text-muted-foreground italic font-normal">Untitled segment</span>
+                )}
+                {linkedPiece && (
+                  <Link
+                    to={linkUrl}
+                    className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/25 px-1.5 py-0.5 rounded-full font-medium ml-1 shrink-0 transition-colors hover:bg-primary/20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="material-icons text-[10px] shrink-0 select-none">music_note</span>
+                    <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
+                  </Link>
                 )}
               </span>
             </div>
@@ -138,7 +178,18 @@ function ReportItem({
           <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
             {item.children.map((child, i, arr) => {
               const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-              return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} logSummary={logSummary} />;
+              return (
+                <ReportItem
+                  key={i}
+                  item={child}
+                  depth={depth + 1}
+                  numberIndex={childNumberIndex}
+                  logSummary={logSummary}
+                  embeddedPieces={embeddedPieces}
+                  sharedId={sharedId}
+                  sharedToken={sharedToken}
+                />
+              );
             })}
           </div>
         )}
@@ -168,7 +219,18 @@ function ReportItem({
         <div className="pl-4 border-l border-border/50 mt-0.5 ml-2 space-y-0.5">
           {item.children.map((child, i, arr) => {
             const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-            return <ReportItem key={i} item={child} depth={depth + 1} numberIndex={childNumberIndex} logSummary={logSummary} />;
+            return (
+              <ReportItem
+                key={i}
+                item={child}
+                depth={depth + 1}
+                numberIndex={childNumberIndex}
+                logSummary={logSummary}
+                embeddedPieces={embeddedPieces}
+                sharedId={sharedId}
+                sharedToken={sharedToken}
+              />
+            );
           })}
         </div>
       )}
@@ -323,7 +385,17 @@ export default function Report() {
         <div className="space-y-1">
           {snapshot.items.map((item, i, arr) => {
             const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-            return <ReportItem key={i} item={item} numberIndex={numIdx} logSummary={snapshot.logSummary} />;
+            return (
+              <ReportItem
+                key={i}
+                item={item}
+                numberIndex={numIdx}
+                logSummary={snapshot.logSummary}
+                embeddedPieces={snapshot.embeddedPieces}
+                sharedId={id}
+                sharedToken={token}
+              />
+            );
           })}
         </div>
       </main>

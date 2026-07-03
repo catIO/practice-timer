@@ -44,6 +44,8 @@ import {
     MoreVertical,
     Calendar,
     Video,
+    FileText,
+    ExternalLink,
 } from 'lucide-react';
 
 export default function RepertoireDetail() {
@@ -89,7 +91,7 @@ export default function RepertoireDetail() {
     const cloneMutation = useMutation({
         mutationFn: () =>
             repertoireService.create({
-                title: `${localPiece!.title} (copy)`,
+                title: `${localPiece!.title || 'Untitled Piece'} (copy)`,
                 composer: localPiece!.composer,
                 level: localPiece!.level,
                 type: localPiece!.type,
@@ -97,6 +99,7 @@ export default function RepertoireDetail() {
                 start_date: localPiece!.start_date,
                 target_date: localPiece!.target_date,
                 video_url: localPiece!.video_url,
+                score_url: localPiece!.score_url,
                 notes: localPiece!.notes,
             }),
         onSuccess: (cloned) => {
@@ -182,7 +185,7 @@ export default function RepertoireDetail() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Delete this piece?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This will permanently delete "{localPiece.title}" and all its notes. This cannot be undone.
+                                    This will permanently delete "{localPiece.title || 'Untitled Piece'}" and all its notes. This cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -202,10 +205,10 @@ export default function RepertoireDetail() {
             {/* Title */}
             <input
                 type="text"
-                value={localPiece.title}
+                value={localPiece.title || ''}
                 onChange={(e) => updateField('title', e.target.value)}
                 className="w-full text-3xl font-bold bg-transparent border-none outline-none mb-6 placeholder:text-muted-foreground/50 text-foreground"
-                placeholder="Piece title"
+                placeholder="Untitled Piece"
             />
 
             {/* Metadata Grid */}
@@ -338,6 +341,53 @@ export default function RepertoireDetail() {
                             <button
                                 type="button"
                                 onClick={() => updateField('video_url', '')}
+                                className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                            >
+                                <span className="material-icons text-sm">delete</span>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <span className="text-muted-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <span>Score URL</span>
+                </span>
+                {!localPiece.score_url ? (
+                    <input
+                        type="text"
+                        placeholder="Add score URL"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                updateField('score_url', e.currentTarget.value);
+                            }
+                        }}
+                        className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
+                    />
+                ) : (
+                    <div className="space-y-2">
+                        <a
+                            href={localPiece.score_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
+                        >
+                            <span>Open Score</span>
+                            <ExternalLink className="h-3 w-3" />
+                        </a>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <button
+                                type="button"
+                                onClick={() => updateField('score_url', '')}
+                                className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
+                            >
+                                <span className="material-icons text-sm">link</span>
+                                Replace URL
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => updateField('score_url', '')}
                                 className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-red-500/10 hover:text-red-400 transition-colors"
                             >
                                 <span className="material-icons text-sm">delete</span>

@@ -4,6 +4,7 @@
  */
 
 import type { PracticePlanItem } from "./practicePlan";
+import type { RepertoirePiece } from "./repertoire.types";
 
 export interface ReportSnapshotItem {
   id?: string;
@@ -14,6 +15,7 @@ export interface ReportSnapshotItem {
   segmentGoal?: string;
   allocatedTime?: number;
   allocationPeriod?: 'day' | 'week';
+  repertoirePieceId?: string;
 }
 
 export interface ReportLogEntry {
@@ -35,6 +37,7 @@ export interface ReportSnapshot {
   title?: string;
   items: ReportSnapshotItem[];
   logSummary?: ReportLogSummary;
+  embeddedPieces?: Record<string, RepertoirePiece>;
 }
 
 function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
@@ -43,6 +46,7 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
     checked: item.checked ?? false,
     blockType: item.blockType,
     children: item.children.map(itemToSnapshot),
+    repertoirePieceId: item.repertoirePieceId,
     ...(item.blockType === 'segment' ? {
       id: item.id,
       segmentGoal: item.segmentGoal,
@@ -52,14 +56,43 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
   };
 }
 
-export function createReportSnapshot(items: PracticePlanItem[], title?: string, logSummary?: ReportLogSummary): ReportSnapshot {
-  return {
+export function createReportSnapshot(
+  items: PracticePlanItem[],
+  title?: string,
+  logSummary?: ReportLogSummary,
+  repertoirePieces?: RepertoirePiece[]
+): ReportSnapshot {
+  const snapshot: ReportSnapshot = {
     v: 1,
     date: new Date().toISOString(),
     title: title ?? "Practice Plan & Progress Report",
     items: items.map(itemToSnapshot),
     logSummary,
   };
+
+  if (repertoirePieces && repertoirePieces.length > 0) {
+    const embeddedPieceIds = new Set<string>();
+    const collectPieceIds = (item: PracticePlanItem) => {
+      if (item.repertoirePieceId) {
+        embeddedPieceIds.add(item.repertoirePieceId);
+      }
+      item.children.forEach(collectPieceIds);
+    };
+    items.forEach(collectPieceIds);
+
+    const embeddedPieces: Record<string, RepertoirePiece> = {};
+    repertoirePieces.forEach((piece) => {
+      if (embeddedPieceIds.has(piece.id)) {
+        embeddedPieces[piece.id] = piece;
+      }
+    });
+
+    if (Object.keys(embeddedPieces).length > 0) {
+      snapshot.embeddedPieces = embeddedPieces;
+    }
+  }
+
+  return snapshot;
 }
 
 function base64UrlEncode(str: string): string {
