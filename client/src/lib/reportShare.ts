@@ -154,7 +154,7 @@ export async function shareReport(snapshot: ReportSnapshot, id?: string): Promis
 
       const { error } = await supabase
         .from("shared_reports")
-        .insert({ id: finalId, user_id: userId, data: snapshot });
+        .upsert({ id: finalId, user_id: userId, data: snapshot });
 
       if (!error) {
         // If shared anonymously, save the ID locally for later migration on login
