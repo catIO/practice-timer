@@ -5,6 +5,7 @@ import "./index.css";
 import { Toaster } from "@/components/ui/toaster";
 import { useTimerStore } from "@/stores/timerStore";
 
+import "./lib/authListener";
 // In dev: unregister any existing SW so cached production assets don't block Vite
 if ('serviceWorker' in navigator && import.meta.env.DEV) {
   navigator.serviceWorker.getRegistrations().then((regs) => {

@@ -224,3 +224,29 @@ export function getReportShareUrl(snapshot: ReportSnapshot): string {
   return `${base}/report/${token}`;
 }
 
+
+/**
+ * After a user signs in, claim any reports that were created anonymously
+ * while the user was not logged in. Those report IDs are stored in
+ * localStorage under the key `local_shared_reports`.
+ */
+export async function claimAnonymousReports() {
+  if (!supabase) return;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user?.id;
+  if (!userId) return; // not logged in
+
+  const local = JSON.parse(localStorage.getItem("local_shared_reports") ?? "[]");
+  if (!Array.isArray(local) || local.length === 0) return;
+
+  const { error } = await supabase
+    .from("shared_reports")
+    .update({ user_id: userId })
+    .in("id", local);
+
+  if (error) {
+    console.warn("[claimAnonymousReports] Failed to associate reports:", error);
+  } else {
+    localStorage.removeItem("local_shared_reports");
+  }
+}
