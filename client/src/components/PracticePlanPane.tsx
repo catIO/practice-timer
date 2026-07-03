@@ -111,8 +111,8 @@ const BASIC_BLOCK_OPTIONS: { type: BlockType | "repertoire-piece"; label: string
 ];
 
 const PRACTICE_BLOCK_OPTIONS: { type: BlockType | "repertoire-piece"; label: string; icon: string }[] = [
-  { type: "segment", label: "Practice Segment", icon: "⏱" },
-  { type: "repertoire-piece", label: "Repertoire Piece", icon: "🎵" },
+  { type: "segment", label: "Practice Segment", icon: "timer" },
+  { type: "repertoire-piece", label: "Repertoire Piece", icon: "music_note" },
 ];
 
 const ALL_BLOCK_OPTIONS = [...BASIC_BLOCK_OPTIONS, ...PRACTICE_BLOCK_OPTIONS];
@@ -162,7 +162,9 @@ function EmptyLineSlot({
                 onSelect={() => onInsert(index, type)}
                 className="flex items-center gap-2"
               >
-                <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                  <span className="material-icons text-base">{icon}</span>
+                </span>
                 {label}
               </DropdownMenuItem>
             ))}
@@ -1023,7 +1025,9 @@ function PlanItem({
                   onSelect={() => onInsertBelow(item.id, type)}
                   className="flex items-center gap-2"
                 >
-                  <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                  <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                    <span className="material-icons text-base">{icon}</span>
+                  </span>
                   {label}
                 </DropdownMenuItem>
               ))}
@@ -1047,6 +1051,20 @@ function PlanItem({
             >
               <span className="material-icons text-base">drag_indicator</span>
             </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded hover:bg-destructive/10 hover:text-destructive"
+            title="Delete block"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item.id);
+            }}
+          >
+            <span className="material-icons text-base">delete</span>
+          </Button>
         </div>
         {showCheckbox ? (
           <Checkbox
@@ -1243,8 +1261,22 @@ function PlanItem({
                     <Button
                       type="button"
                       variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-auto shrink-0"
+                      title="Delete segment"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(item.id);
+                      }}
+                    >
+                      <span className="material-icons text-base">delete</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
                       size="sm"
-                      className="h-7 px-2 ml-auto text-xs text-muted-foreground hover:text-foreground"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                       onMouseDown={(e) => { e.preventDefault(); closeSegment(); }}
                     >
                       Done
@@ -1572,8 +1604,14 @@ function PlanItem({
                           applySlashCommand(opt.type);
                         }}
                       >
-                        <span className="w-6 text-center font-semibold text-muted-foreground">{opt.icon}</span>
-                        <span>{opt.label}</span>
+                        <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                            {opt.icon === "timer" || opt.icon === "music_note" ? (
+                              <span className="material-icons text-base">{opt.icon}</span>
+                            ) : (
+                              opt.icon
+                            )}
+                          </span>
+                          <span>{opt.label}</span>
                       </div>
                     ))
                   )}
@@ -2469,7 +2507,9 @@ export function PracticePlanPane({
                               onSelect={() => handleInsertBlock(0, type)}
                               className="flex items-center gap-2"
                             >
-                              <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                              <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                                <span className="material-icons text-base">{icon}</span>
+                              </span>
                               {label}
                             </DropdownMenuItem>
                           ))}
