@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
     signUp as authSignUp,
     signIn as authSignIn,
@@ -45,6 +45,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const clearPasswordRecovery = () => setIsPasswordRecovery(false);
 
+    const migrateLocalReports = async (userId: string) => {
+        try {
+            const localReports = JSON.parse(localStorage.getItem('local_shared_reports') || '[]');
+            if (localReports.length === 0) return;
+
+            if (!supabase) return;
+
+            const { error } = await supabase
+                .from('shared_reports')
+                .update({ user_id: userId })
+                .in('id', localReports);
+
+            if (!error) {
+                console.log(`Successfully migrated ${localReports.length} anonymous reports to user ${userId}`);
+                localStorage.removeItem('local_shared_reports');
+            } else {
+                console.warn('Failed to migrate anonymous reports to user account:', error);
+            }
+        } catch (err) {
+            console.warn('Error during anonymous reports migration:', err);
+        }
+    };
+
     useEffect(() => {
         let mounted = true;
 
@@ -60,6 +83,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 if (mounted) {
                     setSession(currentSession);
                     setUser(currentSession?.user ?? null);
+                    if (currentSession?.user) {
+                        migrateLocalReports(currentSession.user.id);
+                    }
                 }
             } catch (error) {
                 console.error('Error initializing auth:', error);
@@ -76,6 +102,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (mounted) {
                 setSession(session);
                 setUser(session?.user ?? null);
+                if (session?.user) {
+                    migrateLocalReports(session.user.id);
+                }
                 if (_event === 'PASSWORD_RECOVERY') {
                     setIsPasswordRecovery(true);
                 }

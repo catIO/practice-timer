@@ -5,6 +5,8 @@
 
 import type { PracticePlanItem } from "./practicePlan";
 import type { RepertoirePiece } from "./repertoire.types";
+import { supabase } from "./supabaseClient";
+import { nanoid } from "nanoid";
 
 export interface ReportSnapshotItem {
   id?: string;
@@ -141,33 +143,69 @@ export function decodeReportToken(token: string): ReportSnapshot | null {
 }
 
 export async function shareReport(snapshot: ReportSnapshot, id?: string): Promise<string> {
-  // In dev, Netlify Functions/Blobs are unavailable — use encoded URL directly.
-  if (import.meta.env.DEV) {
-    return getReportShareUrl(snapshot);
+  const finalId = id || nanoid(10);
+
+  // If supabase is configured, save the report there
+  if (supabase) {
+    try {
+      // Check if user is logged in
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id || null;
+
+      const { error } = await supabase
+        .from("shared_reports")
+        .insert({ id: finalId, user_id: userId, data: snapshot });
+
+      if (!error) {
+        // If shared anonymously, save the ID locally for later migration on login
+        if (!userId && typeof window !== "undefined") {
+          try {
+            const localReports = JSON.parse(localStorage.getItem("local_shared_reports") || "[]");
+            if (!localReports.includes(finalId)) {
+              localReports.push(finalId);
+              localStorage.setItem("local_shared_reports", JSON.stringify(localReports));
+            }
+          } catch (e) {
+            console.warn("[shareReport] Failed to write to localStorage:", e);
+          }
+        }
+        return getShortShareUrl(finalId);
+      }
+      console.warn("[shareReport] Supabase insert failed, trying fallback:", error);
+    } catch (err) {
+      console.warn("[shareReport] Supabase error, trying fallback:", err);
+    }
   }
 
-  const response = await fetch("/.netlify/functions/share-report", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ ...snapshot, id }),
-  });
+  // Fallback to Netlify Blobs in production if Supabase fails or is not configured
+  if (!import.meta.env.DEV) {
+    try {
+      const response = await fetch("/.netlify/functions/share-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...snapshot, id: finalId }),
+      });
 
-  if (response.ok) {
-    const data = await response.json();
-    return getShortShareUrl(data.id);
+      if (response.ok) {
+        const data = await response.json();
+        return getShortShareUrl(data.id);
+      }
+
+      // Log Blobs failure for debugging
+      const errBody = await response.text();
+      let errJson: { error?: string; detail?: string } = {};
+      try {
+        errJson = JSON.parse(errBody);
+      } catch { }
+      console.warn("[shareReport] Blobs failed:", response.status, errJson.detail || errBody);
+    } catch (e) {
+      console.warn("[shareReport] Fetch failed:", e);
+    }
   }
 
-  // Log Blobs failure for debugging
-  const errBody = await response.text();
-  let errJson: { error?: string; detail?: string } = {};
-  try {
-    errJson = JSON.parse(errBody);
-  } catch { }
-  console.warn("[shareReport] Blobs failed:", response.status, errJson.detail || errBody);
-
-  // Fallback if Blobs fails (e.g. unlinked site, MissingBlobsEnvironmentError)
+  // Final fallback: generate a long token URL
   return getReportShareUrl(snapshot);
 }
 

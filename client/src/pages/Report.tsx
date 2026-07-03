@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
 
 /** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
 function stripMarkdown(text: string): string {
@@ -269,29 +270,74 @@ export default function Report() {
       setIdLoading(false);
       return;
     }
-    // In dev, Netlify Functions aren't available — skip the fetch
-    if (import.meta.env.DEV) {
-      setIdError(true);
-      setIdLoading(false);
-      return;
-    }
-    setIdLoading(true);
-    setIdError(false);
-    fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-        setIdSnapshot(data);
-      })
-      .catch(() => {
+
+    async function loadReport() {
+      setIdLoading(true);
+      setIdError(false);
+
+      // 1. Try to load from Supabase first (if configured)
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("shared_reports")
+            .select("data")
+            .eq("id", id)
+            .single();
+
+          if (data && !error) {
+            setIdSnapshot(data.data as ReportSnapshot);
+            setIdLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn("[Report] Failed to load from Supabase, trying fallback:", e);
+        }
+      }
+
+      // In dev, if Supabase failed or wasn't configured, Netlify functions are unavailable - stop here
+      if (import.meta.env.DEV) {
         setIdError(true);
-      })
-      .finally(() => {
         setIdLoading(false);
-      });
+        return;
+      }
+
+      // 2. Fallback to Netlify Blobs (via serverless function)
+      try {
+        const res = await fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch from Netlify function");
+
+        const data = (await res.json()) as ReportSnapshot;
+        setIdSnapshot(data);
+
+        // 3. Asynchronously migrate the legacy report to Supabase for future visits
+        if (supabase) {
+          supabase
+            .from("shared_reports")
+            .insert({ id, data })
+            .then(({ error }) => {
+              if (error) {
+                console.warn("[Report] Auto-migration to Supabase failed:", error);
+              } else {
+                console.log("[Report] Auto-migrated legacy report to Supabase successfully.");
+              }
+            })
+            .catch((err) => {
+              console.warn("[Report] Error auto-migrating to Supabase:", err);
+            });
+        }
+      } catch (err) {
+        console.warn("[Report] Failed to load report from fallback:", err);
+        setIdError(true);
+      } finally {
+        setIdLoading(false);
+      }
+    }
+
+    loadReport();
   }, [id]);
 
   useEffect(() => {
