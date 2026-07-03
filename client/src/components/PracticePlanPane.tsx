@@ -1231,16 +1231,28 @@ function PlanItem({
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={item.checked}
+                    aria-label={item.checked ? "Mark incomplete" : "Mark complete"}
                     className={cn(
-                      "material-icons text-sm shrink-0 cursor-pointer select-none",
+                      "flex items-center justify-center shrink-0 h-6 w-6 rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       item.checked ? "text-green-500" : "text-primary"
                     )}
                     onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
-                    title={item.checked ? "Mark incomplete" : "Mark complete"}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onToggle(item.id);
+                      }
+                    }}
                   >
-                    {item.checked ? "task_alt" : "timer"}
-                  </span>
+                    <span className="material-icons text-sm select-none" aria-hidden="true">
+                      {item.checked ? "task_alt" : "timer"}
+                    </span>
+                  </button>
                   <span className={cn(
                     "font-semibold text-sm flex-1 truncate",
                     item.checked && "text-muted-foreground"

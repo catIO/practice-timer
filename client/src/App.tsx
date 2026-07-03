@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getSettings } from '@/lib/localStorage';
 import { DEFAULT_SETTINGS } from '@/lib/timerService';
+import { applyTheme } from '@/lib/theme';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -55,13 +56,8 @@ function App() {
   useEffect(() => {
     // Initialize settings from local storage
     const localSettings = getSettings();
-    if (localSettings) {
-      // Always ensure dark mode is enabled
-      document.documentElement.classList.add('dark');
-    } else {
-      // Set dark mode by default
-      document.documentElement.classList.add('dark');
-    }
+    const currentTheme = localSettings.theme || 'dark';
+    applyTheme(currentTheme);
   }, []);
 
   return (

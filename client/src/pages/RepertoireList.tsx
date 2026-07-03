@@ -204,8 +204,8 @@ export default function RepertoireList() {
                             key={piece.id}
                             onClick={() => navigate(`/repertoire/${piece.id}`)}
                             className={cn(
-                                'w-full text-left p-4 rounded-xl border border-white/5',
-                                'bg-slate-900/30 hover:bg-white/5 transition-all',
+                                'w-full text-left p-4 rounded-xl border border-primary/20',
+                                'bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all',
                                 'flex items-center gap-4'
                             )}
                         >

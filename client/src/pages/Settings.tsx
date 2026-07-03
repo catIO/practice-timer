@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SettingsType, DEFAULT_SETTINGS } from "@/lib/timerService";
 import { getSettings, saveSettings } from '@/lib/localStorage';
+import { applyTheme } from '@/lib/theme';
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -48,8 +49,7 @@ export default function Settings() {
 
   // Handle settings update
   const handleSettingsUpdate = (updates: Partial<SettingsType>) => {
-    // Always ensure dark mode is enabled
-    const newSettings = { ...localSettings, ...updates, darkMode: true };
+    const newSettings = { ...localSettings, ...updates };
     setLocalSettings(newSettings);
 
     // Save to localStorage first
@@ -58,8 +58,10 @@ export default function Settings() {
     // Then update global settings
     // updateGlobalSettings(newSettings); // This line is removed as per the edit hint
 
-    // Ensure dark mode is always applied
-    document.documentElement.classList.add('dark');
+    // Apply theme
+    if (newSettings.theme) {
+      applyTheme(newSettings.theme);
+    }
 
     // If timer duration settings changed, reset the timer only if it's not running
     if (
@@ -520,7 +522,6 @@ export default function Settings() {
                   <Select
                     value={localSettings.weekStartsOn ?? 'monday'}
                     onValueChange={(value) => handleSettingsUpdate({
-                      ...localSettings,
                       weekStartsOn: value as 'monday' | 'sunday'
                     })}
                   >
@@ -536,6 +537,33 @@ export default function Settings() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Affects how practice time is grouped by week.
+              </p>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="material-icons text-muted-foreground mr-3">palette</span>
+                  <Label htmlFor="theme-select">Theme</Label>
+                </div>
+                <div className="w-32">
+                  <Select
+                    value={localSettings.theme ?? 'dark'}
+                    onValueChange={(value) => handleSettingsUpdate({
+                      theme: value as 'light' | 'dark' | 'system'
+                    })}
+                  >
+                    <SelectTrigger id="theme-select">
+                      <SelectValue placeholder="Select theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Choose light, dark, or system default colors.
               </p>
             </div>
           </div>

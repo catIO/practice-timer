@@ -141,16 +141,16 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-foreground font-sans select-none antialiased">
+    <div className="flex min-h-screen bg-transparent text-foreground font-sans antialiased">
       {/* 1. Desktop & Tablet Side Sidebar/Rail */}
       <aside
         className={cn(
-          "hidden md:flex flex-col border-r border-white/10 bg-slate-900/30 backdrop-blur-md transition-all duration-300 shrink-0",
+          "hidden md:flex flex-col border-r border-black/5 dark:border-white/10 bg-slate-100/30 dark:bg-slate-900/30 backdrop-blur-md transition-all duration-300 shrink-0",
           isSidebarExpanded ? "w-64" : "w-20"
         )}
       >
         {/* Sidebar Header */}
-        <div className="h-16 px-4 flex items-center gap-3 border-b border-white/10">
+        <div className="h-16 px-4 flex items-center gap-3 border-b border-black/5 dark:border-white/10">
           <Button
             variant="ghost"
             size="icon"
@@ -179,7 +179,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                   "flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group relative",
                   active
                     ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
                 )}
               >
                 <div className="flex items-center justify-center h-6 w-6">
@@ -206,7 +206,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       {/* 2. Main Container (Top App Bar + Page Card View) */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16 md:pb-0">
         {/* Top App Bar */}
-        <header className="sticky top-0 z-20 h-16 border-b border-white/10 bg-slate-950/80 backdrop-blur-md px-4 flex items-center justify-between">
+        <header className="sticky top-0 z-20 h-16 bg-transparent px-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {isSubPage ? (
               <Button
@@ -233,7 +233,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
           <div className="flex items-center gap-3">
             {/* Active Piece Status Banner */}
             {activePieceName && (
-              <div className="hidden sm:flex items-center gap-2 bg-slate-900/80 border border-white/5 rounded-full py-1 pl-3 pr-2 text-xs">
+              <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 dark:bg-slate-900/80 border border-black/5 dark:border-white/5 rounded-full py-1 pl-3 pr-2 text-xs">
                 <span className="text-muted-foreground font-medium truncate max-w-[120px]">
                   {activePieceName.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')}
                 </span>
@@ -254,7 +254,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
             {/* Global Session Timer Widget */}
             {typeof timeRemaining === 'number' && !isPracticeComplete && (
-              <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-full py-1 pl-3 pr-2 text-xs">
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 rounded-full py-1 pl-3 pr-2 text-xs">
                 <span className={cn(
                   "font-bold uppercase tracking-wider text-[10px]",
                   mode === 'break' ? "text-green-400" : "text-red-400"
@@ -300,7 +300,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               <div
                 className={cn(
                   "w-2.5 h-2.5 rounded-full transition-colors duration-300",
-                  audioInitialized ? "bg-emerald-500" : "bg-slate-700"
+                  audioInitialized ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
                 )}
                 title={audioInitialized ? "Audio engine ready" : "Audio context suspended"}
               />
@@ -310,11 +310,11 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-slate-900 border border-white/10 p-0 overflow-hidden">
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 p-0 overflow-hidden">
                     <span className="material-icons text-muted-foreground text-xl">person</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-slate-900 border border-white/10 text-foreground">
+                <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 text-foreground">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-xs leading-none text-muted-foreground">Signed in as</p>
@@ -343,7 +343,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-9 px-3 rounded-xl border border-white/10 text-xs font-semibold text-primary hover:bg-white/5"
+                className="h-9 px-3 rounded-xl border border-black/10 dark:border-white/10 text-xs font-semibold text-primary hover:bg-black/5 dark:hover:bg-white/5"
                 onClick={openSignIn}
               >
                 <span className="material-icons text-sm mr-1.5">login</span>
@@ -357,7 +357,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 flex flex-col justify-start">
           <div
             className={cn(
-              "w-full mx-auto bg-slate-900/50 border border-white/10 rounded-3xl p-6 sm:p-8 transition-all duration-300",
+              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-3xl p-6 sm:p-8 transition-all duration-300",
               isLargePage ? "max-w-4xl" : "max-w-2xl"
             )}
           >
@@ -367,7 +367,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       </div>
 
       {/* 3. Mobile Navigation Bottom Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-white/10 bg-slate-950/95 backdrop-blur-md z-30 flex justify-around items-center px-2 pb-safe shadow-lg">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md z-30 flex justify-around items-center px-2 pb-safe shadow-lg">
         {navItems.map((item) => {
           const active = isTabActive(item.path);
           return (

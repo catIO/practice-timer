@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -56,7 +56,7 @@ export default function PracticeLog() {
         <h2 className="mb-3 text-xl font-semibold text-foreground">
           Total practice time
         </h2>
-        <div className="rounded-xl border border-white/5 bg-slate-900/30 p-4">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -117,61 +117,64 @@ export default function PracticeLog() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-white/5 bg-slate-900/30 p-4 space-y-4">
-          {pieceSummaries.length === 0 ? (
+        {pieceSummaries.length === 0 ? (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
             <p className="text-sm text-muted-foreground">
               No piece-specific time logged for this period.
             </p>
-          ) : (
-            <div className="space-y-4">
-              {pieceSummaries.map((summary) => {
-                const practicedMins = Math.round(summary.seconds / 60);
-                const isWeekly = summary.allocationPeriod === 'week';
-                
-                let targetMins = 0;
-                if (summary.allocatedTime) {
-                  targetMins = isWeekly ? summary.allocatedTime : summary.allocatedTime * 7;
-                }
-                
-                const percent = targetMins > 0 ? (practicedMins / targetMins) * 100 : 0;
-                const roundedPercent = Math.round(percent);
-                const exceeded = targetMins > 0 && practicedMins > targetMins;
-                
-                const progressText = targetMins > 0 
-                  ? `${practicedMins} / ${targetMins} min (${roundedPercent}%)` 
-                  : `${practicedMins} min (No limit)`;
-                
-                return (
-                  <div key={summary.itemId} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="truncate text-foreground max-w-[200px]">
-                        <TextWithLinks text={summary.itemName} />
-                      </span>
-                      <span className={cn(
-                        "font-mono",
-                        exceeded ? "text-amber-500 font-bold" : "text-muted-foreground"
-                      )}>
-                        {progressText} {exceeded && "(limit exceeded)"}
-                      </span>
-                    </div>
-                    
-                    {targetMins > 0 && (
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden relative">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all duration-500",
-                            exceeded ? "bg-amber-500" : "bg-primary"
-                          )}
-                          style={{ width: `${Math.min(100, percent)}%` }}
-                        />
-                      </div>
-                    )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pieceSummaries.map((summary) => {
+              const practicedMins = Math.round(summary.seconds / 60);
+              const isWeekly = summary.allocationPeriod === 'week';
+              
+              let targetMins = 0;
+              if (summary.allocatedTime) {
+                targetMins = isWeekly ? summary.allocatedTime : summary.allocatedTime * 7;
+              }
+              
+              const percent = targetMins > 0 ? (practicedMins / targetMins) * 100 : 0;
+              const roundedPercent = Math.round(percent);
+              const exceeded = targetMins > 0 && practicedMins > targetMins;
+              
+              const progressText = targetMins > 0 
+                ? `${practicedMins} / ${targetMins} min (${roundedPercent}%)` 
+                : `${practicedMins} min (No limit)`;
+              
+              return (
+                <div
+                  key={summary.itemId}
+                  className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2"
+                >
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span className="truncate text-foreground max-w-[200px] sm:max-w-md">
+                      <TextWithLinks text={summary.itemName} />
+                    </span>
+                    <span className={cn(
+                      "font-mono text-xs",
+                      exceeded ? "text-amber-500 font-bold" : "text-muted-foreground font-medium"
+                    )}>
+                      {progressText} {exceeded && "(limit exceeded)"}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  
+                  {targetMins > 0 && (
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden relative">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          exceeded ? "bg-amber-500" : "bg-primary"
+                        )}
+                        style={{ width: `${Math.min(100, percent)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div>
@@ -184,12 +187,11 @@ export default function PracticeLog() {
             track your time.
           </p>
         ) : (
-          <ScrollArea className="h-[400px] pr-4">
             <ul className="space-y-2">
               {last10Days.map(({ date, seconds }) => (
                 <li
                   key={date}
-                  className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/30 px-4 py-3"
+                  className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3"
                 >
                   <span className="text-sm font-medium">
                     {formatDate(date)}
@@ -200,7 +202,6 @@ export default function PracticeLog() {
                 </li>
               ))}
             </ul>
-          </ScrollArea>
         )}
       </div>
     </div>

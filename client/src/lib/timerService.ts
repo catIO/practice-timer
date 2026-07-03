@@ -16,6 +16,7 @@ export interface SettingsType {
   volume: number;
   soundType: string;
   weekStartsOn: WeekStartsOn;
+  theme?: 'light' | 'dark' | 'system';
 }
 
 // Default settings from config file
@@ -28,6 +29,7 @@ export const DEFAULT_SETTINGS: SettingsType = {
   numberOfBeeps: 3,
   mode: 'work',
   volume: 50,
-  soundType: 'beep',
-  weekStartsOn: 'monday'
+  soundType: 'singing-bowl',
+  weekStartsOn: 'monday',
+  theme: 'dark',
 };
