@@ -6,6 +6,8 @@ import { InlineToolbar } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
 import { TextWithLinks } from "./TextWithLinks";
 import { Button } from "./ui/button";
+import { useTextSelection } from "@/hooks/useTextSelection";
+import { applyTextFormat } from "@/lib/richText";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -55,17 +57,23 @@ function BlockItem({
     onFocusPrev,
     onFocusNext,
 }: BlockItemProps) {
+    const blockText = block.text || "";
     const taRef = useRef<HTMLTextAreaElement>(null);
     const toolbarAnchorRef = useRef<HTMLInputElement>(null);
     const ytInputRef = useRef<HTMLInputElement>(null);
-    const [editing, setEditing] = useState(!block.text);
+    const [editing, setEditing] = useState(!blockText);
     const [slashOpen, setSlashOpen] = useState(false);
     const [slashFilter, setSlashFilter] = useState("");
     const [slashHighlight, setSlashHighlight] = useState(0);
     const slashOpenRef = useRef(false);
-    const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
-    const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
-    const linkPopoverOpenRef = useRef(false);
+
+    const {
+        selection,
+        setSelection,
+        linkPopoverOpen,
+        setLinkPopoverOpen,
+        linkPopoverOpenRef,
+    } = useTextSelection();
 
     // Position the toolbar anchor at the selection midpoint
     const positionToolbarAnchor = useCallback(() => {
@@ -117,39 +125,27 @@ function BlockItem({
         } else {
             setSelection(null);
         }
-    }, [positionToolbarAnchor]);
+    }, [positionToolbarAnchor, setSelection]);
 
     const applyFormat = useCallback(
         (action: "bold" | "italic" | "link", url?: string) => {
-            if (!selection || selection.start === selection.end) return;
-            const text = block.text;
-            const sel = text.slice(selection.start, selection.end);
-            let newText: string;
-            let newEnd: number;
-            if (action === "bold") {
-                newText = text.slice(0, selection.start) + `**${sel}**` + text.slice(selection.end);
-                newEnd = selection.start + sel.length + 4;
-            } else if (action === "italic") {
-                newText = text.slice(0, selection.start) + `*${sel}*` + text.slice(selection.end);
-                newEnd = selection.start + sel.length + 2;
-            } else if (action === "link" && url) {
-                newText = text.slice(0, selection.start) + `[${sel}](${url})` + text.slice(selection.end);
-                newEnd = selection.start + sel.length + url.length + 4;
-            } else return;
-            onChange(block.id, { text: newText });
+            if (!selection) return;
+            const result = applyTextFormat(blockText, selection, action, url);
+            if (!result) return;
+            onChange(block.id, { text: result.newText });
             setSelection(null);
             setTimeout(() => {
                 taRef.current?.focus();
-                taRef.current?.setSelectionRange(selection.start, newEnd);
+                taRef.current?.setSelectionRange(selection.start, result.newCursorEnd);
             }, 10);
         },
-        [block.id, block.text, selection, onChange]
+        [block.id, blockText, selection, onChange, setSelection]
     );
 
     // Auto-resize whenever block text changes
     useEffect(() => {
         if (taRef.current) autoResize(taRef.current);
-    }, [block.text, block.type]);
+    }, [blockText, block.type]);
 
     // Respond to external focus requests (e.g. after inserting a new block)
     useEffect(() => {
@@ -287,7 +283,7 @@ function BlockItem({
     const taBase =
         "w-full bg-transparent border-none outline-none resize-none overflow-hidden leading-relaxed placeholder:text-muted-foreground/40 focus:ring-0";
 
-    const isRenderedYouTube = block.type === "youtube" && !!extractYouTubeId(block.text);
+    const isRenderedYouTube = block.type === "youtube" && !!extractYouTubeId(blockText);
 
     return (
         <div className="group/block relative">
@@ -352,11 +348,11 @@ function BlockItem({
             ) : block.type === "youtube" ? (
                 /* YouTube */
                 <div className="-ml-8 -mr-2">
-                    {extractYouTubeId(block.text) ? (
+                    {extractYouTubeId(blockText) ? (
                         <div className="relative">
                             <div className="relative w-full aspect-video">
                                 <iframe
-                                    src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(block.text)}?rel=0`}
+                                    src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(blockText)}?rel=0`}
                                     title="YouTube video"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
@@ -372,7 +368,7 @@ function BlockItem({
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-44" onCloseAutoFocus={(e) => e.preventDefault()}>
-                                        <DropdownMenuItem onSelect={() => { navigator.clipboard.writeText(block.text); }} className="flex items-center gap-2">
+                                        <DropdownMenuItem onSelect={() => { navigator.clipboard.writeText(blockText); }} className="flex items-center gap-2">
                                             <span className="material-icons text-sm">content_copy</span>
                                             Copy URL
                                         </DropdownMenuItem>
@@ -392,11 +388,11 @@ function BlockItem({
                         <input
                             ref={ytInputRef}
                             type="url"
-                            value={block.text}
+                            value={blockText}
                             onChange={(e) => onChange(block.id, { text: e.target.value })}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") e.preventDefault();
-                                if (e.key === "Backspace" && block.text === "") { e.preventDefault(); onDelete(block.id); onFocusPrev(block.id); }
+                                if (e.key === "Backspace" && blockText === "") { e.preventDefault(); onDelete(block.id); onFocusPrev(block.id); }
                             }}
                             placeholder="Paste YouTube URL..."
                             className="w-full bg-transparent border border-border/50 rounded px-3 py-2 text-sm outline-none focus:border-primary placeholder:text-muted-foreground/50"
@@ -430,7 +426,7 @@ function BlockItem({
                             <>
                                 <textarea
                                     ref={taRef}
-                                    value={block.text}
+                                    value={blockText}
                                     rows={1}
                                     onChange={handleChange}
                                     onKeyDown={handleKeyDown}
@@ -486,7 +482,7 @@ function BlockItem({
                                 <InlineToolbar
                                     anchorRef={toolbarAnchorRef}
                                     visible={!!selection && !slashOpen && !linkPopoverOpen}
-                                    selectedText={selection ? block.text.slice(selection.start, selection.end) : ""}
+                                    selectedText={selection ? blockText.slice(selection.start, selection.end) : ""}
                                     onFormat={(action) => {
                                         if (action === "link") {
                                             linkPopoverOpenRef.current = true;
@@ -511,7 +507,7 @@ function BlockItem({
                                         }
                                     }}
                                     anchor={taRef.current}
-                                    selectedText={selection ? block.text.slice(selection.start, selection.end) : ""}
+                                    selectedText={selection ? blockText.slice(selection.start, selection.end) : ""}
                                     onConfirm={(url) => {
                                         applyFormat("link", url);
                                         linkPopoverOpenRef.current = false;
@@ -529,11 +525,11 @@ function BlockItem({
                                     block.type === "heading2" && "text-xl font-semibold py-0.5",
                                     (block.type === "text" || block.type === "bullet" || block.type === "number") && "text-sm",
                                     block.type === "todo" && cn("text-sm", block.checked && "line-through text-muted-foreground"),
-                                    !block.text && "text-muted-foreground/40"
+                                    !blockText && "text-muted-foreground/40"
                                 )}
                             >
-                                {block.text ? (
-                                    <TextWithLinks text={block.text} />
+                                {blockText ? (
+                                    <TextWithLinks text={blockText} />
                                 ) : (
                                     <span className="select-none">
                                         {block.type === "heading1" ? "Heading 1" :
@@ -558,7 +554,8 @@ interface RepertoireEditorProps {
     onChange: (blocks: RepertoireBlock[]) => void;
 }
 
-export function RepertoireEditor({ blocks, onChange }: RepertoireEditorProps) {
+export function RepertoireEditor({ blocks: rawBlocks, onChange }: RepertoireEditorProps) {
+    const blocks = rawBlocks || [];
     const [focusId, setFocusId] = useState<string | null>(null);
 
     const updateBlock = useCallback(

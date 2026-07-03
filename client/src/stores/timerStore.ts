@@ -27,6 +27,7 @@ interface TimerState {
   pieceTimeRemaining: number;
   pieceTotalTime: number;
   isPiecePaused: boolean;
+  audioInitialized: boolean;
 
   // Settings
   settings: SettingsType;
@@ -49,6 +50,7 @@ interface TimerState {
   selectPiece: (id: string, name: string, allocatedMinutes: number, period: 'day' | 'week') => void;
   clearPiece: () => void;
   togglePausePiece: () => void;
+  setAudioInitialized: (initialized: boolean) => void;
 
   // Complex actions
   startTimer: () => Promise<void>;
@@ -492,6 +494,7 @@ export const useTimerStore = create<TimerState>((set, get) => {
     pieceTimeRemaining: 0,
     pieceTotalTime: 0,
     isPiecePaused: false,
+    audioInitialized: false,
 
     // Simple setters
     setTimeRemaining: (time) => {
@@ -783,6 +786,10 @@ export const useTimerStore = create<TimerState>((set, get) => {
 
     togglePausePiece: () => {
       set((state) => ({ isPiecePaused: !state.isPiecePaused }));
+    },
+
+    setAudioInitialized: (initialized) => {
+      set({ audioInitialized: initialized });
     },
 
     initializeWorker

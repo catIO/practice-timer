@@ -40,9 +40,9 @@ export default function Home() {
   };
   // Get settings from local storage
   const settings: SettingsType = getSettings();
-  const [audioInitialized, setAudioInitialized] = useState(false);
+  const audioInitialized = useTimerStore((state) => state.audioInitialized);
+  const setAudioInitialized = useTimerStore((state) => state.setAudioInitialized);
   const [wakeLockActive, setWakeLockActive] = useState(false);
-  const [planPaneOpen, setPlanPaneOpen] = useState(false);
   // Setup notifications and toast
   const { toast } = useToast();
   const { showNotification, showTimerCompletionNotification } = useNotification();
@@ -306,169 +306,70 @@ export default function Home() {
 
 
 
-  if (!planPaneOpen) {
-    return (
-      <div className="text-foreground font-sans min-h-screen">
-        <div className="max-w-2xl mx-auto pt-8">
-          <div className="rounded-2xl p-6 bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm">
-            <header className="relative p-4 flex items-center justify-between overflow-hidden">
-              <div className="relative z-10 flex items-center justify-between w-full">
-                <div className="flex items-center gap-2">
-                  <Link to="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
-                    <svg
-                      className="h-6 w-auto fill-current"
-                      viewBox="0 0 46 79"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        clipRule="evenodd"
-                        d="M20.7463 39.5L1.33284 67.4349C0.536414 68.5779 0.0956646 69.8593 0.0138686 71.1723C-0.0679757 72.4759 0.21219 73.8015 0.860683 75.0421C1.50601 76.2763 2.43777 77.265 3.5585 77.9452C4.68857 78.6285 5.99183 79 7.37697 79H38.623C40.0082 79 41.3114 78.6285 42.4415 77.9452C43.5622 77.2651 44.4908 76.2795 45.1393 75.0421C45.7878 73.8015 46.0648 72.4759 45.9861 71.1723C45.9043 69.8593 45.4604 68.581 44.6672 67.4349L25.2537 39.5L44.6672 11.5651C45.4636 10.4221 45.9043 9.14066 45.9861 7.82767C46.068 6.5241 45.7878 5.19853 45.1393 3.95792C44.494 2.72368 43.5622 1.73496 42.4415 1.05481C41.3114 0.371548 40.0082 0 38.623 0H7.37697C5.99183 0 4.68865 0.371548 3.5585 1.05481C2.43785 1.73492 1.50917 2.72046 0.860683 3.95792C0.212206 5.19853 -0.0647845 6.5241 0.0138686 7.82767C0.095713 9.14066 0.539573 10.419 1.33284 11.5651L20.7463 39.5Z"
-                      />
-                    </svg>
-                    <h1 className="text-2xl font-bold">Practice Mate</h1>
-                  </Link>
-                  {/* Wake Lock Status Indicator */}
-                  {isRunning && (
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      wakeLockActive ? "bg-gray-400 animate-pulse" : "bg-gray-600"
-                    )} title={wakeLockActive ? "Wake lock active" : "Wake lock inactive"} />
-                  )}
-                  {/* Audio Status Indicator */}
-                  <div className={cn(
-                    "w-2 h-2 rounded-full",
-                    audioInitialized ? "bg-green-400" : "bg-gray-600"
-                  )} title={audioInitialized ? "Audio ready" : "Audio not ready"} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-primary hover:text-primary/80"
-                    onClick={() => navigate("/practice-plan")}
-                    aria-label="Practice plan"
-                    title="Practice plan"
-                  >
-                    <span className="material-icons">assignment_add</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-primary hover:text-primary/80"
-                    onClick={() => navigate("/repertoire")}
-                    aria-label="Repertoire"
-                    title="Repertoire"
-                  >
-                    <span className="material-icons">library_music</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-primary hover:text-primary/80"
-                    onClick={handlePracticeLogClick}
-                    aria-label="View practice log"
-                    title="Practice log"
-                  >
-                    <span className="material-icons font-semibold">history</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-primary hover:text-primary/80"
-                    onClick={handleSettingsClick}
-                  >
-                    <span className="material-icons">settings</span>
-                  </Button>
-                </div>
-              </div>
-            </header>
-
-            <main className="p-6">
-              <div className="space-y-8">
-                {isPracticeComplete ? (
-                  <PracticeComplete
-                    currentIteration={currentIteration}
-                    totalIterations={totalIterations}
-                    onStartNewSession={startNewSession}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center space-y-6">
-                    {activePieceName && (
-                      <div className="w-full max-w-sm rounded-lg bg-muted/40 border border-border/40 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="flex flex-col min-w-0 items-start">
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Active Piece</span>
-                          <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName ? stripMarkdownLinks(activePieceName) : ""}>
-                            <TextWithLinks text={activePieceName || ""} />
-                          </span>
-                          <span className="text-lg font-bold text-primary font-mono mt-0.5">{formatSeconds(pieceTimeRemaining)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            onClick={handlePiecePlayPause}
-                            title={(isPiecePaused || !isRunning) ? "Resume piece timer" : "Pause piece timer"}
-                          >
-                            <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? "play_arrow" : "pause"}</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground font-semibold"
-                            onClick={() => { clearPiece(); }}
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <Timer
-                      timeRemaining={timeRemaining}
-                      totalTime={totalTime}
-                      mode={mode}
-                      isRunning={isRunning}
-                    />
-
-                    <TimerControls
-                      isRunning={isRunning}
-                      onStart={handleStart}
-                      onPause={handlePause}
-                      onReset={handleResetAll}
-                      onSkip={handleSkip}
-                      skipDisabled={isSkipping}
-                    />
-
-                    <IterationTracker
-                      currentIteration={currentIteration}
-                      totalIterations={totalIterations}
-                      mode={mode}
-                    />
-                  </div>
-                )}
-              </div>
-            </main>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <PracticePlanPane
-      open={planPaneOpen}
-      onOpenChange={setPlanPaneOpen}
-      timeRemaining={timeRemaining}
-      totalTime={totalTime}
-      mode={mode}
-      isRunning={isRunning}
-      isPracticeComplete={isPracticeComplete}
-      onStart={handleStart}
-      onPause={handlePause}
-      onSkip={skipTimer}
-      onStartNewSession={startNewSession}
-    />
+    <div className="space-y-8">
+      {isPracticeComplete ? (
+        <PracticeComplete
+          currentIteration={currentIteration}
+          totalIterations={totalIterations}
+          onStartNewSession={startNewSession}
+        />
+      ) : (
+        <div className="flex flex-col items-center space-y-6">
+          {activePieceName && (
+            <div className="w-full max-w-sm rounded-lg bg-muted/40 border border-border/40 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex flex-col min-w-0 items-start">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Active Piece</span>
+                <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName ? stripMarkdownLinks(activePieceName) : ""}>
+                  <TextWithLinks text={activePieceName || ""} />
+                </span>
+                <span className="text-lg font-bold text-primary font-mono mt-0.5">{formatSeconds(pieceTimeRemaining)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handlePiecePlayPause}
+                  title={(isPiecePaused || !isRunning) ? "Resume piece timer" : "Pause piece timer"}
+                >
+                  <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? "play_arrow" : "pause"}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground font-semibold"
+                  onClick={() => { clearPiece(); }}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <Timer
+            timeRemaining={timeRemaining}
+            totalTime={totalTime}
+            mode={mode}
+            isRunning={isRunning}
+          />
+
+          <TimerControls
+            isRunning={isRunning}
+            onStart={handleStart}
+            onPause={handlePause}
+            onReset={handleResetAll}
+            onSkip={handleSkip}
+            skipDisabled={isSkipping}
+          />
+
+          <IterationTracker
+            currentIteration={currentIteration}
+            totalIterations={totalIterations}
+            mode={mode}
+          />
+        </div>
+      )}
+    </div>
   );
 }

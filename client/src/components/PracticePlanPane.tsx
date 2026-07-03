@@ -58,6 +58,8 @@ import { InlineToolbar, type InlineToolbarProps } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
 import { Link } from "react-router-dom";
 import { formatTime } from "@/lib/formatTime";
+import { useTextSelection } from "@/hooks/useTextSelection";
+import { applyTextFormat } from "@/lib/richText";
 import { useTimerStore } from "@/stores/timerStore";
 import { getPiecePracticedSeconds, getLast7DaysSummary } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
@@ -358,7 +360,11 @@ function PlanItem({
     }
   }, [item.text, item.blockType, editing]);
 
-  const [toolbarSelection, setToolbarSelection] = useState<{ start: number; end: number } | null>(null);
+  const {
+    selection: toolbarSelection,
+    setSelection: setToolbarSelection,
+    linkPopoverOpenRef: isLinkPopoverOpenRef,
+  } = useTextSelection();
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
 
   // Segment-specific editing state
@@ -393,7 +399,7 @@ function PlanItem({
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLinkPopoverOpenRef = useRef(false);
+  // isLinkPopoverOpenRef is provided by useTextSelection hook above
 
   // ... (lines 261-267 are omitted in replacement context, assuming they are okay to implicitly include or skip if not touching them)
   // Actually, I need to match valid context.
@@ -614,33 +620,18 @@ function PlanItem({
 
   const applyFormat = useCallback(
     (action: "bold" | "italic" | "link", url?: string, opts?: { linkText?: string }) => {
-      if (!toolbarSelection || toolbarSelection.start === toolbarSelection.end) return;
-      const sel = opts?.linkText ?? editValue.slice(toolbarSelection.start, toolbarSelection.end);
-      let newText: string;
-      let newCursorStart: number;
-      let newCursorEnd: number;
-      if (action === "bold") {
-        newText = editValue.slice(0, toolbarSelection.start) + `**${sel}**` + editValue.slice(toolbarSelection.end);
-        newCursorStart = toolbarSelection.start;
-        newCursorEnd = toolbarSelection.start + sel.length + 4;
-      } else if (action === "italic") {
-        newText = editValue.slice(0, toolbarSelection.start) + `*${sel}*` + editValue.slice(toolbarSelection.end);
-        newCursorStart = toolbarSelection.start;
-        newCursorEnd = toolbarSelection.start + sel.length + 2;
-      } else if (action === "link" && url) {
-        newText = editValue.slice(0, toolbarSelection.start) + `[${sel}](${url})` + editValue.slice(toolbarSelection.end);
-        newCursorStart = toolbarSelection.start;
-        newCursorEnd = toolbarSelection.start + sel.length + url.length + 4;
-      } else return;
-      setEditValue(newText);
-      onUpdateText(item.id, newText);
+      if (!toolbarSelection) return;
+      const result = applyTextFormat(editValue, toolbarSelection, action, url, opts);
+      if (!result) return;
+      setEditValue(result.newText);
+      onUpdateText(item.id, result.newText);
       setToolbarSelection(null);
       setTimeout(() => {
         inputRef.current?.focus();
-        inputRef.current?.setSelectionRange(newCursorStart, newCursorEnd);
+        inputRef.current?.setSelectionRange(toolbarSelection.start, result.newCursorEnd);
       }, 10);
     },
-    [editValue, item.id, onUpdateText, toolbarSelection]
+    [editValue, item.id, onUpdateText, toolbarSelection, setToolbarSelection]
   );
 
   const handleKeyDown = useCallback(
@@ -2332,97 +2323,37 @@ export function PracticePlanPane({
   if (!open) return null;
 
   return (
-    <div className="text-foreground font-sans min-h-screen w-full">
-      <div className="max-w-2xl mx-auto pt-8 pb-32 px-4 sm:px-0">
-        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm min-h-[500px]">
-          <header className="sticky top-0 z-20 p-4 flex items-center justify-between border-b border-border/40 bg-background/50 backdrop-blur-md rounded-t-2xl">
-            <div className="relative z-10 flex items-center justify-between w-full">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-primary">
-                  <span className="material-icons">assignment_add</span>
-                  <h2 className="text-2xl font-bold text-foreground">Planning & Goals</h2>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary/80" asChild>
-                        <Link to="/">
-                          <svg 
-                            className="h-5 w-auto fill-current" 
-                            viewBox="0 0 46 79" 
-                            aria-hidden="true"
-                          >
-                            <path 
-                              fillRule="evenodd" 
-                              clipRule="evenodd" 
-                              d="M20.7463 39.5L1.33284 67.4349C0.536414 68.5779 0.0956646 69.8593 0.0138686 71.1723C-0.0679757 72.4759 0.21219 73.8015 0.860683 75.0421C1.50601 76.2763 2.43777 77.265 3.5585 77.9452C4.68857 78.6285 5.99183 79 7.37697 79H38.623C40.0082 79 41.3114 78.6285 42.4415 77.9452C43.5622 77.2651 44.4908 76.2795 45.1393 75.0421C45.7878 73.8015 46.0648 72.4759 45.9861 71.1723C45.9043 69.8593 45.4604 68.581 44.6672 67.4349L25.2537 39.5L44.6672 11.5651C45.4636 10.4221 45.9043 9.14066 45.9861 7.82767C46.068 6.5241 45.7878 5.19853 45.1393 3.95792C44.494 2.72368 43.5622 1.73496 42.4415 1.05481C41.3114 0.371548 40.0082 0 38.623 0H7.37697C5.99183 0 4.68865 0.371548 3.5585 1.05481C2.43785 1.73492 1.50917 2.72046 0.860683 3.95792C0.212206 5.19853 -0.0647845 6.5241 0.0138686 7.82767C0.095713 9.14066 0.539573 10.419 1.33284 11.5651L20.7463 39.5Z" 
-                            />
-                          </svg>
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Timer</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary/80" asChild>
-                        <Link to="/practice-log">
-                          <span className="material-icons font-semibold">history</span>
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Practice Log</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <span className="material-icons text-muted-foreground">more_vert</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={handleReset}>
-                      <span className="material-icons text-sm mr-2">refresh</span>
-                      Reset Checks
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleShareClick} disabled={isSharing}>
-                      {isSharing ? (
-                        <span className="material-icons text-sm mr-2 animate-spin">refresh</span>
-                      ) : (
-                        <span className="material-icons text-sm mr-2">share</span>
-                      )}
-                      {isSharing ? "Generating Link..." : "Share Report"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
-                      <span className="material-icons text-sm mr-2">content_paste</span>
-                      Import Plan
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPlan}>
-                      <span className="material-icons text-sm mr-2">content_copy</span>
-                      Export Plan
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onOpenChange(false)}
-                  className="rounded-full hover:bg-white/10"
-                >
-                  <span className="material-icons text-primary hover:text-primary/80">arrow_back</span>
-                </Button>
-              </div>
-            </div>
-          </header>
+    <div className="space-y-6">
+      {/* Flat planning sub-header actions */}
+      <div className="flex items-center justify-between mb-2 pb-4 border-b border-white/10">
+        <span className="text-xs text-muted-foreground font-medium">Configure and share your practice plan</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 border border-white/10 text-xs gap-1.5 rounded-xl px-2.5">
+              <span className="material-icons text-sm">settings</span>
+              Plan Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-slate-900 border border-white/10 text-foreground">
+            <DropdownMenuItem onClick={handleReset} className="focus:bg-white/5 cursor-pointer">
+              <span className="material-icons text-sm mr-2">refresh</span>
+              Reset Checks
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleShareClick} disabled={isSharing} className="focus:bg-white/5 cursor-pointer">
+              <span className="material-icons text-sm mr-2">{isSharing ? 'refresh' : 'share'}</span>
+              {isSharing ? "Generating Link..." : "Share Report"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="focus:bg-white/5 cursor-pointer">
+              <span className="material-icons text-sm mr-2">content_paste</span>
+              Import Plan
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportPlan} className="focus:bg-white/5 cursor-pointer">
+              <span className="material-icons text-sm mr-2">content_copy</span>
+              Export Plan
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
           <div
             ref={contentRef}
@@ -2676,67 +2607,8 @@ export function PracticePlanPane({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
 
-      {/* Sticky bottom timer bar */}
-      {typeof timeRemaining === 'number' && !isPracticeComplete && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center px-4 pb-4 pointer-events-none">
-          <div className="pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-background/80 backdrop-blur-md shadow-2xl overflow-hidden">
-            {/* Session timer row */}
-            {typeof timeRemaining === 'number' && !isPracticeComplete && (
-              <>
-                {/* Progress bar */}
-                <div className="h-1 w-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full transition-all duration-1000 ease-linear",
-                      mode === 'break' ? "bg-green-500" : "bg-red-500"
-                    )}
-                    style={{ width: `${totalTime ? Math.max(0, (timeRemaining / totalTime) * 100) : 0}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between px-5 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold",
-                      mode === 'break' ? "text-green-500" : "text-primary"
-                    )}>
-                      {mode === 'break' ? 'Break' : 'Work'}
-                    </span>
-                    <span className={cn(
-                      "font-mono text-3xl font-semibold tabular-nums",
-                      mode === 'break' ? "text-green-400" : (timeRemaining < 60 ? "text-red-400" : "text-foreground")
-                    )}>
-                      {formatTime(timeRemaining)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-foreground hover:text-foreground/80"
-                      onClick={isRunning ? onPause : onStart}
-                      title={isRunning ? 'Pause' : 'Play'}
-                    >
-                      <span className="material-icons">{isRunning ? 'pause' : 'play_arrow'}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-muted-foreground hover:text-foreground"
-                      onClick={onSkip}
-                      title="Skip"
-                    >
-                      <span className="material-icons">skip_next</span>
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

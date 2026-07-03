@@ -250,21 +250,21 @@ export default function Report() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
+      <div className="flex flex-col items-center justify-center py-20 text-foreground">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-        <p className="text-muted-foreground">Loading report...</p>
+        <p className="text-muted-foreground text-sm">Loading report...</p>
       </div>
     );
   }
 
   if (!token && !id) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
+      <div className="flex flex-col items-center justify-center py-10 text-foreground text-center">
         <h1 className="text-2xl font-bold text-primary mb-2">Practice plan progress</h1>
-        <p className="text-muted-foreground text-center max-w-sm mb-6">
+        <p className="text-muted-foreground text-sm max-w-sm mb-6 leading-relaxed">
           No report to display. Create a shareable link from the Practice plan in the app.
         </p>
-        <Button variant="outline" asChild>
+        <Button variant="outline" asChild className="border-white/10 rounded-xl">
           <Link to="/">Open Practice Mate</Link>
         </Button>
       </div>
@@ -273,16 +273,16 @@ export default function Report() {
 
   if (error || !snapshot) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-6 flex flex-col items-center justify-center">
+      <div className="flex flex-col items-center justify-center py-10 text-foreground text-center">
         <h1 className="text-2xl font-bold text-primary mb-2">
           {import.meta.env.DEV && id ? "Not available in dev" : "Invalid or expired link"}
         </h1>
-        <p className="text-muted-foreground text-center max-w-sm mb-6">
+        <p className="text-muted-foreground text-sm max-w-sm mb-6 leading-relaxed">
           {import.meta.env.DEV && id
             ? "Permalink links require the production server. Use the Share dialog to generate a local test link instead."
             : "This report link is invalid or has expired. Ask for a new link."}
         </p>
-        <Button variant="outline" asChild>
+        <Button variant="outline" asChild className="border-white/10 rounded-xl">
           <Link to="/">Open Practice Mate</Link>
         </Button>
       </div>
@@ -302,33 +302,31 @@ export default function Report() {
   })();
 
   return (
-    <div className="min-h-screen text-foreground font-sans">
-      <div className="max-w-3xl mx-auto pt-8 pb-32 px-4 sm:px-0">
-        <div className="rounded-2xl bg-gradient-to-t from-gray-800/40 to-black bg-[length:100%_200%] bg-[position:90%_100%] backdrop-blur-sm min-h-[500px]">
-          <header className="border-b border-border/40 px-6 py-6 bg-background/20 backdrop-blur-md rounded-t-2xl">
-            <h1 className="text-2xl font-bold text-foreground">
-              {snapshot.title ?? "Practice Plan & Progress Report"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
-          </header>
-          {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
-            <div className="px-6 py-5 border-b border-border/30">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-primary tabular-nums">{formatDuration(snapshot.logSummary.totalSeconds)}</span>
-                <span className="text-sm text-muted-foreground">total in last 7 days</span>
-              </div>
-            </div>
-          )}
-          <main className="p-8 w-full">
-            <div className="space-y-1">
-              {snapshot.items.map((item, i, arr) => {
-                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-                return <ReportItem key={i} item={item} numberIndex={numIdx} logSummary={snapshot.logSummary} />;
-              })}
-            </div>
-          </main>
+    <div className="space-y-6 text-foreground">
+      <header className="border-b border-white/10 pb-4">
+        <h1 className="text-2xl font-bold text-foreground">
+          {snapshot.title ?? "Practice Plan & Progress Report"}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+      </header>
+      {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
+        <div className="py-2 border-b border-white/10 pb-4">
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-bold text-primary tabular-nums">
+              {formatDuration(snapshot.logSummary.totalSeconds)}
+            </span>
+            <span className="text-sm text-muted-foreground">total in last 7 days</span>
+          </div>
         </div>
-      </div>
+      )}
+      <main className="w-full">
+        <div className="space-y-1">
+          {snapshot.items.map((item, i, arr) => {
+            const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+            return <ReportItem key={i} item={item} numberIndex={numIdx} logSummary={snapshot.logSummary} />;
+          })}
+        </div>
+      </main>
     </div>
   );
 }

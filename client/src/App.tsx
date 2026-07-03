@@ -16,6 +16,7 @@ import PracticePlan from '@/pages/PracticePlan';
 import RepertoireList from '@/pages/RepertoireList';
 import RepertoireDetail from '@/pages/RepertoireDetail';
 import ResetPassword from '@/pages/ResetPassword';
+import { NavigationLayout } from '@/components/NavigationLayout';
 
 const queryClient = new QueryClient();
 
@@ -43,8 +44,8 @@ function AppRoutes() {
       <Route path="/report/:token" element={<Report />} />
       <Route path="/r/:id" element={<Report />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      {/* Repertoire routes (auth-gated) */}
-      <Route path="/repertoire" element={<ProtectedRoute><RepertoireList /></ProtectedRoute>} />
+      {/* Repertoire routes (auth-gated / promo) */}
+      <Route path="/repertoire" element={<RepertoireList />} />
       <Route path="/repertoire/:id" element={<ProtectedRoute><RepertoireDetail /></ProtectedRoute>} />
     </Routes>
   );
@@ -68,7 +69,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <AppRoutes />
+            <NavigationLayout>
+              <AppRoutes />
+            </NavigationLayout>
             <Toaster />
           </Router>
         </AuthProvider>

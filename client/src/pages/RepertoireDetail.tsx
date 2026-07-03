@@ -143,140 +143,109 @@ export default function RepertoireDetail() {
     }
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
-            <div className="max-w-3xl mx-auto px-4 py-6">
-                {/* Top Bar */}
-                <div className="flex items-center justify-between mb-6">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/repertoire')}>
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        {hasUnsavedChanges && (
-                            <span className="text-xs text-muted-foreground">Saving...</span>
-                        )}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-5 w-5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                    onClick={() => cloneMutation.mutate()}
-                                    disabled={cloneMutation.isPending}
-                                >
-                                    <Copy className="h-4 w-4 mr-2" />
-                                    Clone piece
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => setShowDeleteDialog(true)}
-                                    className="text-destructive focus:text-destructive"
-                                >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete piece
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete this piece?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete "{localPiece.title}" and all its notes. This cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                        onClick={() => deleteMutation.mutate()}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                        Delete
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
+        <div className="space-y-6">
+            {/* Top Bar Actions */}
+            <div className="flex items-center justify-between mb-2">
+                <div>
+                    {hasUnsavedChanges && (
+                        <span className="text-xs text-muted-foreground font-mono">Saving changes...</span>
+                    )}
                 </div>
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => cloneMutation.mutate()}
+                                disabled={cloneMutation.isPending}
+                            >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Clone piece
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => setShowDeleteDialog(true)}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete piece
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
 
-                {/* Title */}
+                    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete this piece?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete "{localPiece.title}" and all its notes. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate()}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            </div>
+
+            {/* Title */}
+            <input
+                type="text"
+                value={localPiece.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                className="w-full text-3xl font-bold bg-transparent border-none outline-none mb-6 placeholder:text-muted-foreground/50 text-foreground"
+                placeholder="Piece title"
+            />
+
+            {/* Metadata Grid */}
+            <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 mb-8 text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                    <span>By</span>
+                </span>
                 <input
                     type="text"
-                    value={localPiece.title}
-                    onChange={(e) => updateField('title', e.target.value)}
-                    className="w-full text-3xl font-bold bg-transparent border-none outline-none mb-6 placeholder:text-muted-foreground/50"
-                    placeholder="Piece title"
+                    value={localPiece.composer}
+                    onChange={(e) => updateField('composer', e.target.value)}
+                    className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 font-medium"
+                    placeholder="Composer"
                 />
 
-                {/* Metadata Grid */}
-                <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 mb-8 text-sm">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                        <span>By</span>
-                    </span>
-                    <input
-                        type="text"
-                        value={localPiece.composer}
-                        onChange={(e) => updateField('composer', e.target.value)}
-                        className="bg-transparent border-none outline-none font-medium placeholder:text-muted-foreground/50"
-                        placeholder="Composer name"
-                    />
-
-                    {localPiece.video_url && (
-                        <>
-                            <span className="text-muted-foreground flex items-center gap-2">
-                                <Video className="h-3.5 w-3.5" />
-                                <span>Video</span>
-                            </span>
-                            <input
-                                type="url"
-                                value={localPiece.video_url || ''}
-                                onChange={(e) => updateField('video_url', e.target.value || null)}
-                                className="bg-transparent border-none outline-none text-blue-400 placeholder:text-muted-foreground/50 truncate"
-                                placeholder="YouTube URL"
-                            />
-                        </>
-                    )}
-
-                    <span className="text-muted-foreground flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>Updated</span>
-                    </span>
-                    <span className="text-foreground">
-                        {new Date(localPiece.updated_at).toLocaleDateString(undefined, {
-                            year: 'numeric', month: 'short', day: 'numeric',
-                        })}
-                    </span>
-
-                    <span className="text-muted-foreground">Level</span>
-                    <Select value={localPiece.level || 'none'} onValueChange={(v) => updateField('level', v === 'none' ? '' : v)}>
-                        <SelectTrigger className="h-8 w-fit border-none bg-transparent px-0 hover:bg-accent/50">
-                            <SelectValue />
+                <span className="text-muted-foreground">Difficulty</span>
+                <div className="w-48">
+                    <Select
+                        value={localPiece.level || 'none'}
+                        onValueChange={(val) => updateField('level', val === 'none' ? '' : val)}
+                    >
+                        <SelectTrigger className="h-8 border-white/10 bg-slate-900/30">
+                            <SelectValue placeholder="Select level" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="none">—</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
                             {LEVELS.map((l) => (
                                 <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
+                </div>
 
-                    <span className="text-muted-foreground">Type</span>
-                    <Select value={localPiece.type} onValueChange={(v) => updateField('type', v as RepertoirePiece['type'])}>
-                        <SelectTrigger className="h-8 w-fit border-none bg-transparent px-0 hover:bg-accent/50">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {PIECE_TYPES.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <span className="text-muted-foreground">Status</span>
-                    <Select value={localPiece.status} onValueChange={(v) => updateField('status', v as RepertoirePiece['status'])}>
-                        <SelectTrigger className="h-8 w-fit border-none bg-transparent px-0 hover:bg-accent/50">
+                <span className="text-muted-foreground">Status</span>
+                <div className="w-48">
+                    <Select
+                        value={localPiece.status}
+                        onValueChange={(val) => updateField('status', val as any)}
+                    >
+                        <SelectTrigger className="h-8 border-white/10 bg-slate-900/30">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -285,53 +254,83 @@ export default function RepertoireDetail() {
                             ))}
                         </SelectContent>
                     </Select>
-
-                    <span className="text-muted-foreground flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>Start Date</span>
-                    </span>
-                    <input
-                        type="date"
-                        value={localPiece.start_date || ''}
-                        onChange={(e) => updateField('start_date', e.target.value || null)}
-                        className="bg-transparent border-none outline-none text-foreground"
-                    />
-
-                    {!localPiece.video_url && (
-                        <>
-                            <span className="text-muted-foreground flex items-center gap-2">
-                                <Video className="h-3.5 w-3.5" />
-                                <span>Video</span>
-                            </span>
-                            <input
-                                type="url"
-                                value=""
-                                onChange={(e) => updateField('video_url', e.target.value || null)}
-                                className="bg-transparent border-none outline-none text-blue-400 placeholder:text-muted-foreground/50"
-                                placeholder="Add YouTube URL..."
-                            />
-                        </>
-                    )}
                 </div>
 
-                {/* Main Video Embed */}
-                {localPiece.video_url && extractYouTubeId(localPiece.video_url) && (
-                    <div className="mb-8">
-                        <h2 className="text-lg font-semibold mb-3">Progress</h2>
-                        <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                            <iframe
-                                src={`https://www.youtube-nocookie.com/embed/${extractYouTubeId(localPiece.video_url)}`}
-                                title="YouTube video"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                                className="absolute inset-0 w-full h-full"
-                            />
-                        </div>
+                <span className="text-muted-foreground">Type</span>
+                <div className="w-48">
+                    <Select
+                        value={localPiece.type}
+                        onValueChange={(val) => updateField('type', val as any)}
+                    >
+                        <SelectTrigger className="h-8 border-white/10 bg-slate-900/30">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {PIECE_TYPES.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <span className="text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span>Started</span>
+                </span>
+                <input
+                    type="date"
+                    value={localPiece.start_date || ''}
+                    onChange={(e) => updateField('start_date', e.target.value)}
+                    className="bg-transparent border-none outline-none text-foreground text-sm"
+                />
+
+                <span className="text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span>Target</span>
+                </span>
+                <input
+                    type="date"
+                    value={localPiece.target_date || ''}
+                    onChange={(e) => updateField('target_date', e.target.value)}
+                    className="bg-transparent border-none outline-none text-foreground text-sm"
+                />
+
+                <span className="text-muted-foreground flex items-center gap-2">
+                    <Video className="h-4 w-4" />
+                    <span>Video URL</span>
+                </span>
+                {!localPiece.video_url ? (
+                    <input
+                        type="text"
+                        placeholder="Add YouTube URL"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                updateField('video_url', e.currentTarget.value);
+                            }
+                        }}
+                        className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
+                    />
+                ) : (
+                    <div className="space-y-2">
+                        {extractYouTubeId(localPiece.video_url) ? (
+                            <div className="w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
+                                <YouTubeEmbed url={localPiece.video_url} />
+                            </div>
+                        ) : (
+                            <a
+                                href={localPiece.video_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-primary hover:underline break-all"
+                            >
+                                {localPiece.video_url}
+                            </a>
+                        )}
                         <div className="flex items-center gap-2 mt-1.5">
                             <button
                                 type="button"
                                 onClick={() => updateField('video_url', '')}
-                                className="flex items-center gap-1 text-xs text-muted-foreground border border-border/50 rounded px-2 py-1 hover:bg-muted hover:text-foreground transition-colors"
+                                className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
                             >
                                 <span className="material-icons text-sm">link</span>
                                 Replace URL
@@ -339,7 +338,7 @@ export default function RepertoireDetail() {
                             <button
                                 type="button"
                                 onClick={() => updateField('video_url', '')}
-                                className="flex items-center gap-1 text-xs text-muted-foreground border border-border/50 rounded px-2 py-1 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-red-500/10 hover:text-red-400 transition-colors"
                             >
                                 <span className="material-icons text-sm">delete</span>
                                 Remove
@@ -347,15 +346,15 @@ export default function RepertoireDetail() {
                         </div>
                     </div>
                 )}
-
-                <hr className="border-border/50 mb-6" />
-
-                {/* Notes Editor */}
-                <RepertoireEditor
-                    blocks={localPiece.notes}
-                    onChange={updateNotes}
-                />
             </div>
+
+            <hr className="border-white/10 mb-6" />
+
+            {/* Notes Editor */}
+            <RepertoireEditor
+                blocks={localPiece.notes}
+                onChange={updateNotes}
+            />
         </div>
     );
 }
