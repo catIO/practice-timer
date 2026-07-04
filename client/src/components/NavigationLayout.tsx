@@ -174,42 +174,86 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
         {/* Sidebar Navigation Links */}
         <nav className="flex-1 py-4 px-3 space-y-1">
-          {navItems.map((item) => {
-            const active = isTabActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-4 px-2 md:px-3 py-3 rounded-2xl transition-all duration-200 group relative justify-center md:justify-start",
-                  active
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
-                )}
-              >
-                <div className="flex items-center justify-center h-6 w-6">
-                  <span className={cn(
-                    "material-icons text-xl",
-                    active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                  )}>
-                    {item.icon}
-                  </span>
+          {isReportPath ? (
+            <div className="space-y-2">
+              {/* Desktop/Expanded card */}
+              <div className={cn(
+                "p-3 rounded-2xl bg-primary/5 border border-primary/10 text-center md:text-left transition-all duration-300",
+                isSidebarExpanded ? "block" : "hidden md:hidden"
+              )}>
+                <div className="flex items-center gap-2 text-primary mb-1 justify-center md:justify-start">
+                  <span className="material-icons text-lg">share</span>
+                  <span className="font-bold text-xs uppercase tracking-wider">Shared View</span>
                 </div>
-                <span className={cn(
-                  "text-sm truncate transition-all duration-200",
-                  isSidebarExpanded ? "hidden md:inline" : "hidden"
-                )}>
-                  {item.label}
-                </span>
-                <span className={cn(
-                  "absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all whitespace-nowrap z-50",
-                  isSidebarExpanded ? "max-md:group-hover:scale-100" : "group-hover:scale-100"
-                )}>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+                <p className="text-[11px] text-muted-foreground leading-normal mb-3">
+                  This report is read-only.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center text-xs border-primary/20 text-primary hover:bg-primary/10 rounded-xl"
+                  onClick={() => navigate('/')}
+                >
+                  <span className="material-icons text-sm mr-1">arrow_back</span>
+                  My Workspace
+                </Button>
+              </div>
+
+              {/* Collapsed/Icon-only Button */}
+              <div className={cn(
+                "flex justify-center",
+                isSidebarExpanded ? "md:hidden" : "block"
+              )}>
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition-all duration-200 relative group"
+                  aria-label="Go to My Workspace"
+                >
+                  <span className="material-icons text-xl">home</span>
+                  <span className="absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all whitespace-nowrap z-50 group-hover:scale-100">
+                    Go to My Workspace
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            navItems.map((item) => {
+              const active = isTabActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center gap-4 px-2 md:px-3 py-3 rounded-2xl transition-all duration-200 group relative justify-center md:justify-start",
+                    active
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
+                  )}
+                >
+                  <div className="flex items-center justify-center h-6 w-6">
+                    <span className={cn(
+                      "material-icons text-xl",
+                      active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                    )}>
+                      {item.icon}
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "text-sm truncate transition-all duration-200",
+                    isSidebarExpanded ? "hidden md:inline" : "hidden"
+                  )}>
+                    {item.label}
+                  </span>
+                  <span className={cn(
+                    "absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all whitespace-nowrap z-50",
+                    isSidebarExpanded ? "max-md:group-hover:scale-100" : "group-hover:scale-100"
+                  )}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })
+          )}
         </nav>
       </aside>
 
@@ -236,7 +280,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
           <div className="flex items-center gap-3">
             {/* Active Piece Status Banner */}
-            {activePieceName && (
+            {!isReportPath && activePieceName && (
               <div className="hidden sm:flex items-center gap-3 bg-slate-100/80 dark:bg-slate-900/80 border border-black/5 dark:border-white/5 rounded-full py-1.5 pl-4 pr-2 text-sm">
                 <span className="text-muted-foreground font-medium truncate max-w-[150px]">
                   {activePieceName.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')}
@@ -257,7 +301,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
             )}
 
             {/* Global Session Timer Widget */}
-            {typeof timeRemaining === 'number' && !isPracticeComplete && (
+            {!isReportPath && typeof timeRemaining === 'number' && !isPracticeComplete && (
               <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 rounded-full py-1.5 pl-4 pr-2 text-sm">
                 <span className={cn(
                   "font-bold uppercase tracking-wider text-[11px]",
@@ -359,6 +403,25 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
         {/* Dynamic Card Area */}
         <main className="flex-1 overflow-y-auto p-1 sm:p-6 md:p-8 flex flex-col justify-start">
+          {isReportPath && (
+            <div className="w-full max-w-4xl mx-auto mb-6 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm backdrop-blur-md">
+              <div className="flex items-center gap-3 text-foreground">
+                <span className="material-icons text-primary text-xl shrink-0 select-none">cloud_queue</span>
+                <span className="leading-relaxed">
+                  You are viewing a <strong>shared practice report</strong> (Read-Only). You can navigate back to your own workspace at any time.
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 border-primary/20 text-primary hover:bg-primary/10 rounded-xl transition-all font-medium py-1.5"
+                onClick={() => navigate('/')}
+              >
+                <span className="material-icons text-sm mr-1">arrow_back</span>
+                Go to My Workspace
+              </Button>
+            </div>
+          )}
           <div
             className={cn(
               "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-2xl sm:rounded-3xl p-2 sm:p-8 transition-all duration-300",
