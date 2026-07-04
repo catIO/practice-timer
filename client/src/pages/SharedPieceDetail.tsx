@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { decodeReportToken, type ReportSnapshot } from '@/lib/reportShare';
+import { supabase } from '@/lib/supabaseClient';
 import { RepertoirePiece, RepertoireBlock, LEVELS, PIECE_STATUSES, PIECE_TYPES } from '@/lib/repertoire.types';
 import { YouTubeEmbed, extractYouTubeId } from '@/components/YouTubeEmbed';
 import { TextWithLinks } from '@/components/TextWithLinks';
@@ -130,32 +131,53 @@ export default function SharedPieceDetail() {
     // Load snapshot based on id or token
     useEffect(() => {
         if (id) {
-            // Fetch from server / Netlify function
             setLoading(true);
             setError(false);
 
-            // Skip server fetch in dev if Netlify functions are unavailable (id won't be used in dev usually)
-            if (import.meta.env.DEV) {
-                setError(true);
-                setLoading(false);
-                return;
+            async function fetchSnapshot() {
+                // 1. Try Supabase first
+                if (supabase) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('shared_reports')
+                            .select('data')
+                            .eq('id', id)
+                            .single();
+                        if (data && !error) {
+                            setSnapshot(data.data as ReportSnapshot);
+                            setLoading(false);
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn("[SharedPieceDetail] Failed to load from Supabase, trying fallback:", e);
+                    }
+                }
+
+                // In dev, stop here if Supabase failed, since Netlify function is unavailable
+                if (import.meta.env.DEV) {
+                    setError(true);
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Fallback to Netlify function
+                try {
+                    const res = await fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
+                        cache: "no-store",
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) throw new Error("Failed to fetch from Netlify function");
+                    const data = await res.json();
+                    setSnapshot(data as ReportSnapshot);
+                } catch (err) {
+                    console.warn("[SharedPieceDetail] Fallback fetch failed:", err);
+                    setError(true);
+                } finally {
+                    setLoading(false);
+                }
             }
 
-            fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
-                cache: "no-store",
-                headers: { Accept: "application/json" },
-            })
-                .then(async (res) => {
-                    if (!res.ok) throw new Error("Failed");
-                    const data = await res.json();
-                    setSnapshot(data);
-                })
-                .catch(() => {
-                    setError(true);
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
+            fetchSnapshot();
         } else if (token) {
             setLoading(true);
             setError(false);

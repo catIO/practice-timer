@@ -311,6 +311,11 @@ export default function RepertoireDetail() {
                                 updateField('video_url', e.currentTarget.value);
                             }
                         }}
+                        onBlur={(e) => {
+                            if (e.target.value.trim()) {
+                                updateField('video_url', e.target.value.trim());
+                            }
+                        }}
                         className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
                     />
                 ) : (
@@ -361,6 +366,11 @@ export default function RepertoireDetail() {
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 updateField('score_url', e.currentTarget.value);
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value.trim()) {
+                                updateField('score_url', e.target.value.trim());
                             }
                         }}
                         className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
