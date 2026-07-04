@@ -2477,7 +2477,7 @@ export function PracticePlanPane({
 
           <div
             ref={contentRef}
-            className="w-full p-4"
+            className="w-full p-0 sm:p-4"
           >
             <DndContext
               sensors={sensors}
@@ -2488,7 +2488,7 @@ export function PracticePlanPane({
                 items={items.map(item => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-1 pb-20 pl-14">
+                <div className="space-y-1 pb-20 pl-8 sm:pl-14">
                   {items.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
                       <p className="mb-4">Your practice plan is empty.</p>

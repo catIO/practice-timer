@@ -303,7 +303,7 @@ export default function Report() {
 
       // 2. Fallback to Netlify Blobs (via serverless function)
       try {
-        const res = await fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
+        const res = await fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id!)}`, {
           cache: "no-store",
           headers: { Accept: "application/json" },
         });
@@ -317,17 +317,19 @@ export default function Report() {
         if (supabase) {
           supabase
             .from("shared_reports")
-            .insert({ id, data })
-            .then(({ error }) => {
-              if (error) {
-                console.warn("[Report] Auto-migration to Supabase failed:", error);
-              } else {
-                console.log("[Report] Auto-migrated legacy report to Supabase successfully.");
+            .insert({ id: id!, data })
+            .then(
+              ({ error }) => {
+                if (error) {
+                  console.warn("[Report] Auto-migration to Supabase failed:", error);
+                } else {
+                  console.log("[Report] Auto-migrated legacy report to Supabase successfully.");
+                }
+              },
+              (err: unknown) => {
+                console.warn("[Report] Error auto-migrating to Supabase:", err);
               }
-            })
-            .catch((err) => {
-              console.warn("[Report] Error auto-migrating to Supabase:", err);
-            });
+            );
         }
       } catch (err) {
         console.warn("[Report] Failed to load report from fallback:", err);

@@ -87,10 +87,10 @@ function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
 export default function SharedPieceDetail() {
     const { id, token: pathToken, pieceId } = useParams<{ id?: string; token?: string; pieceId: string }>();
     const location = useLocation();
-    
+
     // Extract token from path or hash (dev mode)
     const token = pathToken ?? (location.pathname.includes("/report") && location.hash ? location.hash.slice(1) : null);
-    
+
     const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -115,29 +115,29 @@ export default function SharedPieceDetail() {
             // Fetch from server / Netlify function
             setLoading(true);
             setError(false);
-            
+
             // Skip server fetch in dev if Netlify functions are unavailable (id won't be used in dev usually)
             if (import.meta.env.DEV) {
                 setError(true);
                 setLoading(false);
                 return;
             }
-            
+
             fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
                 cache: "no-store",
                 headers: { Accept: "application/json" },
             })
-            .then(async (res) => {
-                if (!res.ok) throw new Error("Failed");
-                const data = await res.json();
-                setSnapshot(data);
-            })
-            .catch(() => {
-                setError(true);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
+                .then(async (res) => {
+                    if (!res.ok) throw new Error("Failed");
+                    const data = await res.json();
+                    setSnapshot(data);
+                })
+                .catch(() => {
+                    setError(true);
+                })
+                .finally(() => {
+                    setLoading(false);
+                });
         } else if (token) {
             setLoading(true);
             setError(false);
@@ -203,11 +203,7 @@ export default function SharedPieceDetail() {
             </Button>
 
             <div>
-                <div className="flex items-center gap-3 mb-2">
-                    <Music className="h-6 w-6 text-primary" />
-                    <span className="text-xs font-semibold tracking-wider uppercase text-primary/80">Embedded Piece Details</span>
-                </div>
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                     {piece.title || 'Untitled Piece'}
                 </h1>
             </div>

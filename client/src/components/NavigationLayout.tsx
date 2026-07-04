@@ -48,12 +48,12 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'signup'>('signin');
 
   const isReportPath = pathname.startsWith('/report') || pathname.startsWith('/r/');
-  if (isPasswordRecovery || pathname === '/reset-password' || isReportPath) {
+  if (isPasswordRecovery || pathname === '/reset-password') {
     return (
       <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center p-4">
         <div className={cn(
           "w-full bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-8",
-          isReportPath ? "max-w-3xl" : "max-w-md"
+          "max-w-md"
         )}>
           {children}
         </div>
@@ -145,23 +145,28 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       {/* 1. Desktop & Tablet Side Sidebar/Rail */}
       <aside
         className={cn(
-          "hidden md:flex flex-col border-r border-black/5 dark:border-white/10 bg-slate-100/30 dark:bg-slate-900/30 backdrop-blur-md transition-all duration-300 shrink-0",
-          isSidebarExpanded ? "w-64" : "w-20"
+          "flex flex-col border-r border-black/5 dark:border-white/10 bg-slate-100/30 dark:bg-slate-900/30 backdrop-blur-md transition-all duration-300 shrink-0",
+          isSidebarExpanded ? "w-16 md:w-64" : "w-16 md:w-20"
         )}
       >
         {/* Sidebar Header */}
-        <div className="h-16 px-4 flex items-center gap-3 border-b border-black/5 dark:border-white/10">
+        <div className="h-16 px-2 md:px-4 flex items-center md:gap-3 border-b border-black/5 dark:border-white/10 justify-center md:justify-start">
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 text-muted-foreground hover:text-foreground"
+            className="hidden md:inline-flex h-10 w-10 text-muted-foreground hover:text-foreground"
             onClick={toggleSidebar}
             aria-label={isSidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
           >
             <span className="material-icons text-xl">menu</span>
           </Button>
+          <div className="md:hidden flex items-center justify-center h-10 w-10 text-primary">
+            <svg className="h-6 w-auto fill-current" viewBox="0 0 46 79">
+              <path fillRule="evenodd" clipRule="evenodd" d="M20.7463 39.5L1.33284 67.4349C0.536414 68.5779 0.0956646 69.8593 0.0138686 71.1723C-0.0679757 72.4759 0.21219 73.8015 0.860683 75.0421C1.50601 76.2763 2.43777 77.265 3.5585 77.9452C4.68857 78.6285 5.99183 79 7.37697 79H38.623C40.0082 79 41.3114 78.6285 42.4415 77.9452C43.5622 77.2651 44.4908 76.2795 45.1393 75.0421C45.7878 73.8015 46.0648 72.4759 45.9861 71.1723C45.9043 69.8593 45.4604 68.581 44.6672 67.4349L25.2537 39.5L44.6672 11.5651C45.4636 10.4221 45.9043 9.14066 45.9861 7.82767C46.068 6.5241 45.7878 5.19853 45.1393 3.95792C44.494 2.72368 43.5622 1.73496 42.4415 1.05481C41.3114 0.371548 40.0082 0 38.623 0H7.37697C5.99183 0 4.68865 0.371548 3.5585 1.05481C2.43785 1.73492 1.50917 2.72046 0.860683 3.95792C0.212206 5.19853 -0.0647845 6.5241 0.0138686 7.82767C0.095713 9.14066 0.539573 10.419 1.33284 11.5651L20.7463 39.5Z" />
+            </svg>
+          </div>
           {isSidebarExpanded && (
-            <span className="font-bold text-lg tracking-tight text-primary">
+            <span className="hidden md:inline font-bold text-lg tracking-tight text-primary">
               Practice Mate
             </span>
           )}
@@ -176,7 +181,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center gap-4 px-3 py-3 rounded-2xl transition-all duration-200 group relative",
+                  "flex items-center gap-4 px-2 md:px-3 py-3 rounded-2xl transition-all duration-200 group relative justify-center md:justify-start",
                   active
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
@@ -190,13 +195,18 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                     {item.icon}
                   </span>
                 </div>
-                {isSidebarExpanded ? (
-                  <span className="text-sm truncate">{item.label}</span>
-                ) : (
-                  <span className="absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all group-hover:scale-100 whitespace-nowrap z-50">
-                    {item.label}
-                  </span>
-                )}
+                <span className={cn(
+                  "text-sm truncate transition-all duration-200",
+                  isSidebarExpanded ? "hidden md:inline" : "hidden"
+                )}>
+                  {item.label}
+                </span>
+                <span className={cn(
+                  "absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all whitespace-nowrap z-50",
+                  isSidebarExpanded ? "max-md:group-hover:scale-100" : "group-hover:scale-100"
+                )}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -204,11 +214,11 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       </aside>
 
       {/* 2. Main Container (Top App Bar + Page Card View) */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-0">
         {/* Top App Bar */}
         <header className="sticky top-0 z-20 h-16 bg-transparent px-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {isSubPage ? (
+            {isSubPage && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -218,12 +228,6 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               >
                 <span className="material-icons text-xl">arrow_back</span>
               </Button>
-            ) : (
-              <div className="md:hidden flex items-center justify-center h-10 w-10 text-primary">
-                <svg className="h-6 w-auto fill-current" viewBox="0 0 46 79">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M20.7463 39.5L1.33284 67.4349C0.536414 68.5779 0.0956646 69.8593 0.0138686 71.1723C-0.0679757 72.4759 0.21219 73.8015 0.860683 75.0421C1.50601 76.2763 2.43777 77.265 3.5585 77.9452C4.68857 78.6285 5.99183 79 7.37697 79H38.623C40.0082 79 41.3114 78.6285 42.4415 77.9452C43.5622 77.2651 44.4908 76.2795 45.1393 75.0421C45.7878 73.8015 46.0648 72.4759 45.9861 71.1723C45.9043 69.8593 45.4604 68.581 44.6672 67.4349L25.2537 39.5L44.6672 11.5651C45.4636 10.4221 45.9043 9.14066 45.9861 7.82767C46.068 6.5241 45.7878 5.19853 45.1393 3.95792C44.494 2.72368 43.5622 1.73496 42.4415 1.05481C41.3114 0.371548 40.0082 0 38.623 0H7.37697C5.99183 0 4.68865 0.371548 3.5585 1.05481C2.43785 1.73492 1.50917 2.72046 0.860683 3.95792C0.212206 5.19853 -0.0647845 6.5241 0.0138686 7.82767C0.095713 9.14066 0.539573 10.419 1.33284 11.5651L20.7463 39.5Z" />
-                </svg>
-              </div>
             )}
             <h1 className="text-xl font-bold tracking-tight text-foreground text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px] sm:max-w-none">
               {pageTitle}
@@ -354,10 +358,10 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         </header>
 
         {/* Dynamic Card Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 flex flex-col justify-start">
+        <main className="flex-1 overflow-y-auto p-1 sm:p-6 md:p-8 flex flex-col justify-start">
           <div
             className={cn(
-              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-3xl p-6 sm:p-8 transition-all duration-300",
+              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-2xl sm:rounded-3xl p-2 sm:p-8 transition-all duration-300",
               isLargePage ? "max-w-4xl" : "max-w-2xl"
             )}
           >
@@ -365,33 +369,6 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
           </div>
         </main>
       </div>
-
-      {/* 3. Mobile Navigation Bottom Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-black/5 dark:border-white/10 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md z-30 flex justify-around items-center px-2 pb-safe shadow-lg">
-        {navItems.map((item) => {
-          const active = isTabActive(item.path);
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-150",
-                active ? "text-primary" : "text-muted-foreground"
-              )}
-            >
-              <div
-                className={cn(
-                  "flex items-center justify-center rounded-full px-4 py-0.5 mb-0.5 transition-all",
-                  active ? "bg-primary/10" : "bg-transparent"
-                )}
-              >
-                <span className="material-icons text-xl">{item.icon}</span>
-              </div>
-              <span className="text-[10px] font-medium tracking-wide">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
 
       {/* Auth Modal Container */}
       <AuthModal

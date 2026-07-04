@@ -52,7 +52,7 @@ export default function RepertoireDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     const { data: piece, isLoading } = useQuery({
         queryKey: ['repertoire', id],
