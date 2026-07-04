@@ -530,7 +530,17 @@ export const useTimerStore = create<TimerState>((set, get) => {
     setCurrentIteration: (iteration) => set({ currentIteration: iteration }),
     setTotalIterations: (iterations) => set({ totalIterations: iterations }),
     setIsPracticeComplete: (complete) => set({ isPracticeComplete: complete }),
-    setSettings: (settings) => set({ settings }),
+    setSettings: (settings) => {
+      // Sync totalIterations from settings.iterations so the displayed goal
+      // always matches what the user configured. Don't change mid-session
+      // (while running) to avoid moving the goalpost on an active timer.
+      const state = get();
+      const updates: Partial<TimerState> = { settings };
+      if (!state.isRunning) {
+        updates.totalIterations = settings.iterations ?? state.totalIterations;
+      }
+      set(updates);
+    },
     setWorkerReady: (ready) => set({ workerReady: ready }),
     setActivePiece: (id, name) => set({ activePieceId: id, activePieceName: name }),
 

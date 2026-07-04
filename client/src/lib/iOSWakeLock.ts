@@ -42,8 +42,8 @@ export class iOSWakeLock {
       // Strategy 1: Try native wake lock API (limited support on iOS)
       if (this.options.preventScreenTimeout && 'wakeLock' in navigator) {
         try {
-          const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
-          const wakeLock = await (navigator as any).wakeLock.request(wakeLockType);
+          // Screen Wake Lock API only supports 'screen' type
+          const wakeLock = await (navigator as any).wakeLock.request('screen');
           
           wakeLock.addEventListener('release', () => {
             console.log('Native wake lock was released');

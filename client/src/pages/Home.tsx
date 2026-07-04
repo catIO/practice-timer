@@ -284,11 +284,11 @@ export default function Home() {
   // Monitor wake lock status
   useEffect(() => {
     const checkWakeLockStatus = () => {
-      // Check if any wake lock is active
-      const hasNativeWakeLock = 'wakeLock' in navigator;
-      const hasWakeLockFallback = document.querySelector('[data-wake-lock="active"]');
+      // Check if a wake lock is actually held (not just API presence)
+      const hasNativeWakeLock = !!document.querySelector('[data-wake-lock="active"]');
+      const hasWakeLockFallback = document.documentElement.getAttribute('data-wake-lock') === 'active';
 
-      setWakeLockActive(hasNativeWakeLock || !!hasWakeLockFallback);
+      setWakeLockActive(hasNativeWakeLock || hasWakeLockFallback);
     };
 
     // Check initially

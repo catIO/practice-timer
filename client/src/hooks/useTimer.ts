@@ -309,7 +309,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       showNotification(
         'Practice Complete!',
         {
-          body: `You've completed all ${detail?.totalIterations || totalIterations} work sessions!`,
+          body: `You've completed all ${detail?.totalIterations ?? totalIterations} work sessions!`,
           requireInteraction: true,
           silent: false
         }
@@ -384,8 +384,8 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         
         // Try native wake lock first (most efficient)
         if ('wakeLock' in navigator) {
-          const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
-          const wakeLock = await (navigator as any).wakeLock.request(wakeLockType);
+          // Screen Wake Lock API only supports 'screen' type
+          const wakeLock = await (navigator as any).wakeLock.request('screen');
           wakeLockRef.current = wakeLock;
           
           if (wakeLock && 'addEventListener' in wakeLock) {
@@ -473,8 +473,9 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         // Page is visible and timer is running, ensure wake lock is active
         if ('wakeLock' in navigator && !wakeLockRef.current) {
           try {
-            const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
-            wakeLockRef.current = await (navigator as any).wakeLock.request(wakeLockType);
+            // Screen Wake Lock API only supports 'screen' type
+            wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+            document.documentElement.setAttribute('data-wake-lock', 'active');
           } catch (err) {
             // Ignore errors
           }
@@ -513,8 +514,9 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         if (!wakeLockRef.current && !wakeLockFallbackRef.current) {
           try {
             if ('wakeLock' in navigator) {
-              const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
-              wakeLockRef.current = await (navigator as any).wakeLock.request(wakeLockType);
+              // Screen Wake Lock API only supports 'screen' type
+              wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+              document.documentElement.setAttribute('data-wake-lock', 'active');
             } else {
               const fallback = getWakeLockFallback();
               wakeLockFallbackRef.current = fallback;
@@ -540,11 +542,14 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   }, [isRunning]);
 
   // Cleanup on unmount (PRESERVED)
+  // IMPORTANT: dep array must be [] — not [isRunning]. A non-empty dep array causes
+  // the cleanup to run every time isRunning toggles, which immediately releases the
+  // wake lock that was just acquired when the timer started.
   useEffect(() => {
     return () => {
-      // Intentionally not pausing the timer here so users can navigate away 
+      // Intentionally not pausing the timer here so users can navigate away
       // to check practice logs without disrupting their active session
-      
+
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
@@ -554,7 +559,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         wakeLockFallbackRef.current = null;
       }
     };
-  }, [isRunning]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync iOS background timer with store state when timer starts (PRESERVED)
   // Only react to isRunning changes - don't trigger on mode/iteration changes when not running

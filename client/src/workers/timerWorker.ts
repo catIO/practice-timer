@@ -460,6 +460,11 @@ function completeTimer() {
 // Update settings
 function updateSettings(settings: Partial<TimerState['settings']>) {
   state.settings = { ...state.settings, ...settings };
+  // Keep totalIterations in sync with settings.iterations so the practice-complete
+  // check always uses the user's configured goal (only when not mid-session).
+  if (!state.isRunning && settings.iterations !== undefined) {
+    state.totalIterations = settings.iterations;
+  }
   messageSequence++;
   self.postMessage({ 
     type: 'SETTINGS_UPDATED', 

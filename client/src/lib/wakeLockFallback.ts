@@ -15,8 +15,8 @@ export class WakeLockFallback {
     if ('wakeLock' in navigator) {
       // Use native wake lock if available
       try {
-        const wakeLockType = 'system' in (navigator as any).wakeLock ? 'system' : 'screen';
-        const wakeLock = await (navigator as any).wakeLock.request(wakeLockType);
+        // Screen Wake Lock API only supports 'screen' type
+        const wakeLock = await (navigator as any).wakeLock.request('screen');
         
         wakeLock.addEventListener('release', () => {
           console.log('Native wake lock was released');
