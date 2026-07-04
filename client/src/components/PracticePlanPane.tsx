@@ -379,6 +379,7 @@ function PlanItem({
     linkPopoverOpenRef: isLinkPopoverOpenRef,
   } = useTextSelection();
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
+  const [dragMenuOpen, setDragMenuOpen] = useState(false);
 
   // Segment-specific editing state
   const [segmentGoalValue, setSegmentGoalValue] = useState(item.segmentGoal ?? "");
@@ -1034,16 +1035,40 @@ function PlanItem({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
+          <div className="relative">
+            <DropdownMenu open={dragMenuOpen} onOpenChange={setDragMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <div className="absolute inset-0 pointer-events-none w-7 h-7" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    onDelete(item.id);
+                    setDragMenuOpen(false);
+                  }}
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <span className="material-icons text-base">delete</span>
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
               type="button"
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
-              title="Drag to reorder"
+              title="Drag to reorder / Menu"
               {...attributes}
               {...listeners}
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => { listeners?.onPointerDown?.(e); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDragMenuOpen((o) => !o);
+              }}
+              onPointerDown={(e) => {
+                listeners?.onPointerDown?.(e);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') return;
                 listeners?.onKeyDown?.(e);
@@ -1051,20 +1076,7 @@ function PlanItem({
             >
               <span className="material-icons text-base">drag_indicator</span>
             </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 rounded hover:bg-destructive/10 hover:text-destructive"
-            title="Delete block"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(item.id);
-            }}
-          >
-            <span className="material-icons text-base">delete</span>
-          </Button>
+          </div>
         </div>
         {showCheckbox ? (
           <Checkbox
