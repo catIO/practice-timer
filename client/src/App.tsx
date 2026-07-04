@@ -19,6 +19,7 @@ import RepertoireDetail from '@/pages/RepertoireDetail';
 import ResetPassword from '@/pages/ResetPassword';
 import SharedPieceDetail from '@/pages/SharedPieceDetail';
 import { NavigationLayout } from '@/components/NavigationLayout';
+import { SharedReportProvider } from '@/contexts/SharedReportContext';
 
 const queryClient = new QueryClient();
 
@@ -68,12 +69,14 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <NavigationLayout>
-              <AppRoutes />
-            </NavigationLayout>
-            <Toaster />
-          </Router>
+          <SharedReportProvider>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <NavigationLayout>
+                <AppRoutes />
+              </NavigationLayout>
+              <Toaster />
+            </Router>
+          </SharedReportProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

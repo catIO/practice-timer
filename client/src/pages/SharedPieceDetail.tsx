@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Calendar, FileText, Video, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSharedReport } from '@/contexts/SharedReportContext';
 
 function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
     if (!blocks || blocks.length === 0) {
@@ -104,6 +105,7 @@ function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
 }
 
 export default function SharedPieceDetail() {
+    const { setCreatorName } = useSharedReport();
     const { id, token: pathToken, pieceId } = useParams<{ id?: string; token?: string; pieceId: string }>();
     const location = useLocation();
 
@@ -127,6 +129,15 @@ export default function SharedPieceDetail() {
             meta?.setAttribute("content", "");
         };
     }, []);
+
+    useEffect(() => {
+        if (snapshot) {
+            setCreatorName(snapshot.creatorName || null);
+        }
+        return () => {
+            setCreatorName(null);
+        };
+    }, [snapshot, setCreatorName]);
 
     // Load snapshot based on id or token
     useEffect(() => {

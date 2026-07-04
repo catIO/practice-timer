@@ -13,12 +13,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AuthModal } from '@/components/AuthModal';
 import { cn } from '@/lib/utils';
+import { useSharedReport } from '@/contexts/SharedReportContext';
 
 interface NavigationLayoutProps {
   children: React.ReactNode;
 }
 
 export function NavigationLayout({ children }: NavigationLayoutProps) {
+  const { creatorName } = useSharedReport();
   const location = useLocation();
   const pathname = location.pathname;
   const navigate = useNavigate();
@@ -46,6 +48,27 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'signup'>('signin');
+
+  const [isUser, setIsUser] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isLoggedIn) {
+      setIsUser(true);
+      return;
+    }
+    const logs = localStorage.getItem('practice-timer-logs');
+    if (logs && logs !== '[]') {
+      setIsUser(true);
+      return;
+    }
+    const plan = localStorage.getItem('practice-timer-plan');
+    if (plan && plan !== '[]' && !plan.includes('Work session 1')) {
+      setIsUser(true);
+      return;
+    }
+    setIsUser(false);
+  }, [isLoggedIn]);
 
   const isReportPath = pathname.startsWith('/report') || pathname.startsWith('/r/');
   if (isPasswordRecovery || pathname === '/reset-password') {
@@ -93,7 +116,8 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   // Detect if on sub-path (like detail screens) for rendering Top Bar back arrow
   const isRepertoireDetail = pathname.startsWith('/repertoire/') && pathname !== '/repertoire';
   const isReportDetail = pathname.startsWith('/report/') || pathname.startsWith('/r/');
-  const isSubPage = isRepertoireDetail || isReportDetail;
+  const isReportSubPage = isReportDetail && pathname.includes('/piece/');
+  const isSubPage = isRepertoireDetail || isReportSubPage;
 
   // Determine page title
   let pageTitle = 'Practice Mate';
@@ -103,7 +127,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
     pageTitle = 'Practice Plan';
   } else if (pathname === '/repertoire') {
     pageTitle = 'Repertoire';
-  } else if (isRepertoireDetail) {
+  } else if (isRepertoireDetail || isReportSubPage) {
     pageTitle = 'Piece Details';
   } else if (pathname === '/practice-log') {
     pageTitle = 'Practice Log';
@@ -117,6 +141,18 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   const handleBackNavigation = () => {
     if (isRepertoireDetail) {
       navigate('/repertoire');
+    } else if (isReportSubPage) {
+      const matchReportToken = pathname.match(/^\/report\/([^\/]+)/);
+      const matchReportId = pathname.match(/^\/r\/([^\/]+)/);
+      if (matchReportId) {
+        navigate(`/r/${matchReportId[1]}`);
+      } else if (matchReportToken) {
+        navigate(`/report/${matchReportToken[1]}`);
+      } else if (location.hash) {
+        navigate(`/report${location.hash}`);
+      } else {
+        navigate(-1);
+      }
     } else {
       navigate(-1);
     }
@@ -181,21 +217,18 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                 "p-3 rounded-2xl bg-primary/5 border border-primary/10 text-center md:text-left transition-all duration-300",
                 isSidebarExpanded ? "block" : "hidden md:hidden"
               )}>
-                <div className="flex items-center gap-2 text-primary mb-1 justify-center md:justify-start">
+                <div className="flex items-center gap-2 text-primary mb-3 justify-center md:justify-start">
                   <span className="material-icons text-lg">share</span>
                   <span className="font-bold text-xs uppercase tracking-wider">Shared View</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-normal mb-3">
-                  This report is read-only.
-                </p>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full justify-center text-xs border-primary/20 text-primary hover:bg-primary/10 rounded-xl"
                   onClick={() => navigate('/')}
                 >
-                  <span className="material-icons text-sm mr-1">arrow_back</span>
-                  My Workspace
+                  <span className="material-icons text-sm mr-1">{isUser ? "arrow_back" : "bolt"}</span>
+                  {isUser ? "My Workspace" : "Try Practice Mate"}
                 </Button>
               </div>
 
@@ -207,11 +240,11 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                 <button
                   onClick={() => navigate('/')}
                   className="flex h-12 w-12 items-center justify-center rounded-2xl text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition-all duration-200 relative group"
-                  aria-label="Go to My Workspace"
+                  aria-label={isUser ? "Go to My Workspace" : "Try Practice Mate"}
                 >
-                  <span className="material-icons text-xl">home</span>
+                  <span className="material-icons text-xl">{isUser ? "home" : "bolt"}</span>
                   <span className="absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all whitespace-nowrap z-50 group-hover:scale-100">
-                    Go to My Workspace
+                    {isUser ? "Go to My Workspace" : "Try Practice Mate"}
                   </span>
                 </button>
               </div>
@@ -408,7 +441,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               <div className="flex items-center gap-3 text-foreground">
                 <span className="material-icons text-primary text-xl shrink-0 select-none">cloud_queue</span>
                 <span className="leading-relaxed">
-                  You are viewing a <strong>shared practice report</strong> (Read-Only). You can navigate back to your own workspace at any time.
+                  You are viewing {creatorName ? <strong>{creatorName}'s</strong> : "a"} shared report.
                 </span>
               </div>
               <Button
@@ -417,8 +450,17 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                 className="shrink-0 border-primary/20 text-primary hover:bg-primary/10 rounded-xl transition-all font-medium py-1.5"
                 onClick={() => navigate('/')}
               >
-                <span className="material-icons text-sm mr-1">arrow_back</span>
-                Go to My Workspace
+                {isUser ? (
+                  <>
+                    <span className="material-icons text-sm mr-1">arrow_back</span>
+                    Go to My Workspace
+                  </>
+                ) : (
+                  <>
+                    <span className="material-icons text-sm mr-1">bolt</span>
+                    Try Practice Mate
+                  </>
+                )}
               </Button>
             </div>
           )}

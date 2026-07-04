@@ -6,6 +6,7 @@ import { TextWithLinks } from "@/components/TextWithLinks";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import { useSharedReport } from "@/contexts/SharedReportContext";
 
 /** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
 function stripMarkdown(text: string): string {
@@ -262,6 +263,7 @@ function formatDuration(seconds: number): string {
 
 
 export default function Report() {
+  const { setCreatorName } = useSharedReport();
   const { token: pathToken, id } = useParams<{ token?: string; id?: string }>();
   const location = useLocation();
   // Token from path (/report/:token) or from hash (/report#token - used in dev to avoid long URLs)
@@ -360,6 +362,9 @@ export default function Report() {
     if (snapshot?.title) {
       document.title = snapshot.title;
     }
+    if (snapshot) {
+      setCreatorName(snapshot.creatorName || null);
+    }
     let meta = document.querySelector('meta[name="robots"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -369,8 +374,9 @@ export default function Report() {
     meta.setAttribute("content", "noindex, nofollow");
     return () => {
       meta?.setAttribute("content", "");
+      setCreatorName(null);
     };
-  }, [snapshot]);
+  }, [snapshot, setCreatorName]);
 
   if (loading) {
     return (
