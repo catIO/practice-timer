@@ -336,7 +336,7 @@ export default function SharedPieceDetail() {
                                 rel="noreferrer"
                                 className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-colors hover:bg-primary/20"
                             >
-                                <span>Open Score Sheet</span>
+                                <span>Open Score</span>
                                 <ExternalLink className="h-3 w-3" />
                             </a>
                         </div>

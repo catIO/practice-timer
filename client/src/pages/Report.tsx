@@ -165,7 +165,7 @@ function ReportItem({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <span className="material-icons text-[10px] shrink-0 select-none">description</span>
-                        <span>Score</span>
+                        <span>Open Score</span>
                       </a>
                     )}
                   </span>
