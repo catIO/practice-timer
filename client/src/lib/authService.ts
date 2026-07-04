@@ -65,6 +65,12 @@ export async function updatePassword(newPassword: string): Promise<{ error: Auth
     return { error };
 }
 
+export async function updateDisplayName(fullName: string): Promise<{ error: AuthError | null }> {
+    if (!supabase) return { error: SUPABASE_UNAVAILABLE_ERROR };
+    const { error } = await supabase.auth.updateUser({ data: { full_name: fullName } });
+    return { error };
+}
+
 export async function getCurrentSession(): Promise<Session | null> {
     if (!supabase) return null;
     const { data: { session } } = await supabase.auth.getSession();

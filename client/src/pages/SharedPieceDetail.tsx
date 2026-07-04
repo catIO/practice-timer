@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { decodeReportToken, type ReportSnapshot } from '@/lib/reportShare';
 import { supabase } from '@/lib/supabaseClient';
 import { RepertoirePiece, RepertoireBlock, LEVELS, PIECE_STATUSES, PIECE_TYPES } from '@/lib/repertoire.types';
@@ -8,7 +8,7 @@ import { TextWithLinks } from '@/components/TextWithLinks';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Calendar, FileText, Video, ExternalLink, Music } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Video, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
@@ -134,7 +134,7 @@ export default function SharedPieceDetail() {
             setLoading(true);
             setError(false);
 
-            async function fetchSnapshot() {
+            const fetchSnapshot = async () => {
                 // 1. Try Supabase first
                 if (supabase) {
                     try {
@@ -162,7 +162,7 @@ export default function SharedPieceDetail() {
 
                 // 2. Fallback to Netlify function
                 try {
-                    const res = await fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id)}`, {
+                    const res = await fetch(`/.netlify/functions/share-report?id=${encodeURIComponent(id!)}`, {
                         cache: "no-store",
                         headers: { Accept: "application/json" },
                     });
@@ -242,9 +242,9 @@ export default function SharedPieceDetail() {
                         Back to Plan
                     </Link>
                 </Button>
-                {(snapshot.creatorName || snapshot.creatorEmail) && (
+                {snapshot && snapshot.creatorName && (
                     <span className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-full px-3 py-1 font-medium">
-                        Student: {snapshot.creatorName || snapshot.creatorEmail}
+                        Student: {snapshot.creatorName}
                     </span>
                 )}
             </div>

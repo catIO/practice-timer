@@ -2305,9 +2305,8 @@ export function PracticePlanPane({
   const handlePublishUpdate = useCallback(async () => {
     setIsPublishing(true);
     try {
-      const creatorEmail = user?.email || undefined;
       const creatorName = user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorEmail, creatorName);
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorName);
       // If we already have a permalinkId, update it. Otherwise create a new one.
       const url = await shareReport(snapshot, permalinkId || undefined);
 
@@ -2339,9 +2338,8 @@ export function PracticePlanPane({
   const handleCreateVersion = useCallback(async () => {
     setIsSharing(true);
     try {
-      const creatorEmail = user?.email || undefined;
       const creatorName = user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorEmail, creatorName);
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorName);
       // Create a new unique version by not passing an ID
       const url = await shareReport(snapshot);
       setShareUrl(url);
@@ -2463,34 +2461,76 @@ export function PracticePlanPane({
   return (
     <div className="space-y-6">
       {/* Flat planning sub-header actions */}
-      <div className="flex items-center justify-between mb-2 pb-4 border-b border-white/10">
-        <span className="text-xs text-muted-foreground font-medium">Configure and share your practice plan</span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 border border-white/10 text-xs gap-1.5 rounded-xl px-2.5">
-              <span className="material-icons text-sm">settings</span>
-              Plan Actions
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-slate-900 border border-white/10 text-foreground">
-            <DropdownMenuItem onClick={handleReset} className="focus:bg-white/5 cursor-pointer">
-              <span className="material-icons text-sm mr-2">refresh</span>
-              Reset Checks
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleShareClick} disabled={isSharing} className="focus:bg-white/5 cursor-pointer">
-              <span className="material-icons text-sm mr-2">{isSharing ? 'refresh' : 'share'}</span>
-              {isSharing ? "Generating Link..." : "Share Report"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="focus:bg-white/5 cursor-pointer">
-              <span className="material-icons text-sm mr-2">content_paste</span>
-              Import Plan
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleExportPlan} className="focus:bg-white/5 cursor-pointer">
-              <span className="material-icons text-sm mr-2">content_copy</span>
-              Export Plan
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="flex items-center justify-end -mt-3 mb-2">
+        <TooltipProvider delayDuration={200}>
+          <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-900/40 border border-black/5 dark:border-white/10 rounded-xl p-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
+                  onClick={handleReset}
+                  aria-label="Reset progress"
+                >
+                  <span className="material-icons text-lg">refresh</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Reset Progress</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
+                  onClick={handleShareClick}
+                  disabled={isSharing}
+                  aria-label="Share report"
+                >
+                  <span className={cn(
+                    "material-icons text-lg",
+                    isSharing && "animate-spin"
+                  )}>
+                    {isSharing ? 'sync' : 'share'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isSharing ? "Generating Link..." : "Share Report"}
+              </TooltipContent>
+            </Tooltip>
+
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
+                      aria-label="Plan options"
+                    >
+                      <span className="material-icons text-lg">more_vert</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Plan Options</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="bg-slate-900 border border-white/10 text-foreground">
+                <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="focus:bg-white/5 cursor-pointer flex items-center gap-2">
+                  <span className="material-icons text-sm">content_paste</span>
+                  Import Plan
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPlan} className="focus:bg-white/5 cursor-pointer flex items-center gap-2">
+                  <span className="material-icons text-sm">content_copy</span>
+                  Export Plan
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </TooltipProvider>
       </div>
 
           <div

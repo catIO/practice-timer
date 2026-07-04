@@ -237,73 +237,73 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
           <div className="flex items-center gap-3">
             {/* Active Piece Status Banner */}
             {activePieceName && (
-              <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 dark:bg-slate-900/80 border border-black/5 dark:border-white/5 rounded-full py-1 pl-3 pr-2 text-xs">
-                <span className="text-muted-foreground font-medium truncate max-w-[120px]">
+              <div className="hidden sm:flex items-center gap-3 bg-slate-100/80 dark:bg-slate-900/80 border border-black/5 dark:border-white/5 rounded-full py-1.5 pl-4 pr-2 text-sm">
+                <span className="text-muted-foreground font-medium truncate max-w-[150px]">
                   {activePieceName.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')}
                 </span>
-                <span className="text-primary font-mono font-bold">
+                <span className="text-primary font-mono font-bold text-base">
                   {formatSeconds(pieceTimeRemaining)}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 w-5 p-0 hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground"
+                  className="h-7 w-7 p-0 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground transition-colors"
                   onClick={clearPiece}
                   title="Clear active piece"
                 >
-                  <span className="material-icons text-xs">close</span>
+                  <span className="material-icons text-sm">close</span>
                 </Button>
               </div>
             )}
 
             {/* Global Session Timer Widget */}
             {typeof timeRemaining === 'number' && !isPracticeComplete && (
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 rounded-full py-1 pl-3 pr-2 text-xs">
+              <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 rounded-full py-1.5 pl-4 pr-2 text-sm">
                 <span className={cn(
-                  "font-bold uppercase tracking-wider text-[10px]",
+                  "font-bold uppercase tracking-wider text-[11px]",
                   mode === 'break' ? "text-green-400" : "text-red-400"
                 )}>
                   {mode === 'break' ? 'Break' : 'Work'}
                 </span>
-                <span className="font-mono font-bold text-foreground">
+                <span className="font-mono font-bold text-foreground text-base">
                   {formatSeconds(timeRemaining)}
                 </span>
-                <div className="flex items-center gap-0.5 border-l border-white/10 pl-1">
+                <div className="flex items-center gap-1 border-l border-black/10 dark:border-white/10 pl-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 p-0 hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground"
+                    className="h-7 w-7 p-0 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground transition-colors"
                     onClick={isRunning ? pauseTimer : startTimer}
                     title={isRunning ? 'Pause' : 'Play'}
                   >
-                    <span className="material-icons text-xs">{isRunning ? 'pause' : 'play_arrow'}</span>
+                    <span className="material-icons text-base">{isRunning ? 'pause' : 'play_arrow'}</span>
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 w-5 p-0 hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground"
+                    className="h-7 w-7 p-0 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground transition-colors"
                     onClick={skipTimer}
                     title="Skip session"
                   >
-                    <span className="material-icons text-xs">skip_next</span>
+                    <span className="material-icons text-base">skip_next</span>
                   </Button>
                 </div>
               </div>
             )}
 
             {/* Quick Status Dots */}
-            <div className="flex items-center gap-1.5 px-1">
+            <div className="flex items-center gap-2 px-1">
               {/* Wake Lock */}
               {isRunning && (
                 <div
-                  className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"
+                  className="w-3 h-3 rounded-full bg-amber-500 animate-pulse"
                   title="Wake lock active"
                 />
               )}
               {/* Audio Context Status */}
               <div
                 className={cn(
-                  "w-2.5 h-2.5 rounded-full transition-colors duration-300",
+                  "w-3 h-3 rounded-full transition-colors duration-300",
                   audioInitialized ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
                 )}
                 title={audioInitialized ? "Audio engine ready" : "Audio context suspended"}
@@ -314,8 +314,8 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
             {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 p-0 overflow-hidden">
-                    <span className="material-icons text-muted-foreground text-xl">person</span>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 p-0 overflow-hidden">
+                    <span className="material-icons text-muted-foreground text-2xl">person</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 text-foreground">
@@ -327,7 +327,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem
-                    onClick={() => navigate('/settings')}
+                    onClick={() => navigate('/settings?tab=account')}
                     className="focus:bg-white/5 focus:text-foreground cursor-pointer"
                   >
                     <span className="material-icons text-sm mr-2">settings</span>
@@ -346,11 +346,11 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
             ) : (
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 px-3 rounded-xl border border-black/10 dark:border-white/10 text-xs font-semibold text-primary hover:bg-black/5 dark:hover:bg-white/5"
+                size="default"
+                className="h-10 px-4 rounded-xl border border-black/10 dark:border-white/10 text-sm font-semibold text-primary hover:bg-black/5 dark:hover:bg-white/5"
                 onClick={openSignIn}
               >
-                <span className="material-icons text-sm mr-1.5">login</span>
+                <span className="material-icons text-base mr-2">login</span>
                 Sign In
               </Button>
             )}

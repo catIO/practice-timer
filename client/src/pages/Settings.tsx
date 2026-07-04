@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SettingsType, DEFAULT_SETTINGS } from "@/lib/timerService";
 import { getSettings, saveSettings } from '@/lib/localStorage';
@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useNotification } from "@/hooks/useNotification";
-import { playSound, initializeAudioForIOS } from "@/lib/soundEffects";
+import { playSound } from "@/lib/soundEffects";
 import { SoundType } from "@/lib/soundEffects";
 import { useAuth } from "@/contexts/AuthContext";
-import { updatePassword } from "@/lib/authService";
+import { updatePassword, updateDisplayName } from "@/lib/authService";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
@@ -24,26 +24,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Link } from "react-router-dom";
+
 import "@/assets/headerBlur.css";
 import { useTimerStore } from '@/stores/timerStore';
 import { updateWorkerState } from '@/lib/timerWorkerSingleton';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { requestNotificationPermission } = useNotification();
   const [localSettings, setLocalSettings] = useState<SettingsType>(getSettings() || DEFAULT_SETTINGS);
   const [isVolumeChanging, setIsVolumeChanging] = useState(false);
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
   const { isRunning } = useTimerStore();
-  const { isLoggedIn, user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<'general' | 'account'>('general');
+  const { isLoggedIn, user, signOut, refreshUser } = useAuth();
+  
+  const initialTab = searchParams.get('tab') === 'account' ? 'account' : 'general';
+  const [activeTab, setActiveTab] = useState<'general' | 'account'>(initialTab);
+  
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const [displayName, setDisplayName] = useState(user?.user_metadata?.full_name || user?.user_metadata?.name || '');
+  const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
+  const [displayNameSuccess, setDisplayNameSuccess] = useState(false);
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null);
+
+  // Sync activeTab when query param changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'account') {
+      setActiveTab('account');
+    } else if (tabParam === 'general') {
+      setActiveTab('general');
+    }
+  }, [searchParams]);
+
+  // Sync display name state with user metadata
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.user_metadata?.full_name || user.user_metadata?.name || '');
+    }
+  }, [user]);
+
+  // Change tab helper that updates query parameters
+  const handleTabChange = (tab: 'general' | 'account') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
 
 
@@ -201,6 +233,31 @@ export default function Settings() {
     // updateGlobalSettings(localSettings); // This line is removed as per the edit hint
   };
 
+  const handleDisplayNameUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDisplayNameError(null);
+    setDisplayNameSuccess(false);
+    setIsUpdatingDisplayName(true);
+
+    try {
+      const { error } = await updateDisplayName(displayName.trim());
+      if (error) {
+        setDisplayNameError(error.message);
+      } else {
+        setDisplayNameSuccess(true);
+        await refreshUser();
+        toast({
+          title: "Profile Updated",
+          description: "Your display name has been saved.",
+        });
+      }
+    } catch {
+      setDisplayNameError('Failed to update display name');
+    } finally {
+      setIsUpdatingDisplayName(false);
+    }
+  };
+
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
@@ -242,7 +299,7 @@ export default function Settings() {
       {isLoggedIn && (
         <div className="flex gap-2 border-b border-white/10 pb-4">
           <button
-            onClick={() => setActiveTab('general')}
+            onClick={() => handleTabChange('general')}
             className={`pb-2 px-3 text-sm font-semibold border-b-2 transition-all ${
               activeTab === 'general'
                 ? 'border-primary text-primary font-bold'
@@ -252,7 +309,7 @@ export default function Settings() {
             General
           </button>
           <button
-            onClick={() => setActiveTab('account')}
+            onClick={() => handleTabChange('account')}
             className={`pb-2 px-3 text-sm font-semibold border-b-2 transition-all ${
               activeTab === 'account'
                 ? 'border-primary text-primary font-bold'
@@ -269,6 +326,39 @@ export default function Settings() {
           <div>
             <h2 className="text-lg font-medium mb-1">Account details</h2>
             <p className="text-sm text-muted-foreground font-mono">{user?.email}</p>
+          </div>
+
+          <div className="pt-4 border-t border-white/10">
+            <h3 className="text-sm font-medium mb-3">Display Name</h3>
+            <form onSubmit={handleDisplayNameUpdate} className="space-y-3 max-w-md">
+              {displayNameError && (
+                <div className="p-3 bg-red-950/20 border border-red-850 rounded-xl flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+                  <p className="text-sm text-red-200">{displayNameError}</p>
+                </div>
+              )}
+              {displayNameSuccess && (
+                <div className="p-3 bg-green-950/20 border border-green-850 rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                  <p className="text-sm text-green-200">Display name updated successfully</p>
+                </div>
+              )}
+              <div>
+                <Label htmlFor="display-name" className="text-sm">Name</Label>
+                <Input
+                  id="display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your display name (e.g. for sharing reports with teachers)"
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={isUpdatingDisplayName}>
+                {isUpdatingDisplayName ? 'Saving...' : 'Save Name'}
+              </Button>
+            </form>
           </div>
 
           <div className="pt-4 border-t border-white/10">

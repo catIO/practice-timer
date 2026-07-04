@@ -318,40 +318,63 @@ export default function RepertoireDetail() {
                         }}
                         className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
                     />
-                ) : (
-                    <div className="space-y-2">
+                                ) : (
+                    <div>
                         {extractYouTubeId(localPiece.video_url) ? (
-                            <div className="w-full max-w-2xl aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
-                                <YouTubeEmbed url={localPiece.video_url} />
+                            <div className="space-y-2 group">
+                                <div className="w-full max-w-2xl aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
+                                    <YouTubeEmbed url={localPiece.video_url} />
+                                </div>
+                                <div className="flex items-center gap-2 mt-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateField('video_url', '')}
+                                        className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">link</span>
+                                        Replace URL
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateField('video_url', '')}
+                                        className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">delete</span>
+                                        Remove
+                                    </button>
+                                </div>
                             </div>
                         ) : (
-                            <a
-                                href={localPiece.video_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sm text-primary hover:underline break-all"
-                            >
-                                {localPiece.video_url}
-                            </a>
+                            <div className="flex items-center gap-3 group">
+                                <a
+                                    href={localPiece.video_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
+                                >
+                                    <span>Open Video</span>
+                                    <ExternalLink className="h-3 w-3" />
+                                </a>
+                                <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateField('video_url', '')}
+                                        className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">link</span>
+                                        Replace URL
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateField('video_url', '')}
+                                        className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                                    >
+                                        <span className="material-icons text-sm">delete</span>
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
                         )}
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <button
-                                type="button"
-                                onClick={() => updateField('video_url', '')}
-                                className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
-                            >
-                                <span className="material-icons text-sm">link</span>
-                                Replace URL
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => updateField('video_url', '')}
-                                className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                            >
-                                <span className="material-icons text-sm">delete</span>
-                                Remove
-                            </button>
-                        </div>
                     </div>
                 )}
 
@@ -376,7 +399,7 @@ export default function RepertoireDetail() {
                         className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
                     />
                 ) : (
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-3 group">
                         <a
                             href={localPiece.score_url}
                             target="_blank"
@@ -386,7 +409,7 @@ export default function RepertoireDetail() {
                             <span>Open Score</span>
                             <ExternalLink className="h-3 w-3" />
                         </a>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
                             <button
                                 type="button"
                                 onClick={() => updateField('score_url', '')}

@@ -40,7 +40,6 @@ export interface ReportSnapshot {
   items: ReportSnapshotItem[];
   logSummary?: ReportLogSummary;
   embeddedPieces?: Record<string, RepertoirePiece>;
-  creatorEmail?: string;
   creatorName?: string;
 }
 
@@ -65,7 +64,6 @@ export function createReportSnapshot(
   title?: string,
   logSummary?: ReportLogSummary,
   repertoirePieces?: RepertoirePiece[],
-  creatorEmail?: string,
   creatorName?: string
 ): ReportSnapshot {
   const snapshot: ReportSnapshot = {
@@ -74,7 +72,6 @@ export function createReportSnapshot(
     title: title ?? "Practice Plan & Progress Report",
     items: items.map(itemToSnapshot),
     logSummary,
-    creatorEmail,
     creatorName,
   };
 
