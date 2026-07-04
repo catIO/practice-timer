@@ -41,7 +41,25 @@ function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
                                 </div>
                             );
                         }
-                        return null;
+                        // Fallback: render as a link if it looks like a URL, or plain text if not
+                        const isUrl = text.startsWith('http://') || text.startsWith('https://');
+                        return (
+                            <div key={block.id} className="text-sm text-foreground my-2">
+                                {isUrl ? (
+                                    <a
+                                        href={text}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
+                                    >
+                                        <span>{text}</span>
+                                        <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                ) : (
+                                    <TextWithLinks text={text} />
+                                )}
+                            </div>
+                        );
                     }
                     case "todo":
                         return (
@@ -195,12 +213,19 @@ export default function SharedPieceDetail() {
 
     return (
         <div className="space-y-6 text-foreground max-w-3xl mx-auto px-4 py-6">
-            <Button variant="ghost" asChild className="hover:bg-white/5 -ml-2 text-muted-foreground hover:text-foreground">
-                <Link to={backLink}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Plan
-                </Link>
-            </Button>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <Button variant="ghost" asChild className="hover:bg-white/5 -ml-2 text-muted-foreground hover:text-foreground w-fit">
+                    <Link to={backLink}>
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Plan
+                    </Link>
+                </Button>
+                {(snapshot.creatorName || snapshot.creatorEmail) && (
+                    <span className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-full px-3 py-1 font-medium">
+                        Student: {snapshot.creatorName || snapshot.creatorEmail}
+                    </span>
+                )}
+            </div>
 
             <div>
                 <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">

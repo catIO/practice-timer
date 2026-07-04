@@ -1864,7 +1864,7 @@ export function PracticePlanPane({
 
   const [items, setItems] = useState<PracticePlanItem[]>([]);
   const { toast } = useToast();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const { data: repertoirePieces = [] } = useQuery({
     queryKey: ['repertoire'],
     queryFn: repertoireService.getAll,
@@ -2291,7 +2291,9 @@ export function PracticePlanPane({
   const handlePublishUpdate = useCallback(async () => {
     setIsPublishing(true);
     try {
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces);
+      const creatorEmail = user?.email || undefined;
+      const creatorName = user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorEmail, creatorName);
       // If we already have a permalinkId, update it. Otherwise create a new one.
       const url = await shareReport(snapshot, permalinkId || undefined);
 
@@ -2318,12 +2320,14 @@ export function PracticePlanPane({
     } finally {
       setIsPublishing(false);
     }
-  }, [items, permalinkId, toast, repertoirePieces]);
+  }, [items, permalinkId, toast, repertoirePieces, user]);
 
   const handleCreateVersion = useCallback(async () => {
     setIsSharing(true);
     try {
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces);
+      const creatorEmail = user?.email || undefined;
+      const creatorName = user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
+      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorEmail, creatorName);
       // Create a new unique version by not passing an ID
       const url = await shareReport(snapshot);
       setShareUrl(url);
@@ -2340,7 +2344,7 @@ export function PracticePlanPane({
     } finally {
       setIsSharing(false);
     }
-  }, [items, toast, repertoirePieces]);
+  }, [items, toast, repertoirePieces, user]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(shareUrl).then(() => {

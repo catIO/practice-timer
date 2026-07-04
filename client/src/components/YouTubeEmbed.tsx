@@ -6,16 +6,28 @@ interface YouTubeEmbedProps {
 }
 
 function extractYouTubeId(url: string): string | null {
-    const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-        /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-    ];
-    for (const pattern of patterns) {
-        const match = url.match(pattern);
-        if (match) return match[1];
-    }
+    if (!url) return null;
+    const cleanUrl = url.trim();
+
+    // 1. Check for youtu.be/<id>
+    const shortMatch = cleanUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+    if (shortMatch) return shortMatch[1];
+    
+    // 2. Check for path patterns: /embed/<id>, /shorts/<id>, /live/<id>
+    const pathMatch = cleanUrl.match(/youtube(?:-nocookie)?\.com\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/i);
+    if (pathMatch) return pathMatch[1];
+    
+    // 3. Check for watch?v=<id> or watch?anything&v=<id>
+    const watchMatch = cleanUrl.match(/youtube(?:-nocookie)?\.com\/watch\?(?:[^&]*&)*v=([a-zA-Z0-9_-]{11})/i);
+    if (watchMatch) return watchMatch[1];
+
+    // Fallback: search for any occurrence of v=([a-zA-Z0-9_-]{11}) in query-like strings
+    const fallbackMatch = cleanUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+    if (fallbackMatch) return fallbackMatch[1];
+
     return null;
 }
+
 
 export const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({ url, className }) => {
     const videoId = extractYouTubeId(url);

@@ -413,11 +413,26 @@ export default function Report() {
 
   return (
     <div className="space-y-6 text-foreground">
-      <header className="border-b border-white/10 pb-4">
-        <h1 className="text-2xl font-bold text-foreground">
-          {snapshot.title ?? "Practice Plan & Progress Report"}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+      <header className="border-b border-white/10 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">
+            {snapshot.title ?? "Practice Plan & Progress Report"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+        </div>
+        {(snapshot.creatorName || snapshot.creatorEmail) && (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-2 text-sm self-start md:self-auto">
+            <span className="text-muted-foreground text-xs block mb-0.5 uppercase tracking-wider font-semibold">Shared by student</span>
+            <span className="font-semibold text-foreground">
+              {snapshot.creatorName || snapshot.creatorEmail}
+            </span>
+            {snapshot.creatorName && snapshot.creatorEmail && (
+              <span className="text-muted-foreground text-xs block mt-0.5">
+                {snapshot.creatorEmail}
+              </span>
+            )}
+          </div>
+        )}
       </header>
       {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
         <div className="py-2 border-b border-white/10 pb-4">
