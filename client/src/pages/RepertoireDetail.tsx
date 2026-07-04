@@ -321,7 +321,7 @@ export default function RepertoireDetail() {
                 ) : (
                     <div className="space-y-2">
                         {extractYouTubeId(localPiece.video_url) ? (
-                            <div className="w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
+                            <div className="w-full max-w-2xl aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
                                 <YouTubeEmbed url={localPiece.video_url} />
                             </div>
                         ) : (

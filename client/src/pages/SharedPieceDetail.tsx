@@ -31,7 +31,7 @@ function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
                         const ytId = extractYouTubeId(text);
                         if (ytId) {
                             return (
-                                <div key={block.id} className="-ml-8 my-2 max-w-lg aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
+                                <div key={block.id} className="-ml-8 my-2 max-w-2xl aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
                                     <iframe
                                         src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0`}
                                         title="YouTube video"
@@ -305,7 +305,7 @@ export default function SharedPieceDetail() {
                         </span>
                         <div className="space-y-2">
                             {extractYouTubeId(piece.video_url) ? (
-                                <div className="w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
+                                <div className="w-full max-w-2xl aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
                                     <YouTubeEmbed url={piece.video_url} />
                                 </div>
                             ) : (

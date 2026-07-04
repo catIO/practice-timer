@@ -147,14 +147,28 @@ function ReportItem({
                   <span className="text-muted-foreground italic font-normal">Untitled segment</span>
                 )}
                 {linkedPiece && (
-                  <Link
-                    to={linkUrl}
-                    className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/25 px-1.5 py-0.5 rounded-full font-medium ml-1 shrink-0 transition-colors hover:bg-primary/20"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span className="material-icons text-[10px] shrink-0 select-none">music_note</span>
-                    <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
-                  </Link>
+                  <span className="inline-flex items-center gap-1 select-none">
+                    <Link
+                      to={linkUrl}
+                      className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/25 px-1.5 py-0.5 rounded-full font-medium ml-1 shrink-0 transition-colors hover:bg-primary/20"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="material-icons text-[10px] shrink-0 select-none">music_note</span>
+                      <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
+                    </Link>
+                    {linkedPiece.score_url && (
+                      <a
+                        href={linkedPiece.score_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 px-1.5 py-0.5 rounded-full font-medium shrink-0 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="material-icons text-[10px] shrink-0 select-none">description</span>
+                        <span>Score</span>
+                      </a>
+                    )}
+                  </span>
                 )}
               </span>
             </div>
