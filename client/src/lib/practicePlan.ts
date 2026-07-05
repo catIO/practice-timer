@@ -4,6 +4,7 @@
 
 const PRACTICE_PLAN_KEY = "practice-timer-plan";
 const PERMANENT_SHARE_ID_KEY = "practice-timer-share-id";
+const LAST_PUBLISHED_DATE_KEY = "practice-timer-last-published-date";
 
 export type BlockType =
   | "text"
@@ -218,6 +219,12 @@ export const practicePlanApi = {
   },
   savePermalinkId: (id: string): void => {
     localStorage.setItem(PERMANENT_SHARE_ID_KEY, id);
+  },
+  getLastPublishedDate: (): string | null => {
+    return localStorage.getItem(LAST_PUBLISHED_DATE_KEY);
+  },
+  saveLastPublishedDate: (dateIso: string): void => {
+    localStorage.setItem(LAST_PUBLISHED_DATE_KEY, dateIso);
   },
   resetChecks: (items: PracticePlanItem[]): PracticePlanItem[] => {
     const next = resetPracticePlanChecks(items);

@@ -1910,6 +1910,7 @@ export function PracticePlanPane({
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [permalinkId, setPermalinkId] = useState<string | null>(() => practicePlanApi.getPermalinkId());
+  const [lastPublishedDate, setLastPublishedDate] = useState<string | null>(() => practicePlanApi.getLastPublishedDate());
   const [isPublishing, setIsPublishing] = useState(false);
 
   // 20-level undo stack: each applyChange pushes the current state before mutating.
@@ -2302,6 +2303,19 @@ export function PracticePlanPane({
     setShareDialogOpen(true);
   }, []);
 
+  const formatLastPublishedDate = useCallback((isoStr: string | null) => {
+    if (!isoStr) return "";
+    try {
+      const d = new Date(isoStr);
+      return d.toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch {
+      return isoStr;
+    }
+  }, []);
+
   const handlePublishUpdate = useCallback(async () => {
     setIsPublishing(true);
     try {
@@ -2309,6 +2323,10 @@ export function PracticePlanPane({
       const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorName);
       // If we already have a permalinkId, update it. Otherwise create a new one.
       const url = await shareReport(snapshot, permalinkId || undefined);
+
+      const nowStr = new Date().toISOString();
+      practicePlanApi.saveLastPublishedDate(nowStr);
+      setLastPublishedDate(nowStr);
 
       // If it was a new ID, save it
       if (!permalinkId) {
@@ -2665,6 +2683,12 @@ export function PracticePlanPane({
                       </>
                     )}
                   </div>
+                  {lastPublishedDate && permalinkId && (
+                    <p className="text-[11px] text-muted-foreground italic pl-1 flex items-center gap-1.5">
+                      <span className="material-icons text-xs text-primary">schedule</span>
+                      <span>Last published: {formatLastPublishedDate(lastPublishedDate)}</span>
+                    </p>
+                  )}
                   <Button
                     className="w-full gap-2 h-9"
                     onClick={handlePublishUpdate}

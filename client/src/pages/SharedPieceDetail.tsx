@@ -253,11 +253,6 @@ export default function SharedPieceDetail() {
                         Back to Plan
                     </Link>
                 </Button>
-                {snapshot && snapshot.creatorName && (
-                    <span className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 rounded-full px-3 py-1 font-medium">
-                        Student: {snapshot.creatorName}
-                    </span>
-                )}
             </div>
 
             <div>
