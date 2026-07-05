@@ -309,7 +309,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       showNotification(
         'Practice Complete!',
         {
-          body: `You've completed all ${detail?.totalIterations ?? totalIterations} work sessions!`,
+          body: `You've completed all ${detail?.totalIterations} work sessions!`,
           requireInteraction: true,
           silent: false
         }
@@ -358,7 +358,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       window.removeEventListener('practice-complete', handlePracticeComplete);
       window.removeEventListener('piece-timer-complete', handlePieceComplete);
     };
-  }, [workerReady, onComplete, showNotification, totalIterations, toast]);
+  }, [workerReady, onComplete, showNotification, toast]);
 
   // Start timer with wake lock and background support (PRESERVED)
   const startTimer = useCallback(async () => {
