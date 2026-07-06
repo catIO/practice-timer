@@ -1402,14 +1402,24 @@ function PlanItem({
                     ) : (
                       <>
                         {item.allocatedTime ? (
-                          <Button
-                            variant="ghost" size="sm"
-                            className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded bg-muted/40 border border-border/40"
-                            onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
-                            title="Edit duration"
-                          >
-                            {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
-                          </Button>
+                          (() => {
+                            const practicedMins = Math.floor(getPiecePracticedSeconds(item.id, 'day') / 60);
+                            return (
+                              <>
+                                <span className="inline-flex items-center h-6 px-1.5 text-xs text-green-600 dark:text-green-400 font-mono rounded bg-green-500/10 border border-green-500/40">
+                                  {practicedMins}m
+                                </span>
+                                <Button
+                                  variant="ghost" size="sm"
+                                  className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-sans rounded hover:bg-muted/40 transition-colors"
+                                  onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
+                                  title="Edit duration"
+                                >
+                                  Goal: {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
+                                </Button>
+                              </>
+                            );
+                          })()
                         ) : (
                           <Button
                             variant="ghost" size="icon"
