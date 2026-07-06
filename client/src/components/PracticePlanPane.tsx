@@ -1300,25 +1300,28 @@ function PlanItem({
               /* Segment card view */
               <div
                 className={cn(
-                  "flex-1 rounded-lg border px-3 py-2 space-y-1.5 transition-colors",
+                  "flex-1 rounded-xl border p-3.5 space-y-3 transition-all duration-200 shadow-sm",
                   selected
                     ? item.checked
                       ? "border-muted-foreground/30 bg-muted/40"
-                      : "border-primary/40 bg-primary/10"
+                      : "border-primary bg-primary/5 shadow-md shadow-primary/5"
                     : item.checked
                       ? "border-muted bg-muted/20"
-                      : "border-primary/20 bg-primary/5 hover:border-primary/40"
+                      : "border-border bg-card hover:bg-muted/30 hover:border-muted-foreground/30"
                 )}
               >
-                <div className="flex items-center gap-2">
+                {/* Header Row: Checkbox, Title, and Timer Actions */}
+                <div className="flex items-start gap-2.5">
                   <button
                     type="button"
                     role="checkbox"
                     aria-checked={item.checked}
                     aria-label={item.checked ? "Mark incomplete" : "Mark complete"}
                     className={cn(
-                      "flex items-center justify-center shrink-0 h-6 w-6 rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      item.checked ? "text-green-500" : "text-primary"
+                      "flex items-center justify-center shrink-0 h-5 w-5 mt-0.5 rounded border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                      item.checked 
+                        ? "bg-green-500 border-green-500 text-white dark:text-slate-900" 
+                        : "border-muted-foreground/40 hover:border-primary text-transparent"
                     )}
                     onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
                     onKeyDown={(e) => {
@@ -1329,61 +1332,69 @@ function PlanItem({
                       }
                     }}
                   >
-                    <span className="material-icons text-sm select-none" aria-hidden="true">
-                      {item.checked ? "task_alt" : "timer"}
+                    <span className="material-icons text-[10px] font-bold select-none" aria-hidden="true">
+                      done
                     </span>
                   </button>
-                  <span className={cn(
-                    "font-semibold text-sm flex-1 truncate flex items-center gap-2",
-                    item.checked && "text-muted-foreground"
-                  )}>
-                    {item.text ? (
-                      <TextWithLinks
-                        text={item.text}
-                        onEditLink={handleEditLink}
-                        onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
-                        onRemoveLink={handleRemoveLink}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>
-                    )}
-                    {linkedPiece && (
-                      <span className="inline-flex items-center gap-1 select-none">
-                        <Link
-                          to={`/repertoire/${linkedPiece.id}`}
-                          className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full font-medium ml-1 shrink-0 transition-colors hover:bg-primary/20"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span className="material-icons text-xs shrink-0 select-none">music_note</span>
-                          <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
-                        </Link>
-                        {linkedPiece.score_url && (
-                          <a
-                            href={linkedPiece.score_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 px-1.5 py-0.5 rounded-full font-medium shrink-0 transition-colors"
+                  
+                  {/* Title & Links */}
+                  <div className="flex-1 min-w-0 pr-1">
+                    <h4 className={cn(
+                      "font-semibold text-sm leading-tight text-foreground break-words flex items-center flex-wrap gap-1.5",
+                      item.checked && "text-muted-foreground"
+                    )}>
+                      {item.text ? (
+                        <TextWithLinks
+                          text={item.text}
+                          onEditLink={handleEditLink}
+                          onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
+                          onRemoveLink={handleRemoveLink}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>
+                      )}
+
+                      {linkedPiece && (
+                        <span className="inline-flex items-center gap-1 select-none font-sans font-normal normal-case ml-1">
+                          <Link
+                            to={`/repertoire/${linkedPiece.id}`}
+                            className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full font-medium transition-colors hover:bg-primary/20"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <span className="material-icons text-[10px] shrink-0 select-none">description</span>
-                            <span>Open Score</span>
-                          </a>
-                        )}
-                      </span>
-                    )}
-                  </span>
+                            <span className="material-icons text-xs shrink-0 select-none">music_note</span>
+                            <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
+                          </Link>
+                          {linkedPiece.score_url && (
+                            <a
+                              href={linkedPiece.score_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border px-1.5 py-0.5 rounded-full font-medium transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span className="material-icons text-xs shrink-0 select-none">description</span>
+                              <span>Open Score</span>
+                            </a>
+                          )}
+                        </span>
+                      )}
+                    </h4>
+                  </div>
+
                   {/* Timer controls */}
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 shrink-0 -mt-1" onClick={(e) => e.stopPropagation()}>
                     {isActivePiece ? (
                       <>
                         <span className={cn(
-                          "font-mono text-xs tabular-nums px-1.5 py-0.5 rounded bg-muted/40 border border-amber-500/40",
-                          pieceTimeRemaining < 60 ? "text-red-400" : "text-amber-300"
+                          "font-mono text-xs tabular-nums px-2 py-0.5 rounded-full border shadow-sm",
+                          pieceTimeRemaining < 60 
+                            ? "bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400" 
+                            : "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
                         )}>
                           {formatTime(pieceTimeRemaining)}
                         </span>
                         <Button
-                          variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
                           onClick={() => {
                             if (!isRunning) { startTimer(); if (isPiecePaused) togglePausePiece(); }
                             else { togglePausePiece(); }
@@ -1393,7 +1404,7 @@ function PlanItem({
                           <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? 'play_arrow' : 'pause'}</span>
                         </Button>
                         <Button
-                          variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
                           onClick={clearPiece} title="Stop"
                         >
                           <span className="material-icons text-sm">close</span>
@@ -1405,50 +1416,55 @@ function PlanItem({
                           (() => {
                             const practicedMins = Math.floor(getPiecePracticedSeconds(item.id, 'day') / 60);
                             return (
-                              <>
-                                <span className="inline-flex items-center h-6 px-1.5 text-xs text-green-600 dark:text-green-400 font-mono rounded bg-green-500/10 border border-green-500/40">
-                                  {practicedMins}m
-                                </span>
-                                <Button
-                                  variant="ghost" size="sm"
-                                  className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground font-sans rounded hover:bg-muted/40 transition-colors"
+                              <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground mr-0.5">
+                                <button
+                                  type="button"
                                   onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
-                                  title="Edit duration"
+                                  className="hover:text-foreground transition-colors py-0.5 px-1 hover:bg-muted/40 rounded flex items-center"
+                                  title="Edit duration goal"
                                 >
-                                  Goal: {item.allocatedTime}m/{item.allocationPeriod === 'week' ? 'wk' : 'day'}
+                                  <span className="text-green-600 dark:text-green-400 font-semibold">{practicedMins}m</span>
+                                  <span>/{item.allocatedTime}m</span>
+                                </button>
+                                
+                                <Button
+                                  variant="ghost" size="icon"
+                                  className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
+                                  onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
+                                  title="Start segment timer"
+                                >
+                                  <span className="material-icons text-base">play_arrow</span>
                                 </Button>
-                              </>
+                              </div>
                             );
                           })()
                         ) : (
                           <Button
-                            variant="ghost" size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100"
+                            variant="ghost" size="sm"
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground font-sans rounded hover:bg-muted/40 transition-colors opacity-75 hover:opacity-100 flex items-center gap-0.5"
                             onClick={(e) => { e.stopPropagation(); setEditing(true); }}
                             title="Set duration"
                           >
-                            <span className="material-icons text-xs">schedule</span>
-                          </Button>
-                        )}
-                        {item.allocatedTime && (
-                          <Button
-                            variant="ghost" size="icon"
-                            className="h-6 w-6 text-primary hover:text-primary/80"
-                            onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
-                            title="Start segment timer"
-                          >
-                            <span className="material-icons text-sm">play_arrow</span>
+                            <span className="material-icons text-[12px]">schedule</span>
+                            <span>Set Goal</span>
                           </Button>
                         )}
                       </>
                     )}
                   </div>
                 </div>
+
+                {/* Segment Goal Supporting Text */}
                 {item.segmentGoal && (
-                  <p className="text-xs text-muted-foreground pl-6 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
+                  <div className="pt-1 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap" style={{ paddingLeft: '1.85rem' }}>
+                    {item.segmentGoal}
+                  </div>
                 )}
+                
                 {!item.segmentGoal && !item.allocatedTime && !item.text && (
-                  <p className="text-xs text-muted-foreground/40 italic pl-6">Double-click to add name, goal & time...</p>
+                  <div className="pt-1 text-xs text-muted-foreground/40 italic" style={{ paddingLeft: '1.85rem' }}>
+                    Double-click to add name, goal & time...
+                  </div>
                 )}
               </div>
             )
