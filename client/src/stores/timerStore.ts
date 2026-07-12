@@ -27,6 +27,8 @@ interface TimerState {
   pieceTimeRemaining: number;
   pieceTotalTime: number;
   isPiecePaused: boolean;
+  isPieceOvertime: boolean;      // piece has time remaining after the work session ended
+  pieceOvertimeRunning: boolean; // the piece-only interval is actively counting
   audioInitialized: boolean;
 
   // Settings
@@ -51,6 +53,8 @@ interface TimerState {
   clearPiece: () => void;
   togglePausePiece: () => void;
   setAudioInitialized: (initialized: boolean) => void;
+  startPieceOvertime: () => void;
+  stopPieceOvertime: () => void;
 
   // Complex actions
   startTimer: () => Promise<void>;
@@ -82,6 +86,9 @@ export const useTimerStore = create<TimerState>((set, get) => {
 
   // Track skip timeout to clear it when UPDATE_MODE is received
   let skipTimeoutId: NodeJS.Timeout | null = null;
+
+  // Piece overtime interval (runs when main session ends but piece has time left)
+  let pieceOvertimeIntervalId: ReturnType<typeof setInterval> | null = null;
 
   // Send message to worker with sequence number
   const sendMessage = (type: string, payload?: any, retryOnStale = false): Promise<void> => {
@@ -188,9 +195,10 @@ export const useTimerStore = create<TimerState>((set, get) => {
                 set({ lastMessageSequence: sequence });
               }
 
-              // Log elapsed time if we are in work mode and it's a valid tick down
+              // Log elapsed time if we are in work mode and it's a valid tick down.
+              // Skip piece logging when isPieceOvertime — the overtime interval owns that.
               const oldState = get();
-              if (oldState.mode === 'work' && oldState.isRunning && oldState.timeRemaining > payload.timeRemaining) {
+              if (oldState.mode === 'work' && oldState.isRunning && !oldState.isPieceOvertime && oldState.timeRemaining > payload.timeRemaining) {
                 const diff = oldState.timeRemaining - payload.timeRemaining;
                 if (diff > 0) {
                   if (oldState.activePieceId && oldState.activePieceName) {
@@ -440,6 +448,12 @@ export const useTimerStore = create<TimerState>((set, get) => {
                   detail: payload
                 }));
               }
+              // If a piece segment still has time remaining after the work session
+              // ended, activate overtime mode so the user can continue the segment
+              // without starting the break or the next iteration.
+              if (get().pieceTimeRemaining > 0 && get().activePieceId) {
+                set({ isPieceOvertime: true });
+              }
               break;
 
             case 'PLAY_SOUND':
@@ -452,13 +466,19 @@ export const useTimerStore = create<TimerState>((set, get) => {
               break;
 
             case 'PRACTICE_COMPLETE':
-              // Validate sequence for PRACTICE_COMPLETE messages
+              // PRACTICE_COMPLETE is a unique terminal event — do NOT gate it on sequence
+              // validation. pauseTimer() is called inside completeTimer() and emits PAUSED
+              // (which bumps lastMessageSequence) just before PRACTICE_COMPLETE is sent,
+              // creating a race where the sequence check can silently drop this message.
+              // Since there is exactly one PRACTICE_COMPLETE per practice cycle it is safe
+              // to always process it.
               if (sequence !== undefined) {
+                // Still update lastMessageSequence so later messages validate correctly,
+                // but never drop this event even if sequence looks stale.
                 const lastSeq = get().lastMessageSequence;
-                if (sequence <= lastSeq) {
-                  return;
+                if (sequence > lastSeq) {
+                  set({ lastMessageSequence: sequence });
                 }
-                set({ lastMessageSequence: sequence });
               }
               // Practice time is now logged incrementally during TICK events
               // Don't set isPracticeComplete immediately - wait for sound to finish
@@ -520,6 +540,8 @@ export const useTimerStore = create<TimerState>((set, get) => {
     pieceTimeRemaining: 0,
     pieceTotalTime: 0,
     isPiecePaused: false,
+    isPieceOvertime: false,
+    pieceOvertimeRunning: false,
     audioInitialized: false,
 
     // Simple setters
@@ -598,6 +620,15 @@ export const useTimerStore = create<TimerState>((set, get) => {
 
     // Complex actions
     startTimer: async () => {
+      // If piece overtime was running, stop it — user is explicitly starting a new session.
+      if (get().isPieceOvertime) {
+        if (pieceOvertimeIntervalId) {
+          clearInterval(pieceOvertimeIntervalId);
+          pieceOvertimeIntervalId = null;
+        }
+        set({ isPieceOvertime: false, pieceOvertimeRunning: false });
+      }
+
       const state = get();
 
       // Ensure worker is initialized
@@ -674,13 +705,21 @@ export const useTimerStore = create<TimerState>((set, get) => {
         totalIterations
       });
 
+      // Stop piece overtime if active
+      if (pieceOvertimeIntervalId) {
+        clearInterval(pieceOvertimeIntervalId);
+        pieceOvertimeIntervalId = null;
+      }
+
       set({
         isRunning: false,
         mode: 'work',
         currentIteration: 1,
         timeRemaining: workDurationSeconds,
         totalTime: workDurationSeconds,
-        isPracticeComplete: false
+        isPracticeComplete: false,
+        isPieceOvertime: false,
+        pieceOvertimeRunning: false
       });
     },
 
@@ -742,10 +781,17 @@ export const useTimerStore = create<TimerState>((set, get) => {
               clearTimeout(skipTimeoutId);
               skipTimeoutId = null;
             }
+            // Also stop piece overtime — practice is done
+            if (pieceOvertimeIntervalId) {
+              clearInterval(pieceOvertimeIntervalId);
+              pieceOvertimeIntervalId = null;
+            }
             set({
               isPracticeComplete: true,
               isRunning: false,
-              isSkipping: false
+              isSkipping: false,
+              isPieceOvertime: false,
+              pieceOvertimeRunning: false
             });
             return;
           }
@@ -837,13 +883,90 @@ export const useTimerStore = create<TimerState>((set, get) => {
     },
 
     clearPiece: () => {
+      // Stop overtime interval if running
+      if (pieceOvertimeIntervalId) {
+        clearInterval(pieceOvertimeIntervalId);
+        pieceOvertimeIntervalId = null;
+      }
       set({
         activePieceId: null,
         activePieceName: null,
         pieceTimeRemaining: 0,
         pieceTotalTime: 0,
-        isPiecePaused: false
+        isPiecePaused: false,
+        isPieceOvertime: false,
+        pieceOvertimeRunning: false
       });
+    },
+
+    startPieceOvertime: () => {
+      const state = get();
+      if (!state.activePieceId || state.pieceTimeRemaining <= 0) return;
+      if (pieceOvertimeIntervalId) return; // already running
+
+      set({ pieceOvertimeRunning: true });
+
+      pieceOvertimeIntervalId = setInterval(() => {
+        const s = get();
+        if (!s.activePieceId || s.pieceTimeRemaining <= 0) {
+          // Piece finished or was cleared — stop interval
+          clearInterval(pieceOvertimeIntervalId!);
+          pieceOvertimeIntervalId = null;
+          set({
+            pieceOvertimeRunning: false,
+            isPieceOvertime: false,
+            activePieceId: null,
+            activePieceName: null,
+            pieceTimeRemaining: 0,
+            pieceTotalTime: 0,
+            isPiecePaused: false
+          });
+          return;
+        }
+
+        // Log 1 second of piece (and overall) practice time
+        addDetailedPracticeTime(s.activePieceId!, s.activePieceName!, 1);
+
+        const nextPieceTime = s.pieceTimeRemaining - 1;
+
+        if (nextPieceTime <= 0) {
+          // Piece allocation exhausted
+          clearInterval(pieceOvertimeIntervalId!);
+          pieceOvertimeIntervalId = null;
+
+          // Auto-check the piece in the practice plan
+          if (s.activePieceId) {
+            practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
+          }
+
+          // Notify listeners
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+              detail: { name: s.activePieceName, id: s.activePieceId }
+            }));
+          }
+
+          set({
+            pieceTimeRemaining: 0,
+            pieceOvertimeRunning: false,
+            isPieceOvertime: false,
+            activePieceId: null,
+            activePieceName: null,
+            pieceTotalTime: 0,
+            isPiecePaused: false
+          });
+        } else {
+          set({ pieceTimeRemaining: nextPieceTime });
+        }
+      }, 1000);
+    },
+
+    stopPieceOvertime: () => {
+      if (pieceOvertimeIntervalId) {
+        clearInterval(pieceOvertimeIntervalId);
+        pieceOvertimeIntervalId = null;
+      }
+      set({ pieceOvertimeRunning: false });
     },
 
     togglePausePiece: () => {

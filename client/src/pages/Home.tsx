@@ -32,6 +32,10 @@ export default function Home() {
   const clearPiece = useTimerStore((state) => state.clearPiece);
   const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
   const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
+  const isPieceOvertime = useTimerStore((state) => state.isPieceOvertime);
+  const pieceOvertimeRunning = useTimerStore((state) => state.pieceOvertimeRunning);
+  const startPieceOvertime = useTimerStore((state) => state.startPieceOvertime);
+  const stopPieceOvertime = useTimerStore((state) => state.stopPieceOvertime);
 
   const formatSeconds = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
@@ -256,6 +260,16 @@ export default function Home() {
 
   // Handle piece timer play/pause — also starts main timer if it's not running
   const handlePiecePlayPause = useCallback(async () => {
+    if (isPieceOvertime) {
+      // Main session ended; toggle the piece-only overtime interval.
+      // Do NOT touch the main timer or advance mode/iteration.
+      if (pieceOvertimeRunning) {
+        stopPieceOvertime();
+      } else {
+        startPieceOvertime();
+      }
+      return;
+    }
     if (!isRunning) {
       await handleStart();
       if (isPiecePaused) {
@@ -264,7 +278,8 @@ export default function Home() {
     } else {
       togglePausePiece();
     }
-  }, [isRunning, isPiecePaused, handleStart, togglePausePiece]);
+  }, [isPieceOvertime, pieceOvertimeRunning, startPieceOvertime, stopPieceOvertime,
+      isRunning, isPiecePaused, handleStart, togglePausePiece]);
 
   // Handle settings navigation
   const handleSettingsClick = useCallback(() => {
@@ -331,9 +346,17 @@ export default function Home() {
                   size="sm"
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                   onClick={handlePiecePlayPause}
-                  title={(isPiecePaused || !isRunning) ? "Resume piece timer" : "Pause piece timer"}
+                  title={
+                    isPieceOvertime
+                      ? (pieceOvertimeRunning ? "Pause piece timer" : "Continue piece timer")
+                      : ((isPiecePaused || !isRunning) ? "Resume piece timer" : "Pause piece timer")
+                  }
                 >
-                  <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? "play_arrow" : "pause"}</span>
+                  <span className="material-icons text-sm">
+                    {isPieceOvertime
+                      ? (pieceOvertimeRunning ? "pause" : "play_arrow")
+                      : ((isPiecePaused || !isRunning) ? "play_arrow" : "pause")}
+                  </span>
                 </Button>
                 <Button
                   variant="ghost"

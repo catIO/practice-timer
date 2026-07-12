@@ -46,6 +46,7 @@
         "npm:@replit/vite-plugin-cartographer@^0.0.11",
         "npm:@replit/vite-plugin-runtime-error-modal@^0.0.3",
         "npm:@replit/vite-plugin-shadcn-theme-json@^0.0.4",
+        "npm:@supabase/supabase-js@^2.110.0",
         "npm:@tailwindcss/typography@~0.5.16",
         "npm:@tanstack/react-query@^5.71.10",
         "npm:@types/cors@^2.8.17",
