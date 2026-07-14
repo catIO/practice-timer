@@ -1,6 +1,45 @@
 import { SettingsType, DEFAULT_SETTINGS } from './timerService';
 
 const SETTINGS_KEY = 'practice-timer-settings';
+const TIMER_PROGRESS_KEY = 'practice-timer-progress';
+
+export interface TimerProgress {
+  timeRemaining: number;
+  totalTime: number;
+  mode: 'work' | 'break';
+  currentIteration: number;
+  totalIterations: number;
+  isPracticeComplete: boolean;
+  // isRunning is intentionally omitted — we always restore as paused
+}
+
+export function getTimerProgress(): TimerProgress | null {
+  try {
+    const stored = localStorage.getItem(TIMER_PROGRESS_KEY);
+    if (stored) {
+      return JSON.parse(stored) as TimerProgress;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTimerProgress(progress: TimerProgress): void {
+  try {
+    localStorage.setItem(TIMER_PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function clearTimerProgress(): void {
+  try {
+    localStorage.removeItem(TIMER_PROGRESS_KEY);
+  } catch {
+    // Ignore
+  }
+}
 
 export function getSettings(): SettingsType {
   try {

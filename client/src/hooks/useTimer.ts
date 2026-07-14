@@ -3,7 +3,7 @@ import { useNotification } from '@/hooks/useNotification';
 import { useToast } from '@/hooks/use-toast';
 import { resumeAudioContext, playSound } from '@/lib/soundEffects';
 import { useTimerStore } from '@/stores/timerStore';
-import { getSettings } from '@/lib/localStorage';
+import { getSettings, saveTimerProgress, clearTimerProgress } from '@/lib/localStorage';
 import { getWakeLockFallback, cleanupWakeLockFallback } from '@/lib/wakeLockFallback';
 import { initializeIOSBackgroundTimer, getIOSBackgroundTimer, cleanupIOSBackgroundTimer } from '@/lib/iOSBackgroundTimer';
 import { getIOSWakeLock, cleanupIOSWakeLock } from '@/lib/iOSWakeLock';
@@ -304,6 +304,15 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       // Now set practice complete (this will show the completion screen)
       store.setIsPracticeComplete(true);
       store.setIsRunning(false);
+      // Persist the completed state so a page refresh still shows the completion screen
+      saveTimerProgress({
+        timeRemaining: store.timeRemaining,
+        totalTime: store.totalTime,
+        mode: store.mode,
+        currentIteration: store.currentIteration,
+        totalIterations: store.totalIterations,
+        isPracticeComplete: true,
+      });
       
       // Show notification
       showNotification(

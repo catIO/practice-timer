@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SettingsType, DEFAULT_SETTINGS } from '@/lib/timerService';
-import { getSettings } from '@/lib/localStorage';
+import { getSettings, getTimerProgress, saveTimerProgress, clearTimerProgress } from '@/lib/localStorage';
 import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds } from '@/lib/practiceLog';
 import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
@@ -72,6 +72,28 @@ interface TimerState {
 const savedSettings = getSettings();
 const DEFAULT_WORK_TIME = savedSettings.workDuration * 60;
 
+// Rehydrate timer progress from localStorage (always restored as paused)
+const savedProgress = getTimerProgress();
+
+/** Persist current timer progress snapshot to localStorage */
+function persistProgress(state: {
+  timeRemaining: number;
+  totalTime: number;
+  mode: 'work' | 'break';
+  currentIteration: number;
+  totalIterations: number;
+  isPracticeComplete: boolean;
+}) {
+  saveTimerProgress({
+    timeRemaining: state.timeRemaining,
+    totalTime: state.totalTime,
+    mode: state.mode,
+    currentIteration: state.currentIteration,
+    totalIterations: state.totalIterations,
+    isPracticeComplete: state.isPracticeComplete,
+  });
+}
+
 // Global flag to prevent duplicate initialization (React StrictMode causes double renders in dev)
 let isInitializing = false;
 let initializationPromise: Promise<void> | null = null;
@@ -140,6 +162,18 @@ export const useTimerStore = create<TimerState>((set, get) => {
         // Sync settings to worker immediately (settings are in minutes)
         const currentSettings = get().settings;
         await sendMessage('UPDATE_SETTINGS', currentSettings);
+
+        // If we restored progress from localStorage, sync the worker to the restored state
+        // so it starts from the right mode/iteration/timeRemaining instead of defaults.
+        if (savedProgress && !savedProgress.isPracticeComplete) {
+          await sendMessage('UPDATE_MODE', {
+            mode: savedProgress.mode,
+            timeRemaining: savedProgress.timeRemaining,
+            currentIteration: savedProgress.currentIteration,
+            totalIterations: savedProgress.totalIterations,
+            isRunning: false
+          });
+        }
 
         // Set up message handler with sequence number validation
         messageHandler = (event: MessageEvent) => {
@@ -255,6 +289,15 @@ export const useTimerStore = create<TimerState>((set, get) => {
                 currentIteration: payload.currentIteration,
                 totalIterations: payload.totalIterations
               });
+              // Persist progress on every tick
+              persistProgress({
+                timeRemaining: payload.timeRemaining,
+                totalTime: get().totalTime,
+                mode: payload.mode,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isPracticeComplete: get().isPracticeComplete,
+              });
               break;
 
             case 'PAUSED':
@@ -272,6 +315,15 @@ export const useTimerStore = create<TimerState>((set, get) => {
                 mode: payload.mode,
                 currentIteration: payload.currentIteration,
                 totalIterations: payload.totalIterations
+              });
+              // Persist progress when paused
+              persistProgress({
+                timeRemaining: payload.timeRemaining,
+                totalTime: get().totalTime,
+                mode: payload.mode,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isPracticeComplete: get().isPracticeComplete,
               });
               break;
 
@@ -404,6 +456,15 @@ export const useTimerStore = create<TimerState>((set, get) => {
                   });
                 }
               }
+              // Persist progress after mode/iteration update
+              persistProgress({
+                timeRemaining: updateTimeRemaining,
+                totalTime: updateTimeRemaining,
+                mode: payload.mode,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isPracticeComplete: get().isPracticeComplete,
+              });
               break;
 
             case 'SETTINGS_UPDATED':
@@ -441,6 +502,15 @@ export const useTimerStore = create<TimerState>((set, get) => {
                 isRunning: false,
                 timeRemaining: newTimeRemaining,
                 totalTime: newTimeRemaining // Reset totalTime to match the new session duration
+              });
+              // Persist progress on session completion
+              persistProgress({
+                timeRemaining: newTimeRemaining,
+                totalTime: newTimeRemaining,
+                mode: payload.mode,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isPracticeComplete: get().isPracticeComplete,
               });
               // Trigger completion callback via custom event
               if (typeof window !== 'undefined') {
@@ -523,14 +593,14 @@ export const useTimerStore = create<TimerState>((set, get) => {
   }, 1000);
 
   return {
-    // Initial state
-    timeRemaining: DEFAULT_WORK_TIME,
-    totalTime: DEFAULT_WORK_TIME,
-    isRunning: false,
-    mode: 'work',
-    currentIteration: 1,
-    totalIterations: savedSettings.iterations,
-    isPracticeComplete: false,
+    // Initial state — rehydrate from localStorage if available, otherwise use defaults
+    timeRemaining: savedProgress?.timeRemaining ?? DEFAULT_WORK_TIME,
+    totalTime: savedProgress?.totalTime ?? DEFAULT_WORK_TIME,
+    isRunning: false, // always restore as paused
+    mode: (savedProgress?.mode ?? 'work') as 'work' | 'break',
+    currentIteration: savedProgress?.currentIteration ?? 1,
+    totalIterations: savedProgress?.totalIterations ?? savedSettings.iterations,
+    isPracticeComplete: savedProgress?.isPracticeComplete ?? false,
     isSkipping: false,
     settings: savedSettings,
     workerReady: false,
@@ -721,6 +791,8 @@ export const useTimerStore = create<TimerState>((set, get) => {
         isPieceOvertime: false,
         pieceOvertimeRunning: false
       });
+      // Clear saved progress so next refresh starts fresh
+      clearTimerProgress();
     },
 
     skipTimer: async () => {
