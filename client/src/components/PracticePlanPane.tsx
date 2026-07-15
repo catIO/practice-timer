@@ -1976,6 +1976,7 @@ export function PracticePlanPane({
   const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
   const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
   const clearPiece = useTimerStore((state) => state.clearPiece);
+  const startPieceOvertime = useTimerStore((state) => state.startPieceOvertime);
   const [allocationDialogOpen, setAllocationDialogOpen] = useState(false);
   const [allocationItemId, setAllocationItemId] = useState<string | null>(null);
   const [allocationItemText, setAllocationItemText] = useState("");
@@ -2013,16 +2014,21 @@ export function PracticePlanPane({
     // Select the piece independently
     selectPiece(id, name, minutes, period);
 
-    // If the main session is not running, start it
-    if (!isRunning && onStart) {
-      onStart();
+    if (mode === 'break') {
+      // If we are on break (work timer completed), start piece overtime instead of main timer
+      startPieceOvertime();
+    } else {
+      // If the main session is not running, start it
+      if (!isRunning && onStart) {
+        onStart();
+      }
     }
 
     toast({
       title: "Piece timer active",
       description: `Practicing: ${name}`,
     });
-  }, [selectPiece, isRunning, onStart, toast]);
+  }, [selectPiece, isRunning, onStart, toast, mode, startPieceOvertime]);
 
   const handleSaveSegment = useCallback((
     id: string,

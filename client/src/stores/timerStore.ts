@@ -53,7 +53,7 @@ interface TimerState {
   clearPiece: () => void;
   togglePausePiece: () => void;
   setAudioInitialized: (initialized: boolean) => void;
-  startPieceOvertime: () => void;
+  startPieceOvertime: () => void | Promise<void>;
   stopPieceOvertime: () => void;
 
   // Complex actions
@@ -98,7 +98,7 @@ function persistProgress(state: {
 let isInitializing = false;
 let initializationPromise: Promise<void> | null = null;
 
-export const useTimerStore = create<TimerState>((set, get) => {
+export const useTimerStore = create<TimerState>((baseSet, get) => {
   let worker: Worker | null = null;
   let messageHandler: ((event: MessageEvent) => void) | null = null;
 
@@ -111,6 +111,42 @@ export const useTimerStore = create<TimerState>((set, get) => {
 
   // Piece overtime interval (runs when main session ends but piece has time left)
   let pieceOvertimeIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  // Shadow set to automatically derive isPieceOvertime and manage pieceOvertimeRunning
+  const set = (
+    partial: TimerState | Partial<TimerState> | ((state: TimerState) => TimerState | Partial<TimerState>),
+    replace?: boolean
+  ) => {
+    baseSet((state) => {
+      const nextState = typeof partial === 'function' ? partial(state) : partial;
+      
+      const newMode = nextState.mode !== undefined ? nextState.mode : state.mode;
+      const newActivePieceId = nextState.activePieceId !== undefined ? nextState.activePieceId : state.activePieceId;
+      const newIsRunning = nextState.isRunning !== undefined ? nextState.isRunning : state.isRunning;
+      
+      // Calculate isPieceOvertime: true if we are on a break and have an active piece selected
+      const nextIsPieceOvertime = newMode === 'break' && newActivePieceId !== null;
+      
+      // If we are no longer in overtime, or if the main timer is running, we must stop piece overtime running
+      let nextPieceOvertimeRunning = nextState.pieceOvertimeRunning !== undefined 
+        ? nextState.pieceOvertimeRunning 
+        : state.pieceOvertimeRunning;
+        
+      if (!nextIsPieceOvertime || newIsRunning) {
+        if (pieceOvertimeIntervalId) {
+          clearInterval(pieceOvertimeIntervalId);
+          pieceOvertimeIntervalId = null;
+        }
+        nextPieceOvertimeRunning = false;
+      }
+      
+      return {
+        ...nextState,
+        isPieceOvertime: nextIsPieceOvertime,
+        pieceOvertimeRunning: nextPieceOvertimeRunning
+      } as any;
+    }, replace as any);
+  };
 
   // Send message to worker with sequence number
   const sendMessage = (type: string, payload?: any, retryOnStale = false): Promise<void> => {
@@ -971,10 +1007,15 @@ export const useTimerStore = create<TimerState>((set, get) => {
       });
     },
 
-    startPieceOvertime: () => {
+    startPieceOvertime: async () => {
       const state = get();
       if (!state.activePieceId || state.pieceTimeRemaining <= 0) return;
       if (pieceOvertimeIntervalId) return; // already running
+
+      // If the main timer is running, pause it first
+      if (state.isRunning) {
+        await get().pauseTimer();
+      }
 
       set({ pieceOvertimeRunning: true });
 
