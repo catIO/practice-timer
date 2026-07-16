@@ -78,6 +78,24 @@ This starts both the Express server and the Vite dev server concurrently.
 npm run build
 ```
 
+### Testing
+
+```bash
+# Run all tests (client + Netlify functions)
+npm run test:all
+
+# Run client tests in watch mode
+npm run test
+
+# Run client tests once
+npm run test:run
+
+# Run Netlify function tests only
+npm run test:functions
+```
+
+Tests use [Vitest](https://vitest.dev/) with React Testing Library for component tests and jsdom for the browser environment.
+
 ### Deployment
 
 The app deploys to Netlify. Push to the connected branch and Netlify builds automatically using the config in `netlify.toml`.

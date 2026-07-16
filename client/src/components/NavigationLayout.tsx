@@ -113,7 +113,6 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
     { path: '/practice-plan', label: 'Practice Plan', icon: 'assignment' },
     { path: '/repertoire', label: 'Repertoire', icon: 'library_music' },
     { path: '/practice-log', label: 'Practice Log', icon: 'history' },
-    { path: '/settings', label: 'Settings', icon: 'settings' },
   ];
 
   // Detect if on sub-path (like detail screens) for rendering Top Bar back arrow
