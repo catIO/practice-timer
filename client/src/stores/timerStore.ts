@@ -119,27 +119,30 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
   ) => {
     baseSet((state) => {
       const nextState = typeof partial === 'function' ? partial(state) : partial;
-      
+
       const newMode = nextState.mode !== undefined ? nextState.mode : state.mode;
       const newActivePieceId = nextState.activePieceId !== undefined ? nextState.activePieceId : state.activePieceId;
       const newIsRunning = nextState.isRunning !== undefined ? nextState.isRunning : state.isRunning;
-      
-      // Calculate isPieceOvertime: true if we are on a break and have an active piece selected
-      const nextIsPieceOvertime = newMode === 'break' && newActivePieceId !== null;
-      
-      // If we are no longer in overtime, or if the main timer is running, we must stop piece overtime running
-      let nextPieceOvertimeRunning = nextState.pieceOvertimeRunning !== undefined 
-        ? nextState.pieceOvertimeRunning 
+      const nextIsPracticeComplete = nextState.isPracticeComplete !== undefined ? nextState.isPracticeComplete : state.isPracticeComplete;
+
+      // Calculate isPieceOvertime: true if we are on a break (or practice is fully complete)
+      // and have an active piece selected
+      const nextIsPieceOvertime = (newMode === 'break' || nextIsPracticeComplete) && newActivePieceId !== null;
+
+      // If we are no longer in overtime, stop piece overtime running.
+      // When the main timer is running (break mode), piece overtime can run concurrently.
+      let nextPieceOvertimeRunning = nextState.pieceOvertimeRunning !== undefined
+        ? nextState.pieceOvertimeRunning
         : state.pieceOvertimeRunning;
-        
-      if (!nextIsPieceOvertime || newIsRunning) {
+
+      if (!nextIsPieceOvertime) {
         if (pieceOvertimeIntervalId) {
           clearInterval(pieceOvertimeIntervalId);
           pieceOvertimeIntervalId = null;
         }
         nextPieceOvertimeRunning = false;
       }
-      
+
       return {
         ...nextState,
         isPieceOvertime: nextIsPieceOvertime,
@@ -279,16 +282,16 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                       // Calculate how much of the diff belongs to the piece (cap at remaining time)
                       const pieceDiff = Math.min(diff, oldState.pieceTimeRemaining);
                       addDetailedPracticeTime(oldState.activePieceId, oldState.activePieceName, pieceDiff);
-                      
+
                       // Log any leftover time only to overall practice time
                       const extraDiff = diff - pieceDiff;
                       if (extraDiff > 0) {
                         addPracticeTime(extraDiff);
                       }
-                      
+
                       const nextPieceTime = Math.max(0, oldState.pieceTimeRemaining - diff);
                       set({ pieceTimeRemaining: nextPieceTime });
-                      
+
                       if (nextPieceTime === 0) {
                         // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
                         if (oldState.activePieceId) {
@@ -664,16 +667,16 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               // Calculate how much of the diff belongs to the piece (cap at remaining time)
               const pieceDiff = Math.min(diff, state.pieceTimeRemaining);
               addDetailedPracticeTime(state.activePieceId, state.activePieceName, pieceDiff);
-              
+
               // Log any leftover time only to overall practice time
               const extraDiff = diff - pieceDiff;
               if (extraDiff > 0) {
                 addPracticeTime(extraDiff);
               }
-              
+
               const nextPieceTime = Math.max(0, state.pieceTimeRemaining - diff);
               set({ pieceTimeRemaining: nextPieceTime });
-              
+
               if (nextPieceTime === 0) {
                 // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
                 if (state.activePieceId) {
@@ -726,14 +729,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
     // Complex actions
     startTimer: async () => {
-      // If piece overtime was running, stop it — user is explicitly starting a new session.
-      if (get().isPieceOvertime) {
-        if (pieceOvertimeIntervalId) {
-          clearInterval(pieceOvertimeIntervalId);
-          pieceOvertimeIntervalId = null;
-        }
-        set({ isPieceOvertime: false, pieceOvertimeRunning: false });
-      }
+      // Piece overtime runs concurrently with the break timer — don't stop it here.
+      // (It will stop naturally when the piece finishes or when overtime state is cleared.)
 
       const state = get();
 
@@ -1012,10 +1009,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       if (!state.activePieceId || state.pieceTimeRemaining <= 0) return;
       if (pieceOvertimeIntervalId) return; // already running
 
-      // If the main timer is running, pause it first
-      if (state.isRunning) {
-        await get().pauseTimer();
-      }
+      // The break timer may be running concurrently — do not pause it.
 
       set({ pieceOvertimeRunning: true });
 

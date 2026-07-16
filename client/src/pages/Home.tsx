@@ -95,7 +95,6 @@ export default function Home() {
     currentIteration,
     totalIterations,
     isPracticeComplete,
-    startNewSession
   } = useTimer({
     initialSettings: settings,
     onComplete: useCallback(async () => {
@@ -260,9 +259,17 @@ export default function Home() {
 
   // Handle piece timer play/pause — also starts main timer if it's not running
   const handlePiecePlayPause = useCallback(async () => {
+    if (isPracticeComplete) {
+      // All sessions done — only the piece-only overtime interval should run.
+      if (pieceOvertimeRunning) {
+        stopPieceOvertime();
+      } else {
+        startPieceOvertime();
+      }
+      return;
+    }
     if (isPieceOvertime) {
-      // Main session ended; toggle the piece-only overtime interval.
-      // Do NOT touch the main timer or advance mode/iteration.
+      // Main session ended (on break); toggle the piece-only overtime interval.
       if (pieceOvertimeRunning) {
         stopPieceOvertime();
       } else {
@@ -278,8 +285,8 @@ export default function Home() {
     } else {
       togglePausePiece();
     }
-  }, [isPieceOvertime, pieceOvertimeRunning, startPieceOvertime, stopPieceOvertime,
-      isRunning, isPiecePaused, handleStart, togglePausePiece]);
+  }, [isPracticeComplete, isPieceOvertime, pieceOvertimeRunning, startPieceOvertime, stopPieceOvertime,
+    isRunning, isPiecePaused, handleStart, togglePausePiece]);
 
   // Handle settings navigation
   const handleSettingsClick = useCallback(() => {
@@ -324,11 +331,45 @@ export default function Home() {
   return (
     <div className="space-y-8">
       {isPracticeComplete ? (
-        <PracticeComplete
-          currentIteration={currentIteration}
-          totalIterations={totalIterations}
-          onStartNewSession={startNewSession}
-        />
+        <>
+          {activePieceName && (
+            <div className="w-full max-w-sm mx-auto rounded-lg bg-muted/40 border border-border/40 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex flex-col min-w-0 items-start">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Active Piece (Overtime)</span>
+                <span className="text-sm font-semibold truncate text-foreground max-w-[180px]" title={activePieceName ? stripMarkdownLinks(activePieceName) : ""}>
+                  <TextWithLinks text={activePieceName || ""} />
+                </span>
+                <span className="text-lg font-bold text-primary font-mono mt-0.5">{formatSeconds(pieceTimeRemaining)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handlePiecePlayPause}
+                  title={pieceOvertimeRunning ? "Pause piece timer" : "Continue piece timer"}
+                >
+                  <span className="material-icons text-sm">
+                    {pieceOvertimeRunning ? "pause" : "play_arrow"}
+                  </span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground font-semibold"
+                  onClick={() => { clearPiece(); }}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          )}
+          <PracticeComplete
+            currentIteration={currentIteration}
+            totalIterations={totalIterations}
+            onStartNewSession={handleResetAll}
+          />
+        </>
       ) : (
         <div className="flex flex-col items-center space-y-6">
           {activePieceName && (

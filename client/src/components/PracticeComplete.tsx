@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PracticeCompleteProps {
   currentIteration: number;
@@ -40,25 +40,12 @@ export default function PracticeComplete({
         </p>
       </div>
 
-      {/* Action button */}
+      {/* Start new session button */}
       <Button
         onClick={onStartNewSession}
-        className="bg-green-500 hover:bg-green-600 text-white px-8 py-6 text-lg font-medium rounded-xl flex items-center gap-3"
         size="lg"
+        className="px-8 py-3 text-base font-semibold"
       >
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
         Start New Session
       </Button>
     </div>

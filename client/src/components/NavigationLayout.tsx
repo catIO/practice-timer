@@ -34,6 +34,10 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
     timeRemaining,
     mode,
     isPracticeComplete,
+    isPieceOvertime,
+    pieceOvertimeRunning,
+    startPieceOvertime,
+    stopPieceOvertime,
     startTimer,
     pauseTimer,
     skipTimer,
@@ -321,6 +325,17 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                 <span className="text-primary font-mono font-bold text-base">
                   {formatSeconds(pieceTimeRemaining)}
                 </span>
+                {(isPieceOvertime || isPracticeComplete) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={pieceOvertimeRunning ? stopPieceOvertime : startPieceOvertime}
+                    title={pieceOvertimeRunning ? 'Pause piece timer' : 'Continue piece timer'}
+                  >
+                    <span className="material-icons text-sm">{pieceOvertimeRunning ? 'pause' : 'play_arrow'}</span>
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
