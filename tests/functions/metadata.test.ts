@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handler } from './metadata';
+import { handler } from '../../netlify/functions/metadata';
 
 // Mock open-graph-scraper
 vi.mock('open-graph-scraper', () => ({

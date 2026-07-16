@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handler } from './share-report';
+import { handler } from '../../netlify/functions/share-report';
 
 // Mock @netlify/blobs
 vi.mock('@netlify/blobs', () => ({
