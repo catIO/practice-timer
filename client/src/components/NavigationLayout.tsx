@@ -27,7 +27,6 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   const { isLoggedIn, user, signOut, isPasswordRecovery } = useAuth();
   const {
     isRunning,
-    audioInitialized,
     activePieceName,
     pieceTimeRemaining,
     clearPiece,
@@ -383,25 +382,6 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               </div>
             )}
 
-            {/* Quick Status Dots */}
-            <div className="flex items-center gap-2 px-1">
-              {/* Wake Lock */}
-              {isRunning && (
-                <div
-                  className="w-3 h-3 rounded-full bg-amber-500 animate-pulse"
-                  title="Wake lock active"
-                />
-              )}
-              {/* Audio Context Status */}
-              <div
-                className={cn(
-                  "w-3 h-3 rounded-full transition-colors duration-300",
-                  audioInitialized ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
-                )}
-                title={audioInitialized ? "Audio engine ready" : "Audio context suspended"}
-              />
-            </div>
-
             {/* Auth Dropdown Widget */}
             {isLoggedIn ? (
               <DropdownMenu>
@@ -446,6 +426,17 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
                 Sign In
               </Button>
             )}
+
+            {/* Settings */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+              onClick={() => navigate('/settings')}
+              aria-label="Settings"
+            >
+              <span className="material-icons text-xl">settings</span>
+            </Button>
           </div>
         </header>
 

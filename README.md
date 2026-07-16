@@ -1,18 +1,86 @@
 # Practice Mate
 
-A practice mate application built with React, TypeScript, and Vite.
+A practice timer, planning, and logging application for musicians — built with React, TypeScript, and Vite, deployed on Netlify.
 
 ## Features
 
 - **Pomodoro Timer**: Work and break sessions with customizable durations
 - **Iteration Tracking**: Track multiple work/break cycles
+- **Segment Timer**: Per-piece countdown within a session — set a daily/weekly goal for each practice plan item, and a dedicated timer tracks time remaining, auto-checks the item on completion, and supports overtime mode
+- **Practice Plans**: Create and manage structured practice routines with drag-and-drop reordering
+- **Practice Log**: Record and review past practice sessions with per-piece breakdowns
+- **Repertoire Management**: Track pieces with notes, scores, and YouTube links
+- **Shared Reports**: Generate shareable practice reports
 - **Sound Notifications**: Audio alerts when sessions complete
 - **Browser Notifications**: Desktop notifications for session completion
 - **PWA Support**: Install as a Progressive Web App
 - **iOS Background Support**: Enhanced background functionality for iOS devices
 - **Dark Mode**: Automatic theme switching
-- **Prevent lock screene**: Prevent lock sceren when the timer is running
+- **Wake Lock**: Prevents screen lock while the timer is running
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, TypeScript, Vite |
+| Styling | Tailwind CSS, shadcn/ui (Radix primitives) |
+| State | Zustand, TanStack React Query |
+| Auth & DB | Supabase |
+| Backend | Netlify Functions (serverless) |
+| Timer | Web Workers for accuracy, Service Workers for PWA |
+| Deployment | Netlify |
+
+## Project Structure
+
+```
+client/          → React SPA (Vite)
+  src/
+    components/  → UI components
+    pages/       → Route pages
+    hooks/       → Custom hooks (timer, notifications, etc.)
+    lib/         → Services & utilities
+    stores/      → Zustand stores
+    workers/     → Web Worker for timer
+  public/        → PWA manifest, service worker, icons
+netlify/
+  functions/     → Serverless API endpoints
+server/          → Local dev server (Express)
+shared/          → Shared schema
+supabase/
+  migrations/    → Database migrations
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+
+### Installation
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+npm run dev
+```
+
+This starts both the Express server and the Vite dev server concurrently.
+
+### Build
+
+```bash
+npm run build
+```
+
+### Deployment
+
+The app deploys to Netlify. Push to the connected branch and Netlify builds automatically using the config in `netlify.toml`.
 
 ## iOS Background Functionality
 
@@ -79,53 +147,12 @@ The iOS background functionality includes:
 
 ### Detailed iOS Guide
 
-For comprehensive information about iOS background operation, troubleshooting, and technical details, see [iOS Background Timer Operation Guide](client/README-iOS-Background.md).
-
-## Development
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-
-### Installation
-
-```bash
-npm install
-```
-
-### Development Server
-
-```bash
-npm run dev
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-### Preview
-
-```bash
-npm run preview
-```
-
-## Technologies Used
-
-- **React 18** with TypeScript
-- **Vite** for build tooling
-- **Tailwind CSS** for styling
-- **Zustand** for state management
-- **React Query** for data fetching
-- **Service Workers** for PWA functionality
-- **Web Workers** for timer accuracy
+For comprehensive information about iOS background operation, troubleshooting, and technical details, see [iOS Background Timer Operation Guide](docs/iOS-Background.md).
 
 ## Browser Support
 
 - Chrome/Edge (full PWA support)
-- Safari (iOS/macOS with limitations)
+- Safari (iOS/macOS with limitations — see [iOS Background Guide](docs/iOS-Background.md))
 - Firefox (good PWA support)
 - Mobile browsers (varies by platform)
 
