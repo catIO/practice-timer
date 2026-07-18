@@ -320,6 +320,11 @@ function PlanItem({
   const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
   const startTimer = useTimerStore((state) => state.startTimer);
   const clearPiece = useTimerStore((state) => state.clearPiece);
+  const isPieceOvertime = useTimerStore((state) => state.isPieceOvertime);
+  const isPracticeComplete = useTimerStore((state) => state.isPracticeComplete);
+  const pieceOvertimeRunning = useTimerStore((state) => state.pieceOvertimeRunning);
+  const startPieceOvertime = useTimerStore((state) => state.startPieceOvertime);
+  const stopPieceOvertime = useTimerStore((state) => state.stopPieceOvertime);
   const isActivePiece = item.id === activePieceId;
   const linkedPiece = useMemo(() => {
     if (!item.repertoirePieceId || !repertoirePieces) return null;
@@ -1396,12 +1401,24 @@ function PlanItem({
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
                           onClick={() => {
-                            if (!isRunning) { startTimer(); if (isPiecePaused) togglePausePiece(); }
-                            else { togglePausePiece(); }
+                            if (isPieceOvertime || isPracticeComplete) {
+                              if (pieceOvertimeRunning) {
+                                stopPieceOvertime();
+                              } else {
+                                startPieceOvertime();
+                              }
+                            } else {
+                              if (!isRunning) { startTimer(); if (isPiecePaused) togglePausePiece(); }
+                              else { togglePausePiece(); }
+                            }
                           }}
-                          title={(isPiecePaused || !isRunning) ? 'Resume' : 'Pause'}
+                          title={(isPieceOvertime || isPracticeComplete) ? (pieceOvertimeRunning ? 'Pause' : 'Resume') : ((isPiecePaused || !isRunning) ? 'Resume' : 'Pause')}
                         >
-                          <span className="material-icons text-sm">{(isPiecePaused || !isRunning) ? 'play_arrow' : 'pause'}</span>
+                          <span className="material-icons text-sm">
+                            {(isPieceOvertime || isPracticeComplete)
+                              ? (pieceOvertimeRunning ? 'pause' : 'play_arrow')
+                              : ((isPiecePaused || !isRunning) ? 'play_arrow' : 'pause')}
+                          </span>
                         </Button>
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -2014,8 +2031,8 @@ export function PracticePlanPane({
     // Select the piece independently
     selectPiece(id, name, minutes, period);
 
-    if (mode === 'break') {
-      // If we are on break (work timer completed), start piece overtime instead of main timer
+    if (mode === 'break' || isPracticeComplete) {
+      // If we are on break (work timer completed) or practice is complete, start piece overtime instead of main timer
       startPieceOvertime();
     } else {
       // If the main session is not running, start it
@@ -2028,7 +2045,7 @@ export function PracticePlanPane({
       title: "Piece timer active",
       description: `Practicing: ${name}`,
     });
-  }, [selectPiece, isRunning, onStart, toast, mode, startPieceOvertime]);
+  }, [selectPiece, isRunning, onStart, toast, mode, startPieceOvertime, isPracticeComplete]);
 
   const handleSaveSegment = useCallback((
     id: string,

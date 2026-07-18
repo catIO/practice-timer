@@ -97,4 +97,32 @@ describe('timerStore', () => {
         expect(state.activePieceId).toBeNull();
         expect(state.activePieceName).toBeNull();
     });
+
+    it('startPieceOvertime starts overtime count and logs time', async () => {
+        vi.useFakeTimers();
+        const { addDetailedPracticeTime } = await import('@/lib/practiceLog');
+        
+        useTimerStore.setState({
+            activePieceId: 'piece-1',
+            activePieceName: 'Bach Prelude',
+            pieceTimeRemaining: 10,
+            pieceTotalTime: 10,
+            isPieceOvertime: true
+        });
+
+        await useTimerStore.getState().startPieceOvertime();
+        expect(useTimerStore.getState().pieceOvertimeRunning).toBe(true);
+
+        // Fast-forward by 3 ticks (3 seconds)
+        vi.advanceTimersByTime(3000);
+
+        expect(useTimerStore.getState().pieceTimeRemaining).toBe(7);
+        expect(addDetailedPracticeTime).toHaveBeenCalledWith('piece-1', 'Bach Prelude', 1);
+
+        // Stop overtime
+        useTimerStore.getState().stopPieceOvertime();
+        expect(useTimerStore.getState().pieceOvertimeRunning).toBe(false);
+
+        vi.useRealTimers();
+    });
 });
