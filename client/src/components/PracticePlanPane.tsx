@@ -1440,7 +1440,16 @@ function PlanItem({
                                   className="hover:text-foreground transition-colors py-0.5 px-1 hover:bg-muted/40 rounded flex items-center"
                                   title="Edit duration goal"
                                 >
-                                  <span className="text-green-600 dark:text-green-400 font-semibold">{practicedMins}m</span>
+                                  <span className={cn(
+                                    "font-semibold",
+                                    practicedMins >= item.allocatedTime
+                                      ? "text-green-600 dark:text-green-400"
+                                      : practicedMins > 0
+                                        ? "text-amber-600 dark:text-amber-400"
+                                        : "text-muted-foreground"
+                                  )}>
+                                    {practicedMins}m
+                                  </span>
                                   <span>/{item.allocatedTime}m</span>
                                 </button>
                                 
