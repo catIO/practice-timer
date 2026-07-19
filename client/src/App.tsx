@@ -71,30 +71,45 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    const showUpdateToast = (waitingWorker: ServiceWorker) => {
+      toast({
+        title: "Update Available",
+        description: "A new version of the app is ready. Click Update to apply changes.",
+        action: (
+          <ToastAction
+            altText="Update"
+            onClick={() => {
+              waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+            }}
+          >
+            Update
+          </ToastAction>
+        ),
+        duration: Infinity,
+      });
+    };
+
     const handleUpdate = (e: Event) => {
       const registration = (e as CustomEvent).detail as ServiceWorkerRegistration;
       const waitingWorker = registration.waiting;
-
       if (waitingWorker) {
-        toast({
-          title: "Update Available",
-          description: "A new version of the app is ready. Click Update to apply changes.",
-          action: (
-            <ToastAction
-              altText="Update"
-              onClick={() => {
-                waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-              }}
-            >
-              Update
-            </ToastAction>
-          ),
-          duration: Infinity,
-        });
+        showUpdateToast(waitingWorker);
       }
     };
 
     window.addEventListener('sw-update-ready', handleUpdate);
+
+    // If a service worker is already waiting (e.g. from a previous session or registered before App mounted), show toast immediately
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration && registration.waiting) {
+          showUpdateToast(registration.waiting);
+        }
+      }).catch(err => {
+        console.warn('Failed to get service worker registration:', err);
+      });
+    }
+
     return () => window.removeEventListener('sw-update-ready', handleUpdate);
   }, [toast]);
 

@@ -17,8 +17,9 @@ if ('serviceWorker' in navigator && import.meta.env.DEV) {
 if (navigator.storage?.persist) {
   navigator.storage.persist();
 }
+
 // Register service worker only in production (avoids aggressive caching during dev)
-else if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+if ('serviceWorker' in navigator && !import.meta.env.DEV) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;
@@ -63,6 +64,15 @@ else if ('serviceWorker' in navigator && !import.meta.env.DEV) {
             });
           }
         });
+
+        // Also check for updates periodically (every 5 minutes)
+        setInterval(() => {
+          registration.update().then(newReg => {
+            if (newReg) listenForWaiting(newReg);
+          }).catch(err => {
+            console.log('Periodic SW update check skipped/failed:', err);
+          });
+        }, 5 * 60 * 1000);
       })
       .catch(registrationError => {
         console.log('SW registration failed: ', registrationError);
