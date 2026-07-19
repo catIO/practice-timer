@@ -18,12 +18,9 @@ import { cn } from "@/lib/utils";
 import { useTimerStore } from "@/stores/timerStore";
 import { PracticePlanPane } from "@/components/PracticePlanPane";
 import { TextWithLinks } from "@/components/TextWithLinks";
+import { stripMarkdownLinks } from "@/lib/richText";
 
 import "@/assets/headerBlur.css";
-
-const stripMarkdownLinks = (str: string) => {
-  return str.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
-};
 
 export default function Home() {
   const navigate = useNavigate();

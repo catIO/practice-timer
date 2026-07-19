@@ -7,6 +7,7 @@ import { getSettings, saveTimerProgress, clearTimerProgress } from '@/lib/localS
 import { getWakeLockFallback, cleanupWakeLockFallback } from '@/lib/wakeLockFallback';
 import { initializeIOSBackgroundTimer, getIOSBackgroundTimer, cleanupIOSBackgroundTimer } from '@/lib/iOSBackgroundTimer';
 import { getIOSWakeLock, cleanupIOSWakeLock } from '@/lib/iOSWakeLock';
+import { stripMarkdownLinks } from '@/lib/richText';
 
 interface WakeLock {
   released: boolean;
@@ -352,7 +353,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       
       toast({
         title: "Piece timer complete",
-        description: `You have completed your allocated time for ${name}.`,
+        description: `You have completed your allocated time for ${stripMarkdownLinks(name)}.`,
       });
     };
 

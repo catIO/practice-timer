@@ -38,3 +38,12 @@ export function applyTextFormat(
 
   return { newText, newCursorEnd };
 }
+
+/**
+ * Strips markdown link formatting from a string, returning only the text label.
+ * Also handles partially mangled link markup gracefully.
+ */
+export function stripMarkdownLinks(str: string | null | undefined): string {
+  if (!str) return "";
+  return str.replace(/\[([^\]\(\)]+)\]?\((https?:\/\/[^\s\)]*)\)?/g, "$1");
+}

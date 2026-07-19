@@ -14,6 +14,7 @@ import {
 import { AuthModal } from '@/components/AuthModal';
 import { cn } from '@/lib/utils';
 import { useSharedReport } from '@/contexts/SharedReportContext';
+import { stripMarkdownLinks } from '@/lib/richText';
 
 interface NavigationLayoutProps {
   children: React.ReactNode;
@@ -318,7 +319,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
             {!isReportPath && activePieceName && (
               <div className="hidden sm:flex items-center gap-3 bg-slate-100/80 dark:bg-slate-900/80 border border-black/5 dark:border-white/5 rounded-full py-1.5 pl-4 pr-2 text-sm">
                 <span className="text-muted-foreground font-medium truncate max-w-[150px]">
-                  {activePieceName.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')}
+                  {stripMarkdownLinks(activePieceName)}
                 </span>
                 <span className="text-primary font-mono font-bold text-base">
                   {formatSeconds(pieceTimeRemaining)}

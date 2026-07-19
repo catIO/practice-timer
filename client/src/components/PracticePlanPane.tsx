@@ -63,7 +63,7 @@ import { LinkPopover } from "./LinkPopover";
 import { Link } from "react-router-dom";
 import { formatTime } from "@/lib/formatTime";
 import { useTextSelection } from "@/hooks/useTextSelection";
-import { applyTextFormat } from "@/lib/richText";
+import { applyTextFormat, stripMarkdownLinks } from "@/lib/richText";
 import { useTimerStore } from "@/stores/timerStore";
 import { getPiecePracticedSeconds, getLast7DaysSummary } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
@@ -2107,7 +2107,7 @@ export function PracticePlanPane({
       }
       toast({
         title: "Piece timer complete",
-        description: `You have completed your allocated time for ${name}.`,
+        description: `You have completed your allocated time for ${stripMarkdownLinks(name)}.`,
       });
     };
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { RichLink } from "./RichLink";
 import {
   HoverCard,
@@ -125,6 +125,13 @@ function LinkWithPreview({
   const [tempUrl, setTempUrl] = useState(part.url);
   const linkRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isSavingRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingUrl) {
+      isSavingRef.current = false;
+    }
+  }, [editingUrl]);
 
   const handleUrlSave = () => {
     if (tempUrl !== part.url) {
@@ -181,7 +188,11 @@ function LinkWithPreview({
           sideOffset={5}
           className="w-auto p-1 flex flex-col gap-1 bg-popover/95 backdrop-blur-sm border-border/50 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-1">
             <div className="flex items-center gap-2 px-2 py-1 max-w-[240px]">
@@ -191,12 +202,22 @@ function LinkWithPreview({
                   ref={inputRef}
                   value={tempUrl}
                   onChange={(e) => setTempUrl(e.target.value)}
-                  onBlur={handleUrlSave}
+                  onBlur={() => {
+                    if (!isSavingRef.current) {
+                      setEditingUrl(false);
+                      setTempUrl(part.url);
+                    }
+                  }}
                   onKeyDown={(e) => {
                     e.stopPropagation();
                     if (e.key === "Enter") {
                       e.preventDefault();
+                      isSavingRef.current = true;
                       handleUrlSave();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setEditingUrl(false);
+                      setTempUrl(part.url);
                     }
                   }}
                   className="h-5 px-1 text-xs bg-background border rounded w-[180px] focus:outline-none focus:ring-1 focus:ring-ring"

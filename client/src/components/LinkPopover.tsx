@@ -169,6 +169,10 @@ export function LinkPopover({
       }}
 
       onClick={(e) => e.stopPropagation()}
+      onMouseUp={stopPropagation}
+      onDoubleClick={stopPropagation}
+      onPointerDown={stopPropagation}
+      onPointerUp={stopPropagation}
       onKeyDown={stopPropagation}
       onKeyUp={stopPropagation}
       onKeyPress={stopPropagation}
