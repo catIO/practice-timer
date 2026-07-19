@@ -2049,12 +2049,7 @@ export function PracticePlanPane({
         onStart();
       }
     }
-
-    toast({
-      title: "Piece timer active",
-      description: `Practicing: ${name}`,
-    });
-  }, [selectPiece, isRunning, onStart, toast, mode, startPieceOvertime, isPracticeComplete]);
+  }, [selectPiece, isRunning, onStart, mode, startPieceOvertime, isPracticeComplete]);
 
   const handleSaveSegment = useCallback((
     id: string,
@@ -2086,7 +2081,7 @@ export function PracticePlanPane({
 
   useEffect(() => {
     const handlePieceComplete = async (event: Event) => {
-      const { name, id } = (event as CustomEvent).detail;
+      const { id } = (event as CustomEvent).detail;
       // Auto-check the piece item when its goal time is met
       if (id) {
         applyChange((prev) => practicePlanApi.checkItem(prev, id));
@@ -2105,15 +2100,11 @@ export function PracticePlanPane({
           console.error('Error playing piece completion sound:', e);
         }
       }
-      toast({
-        title: "Piece timer complete",
-        description: `You have completed your allocated time for ${stripMarkdownLinks(name)}.`,
-      });
     };
 
     window.addEventListener('piece-timer-complete', handlePieceComplete);
     return () => window.removeEventListener('piece-timer-complete', handlePieceComplete);
-  }, [toast, applyChange]);
+  }, [applyChange]);
 
   const handleRowClick = useCallback(
     (id: string, e: React.MouseEvent<HTMLDivElement>) => {
