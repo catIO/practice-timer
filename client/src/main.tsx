@@ -36,6 +36,25 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
         
         // Handle update checks and dispatch event when waiting
         const listenForWaiting = (reg: ServiceWorkerRegistration) => {
+          // Prevent adding duplicate listeners to the same registration object
+          if ((reg as any)._hasUpdateListener) {
+            if (reg.waiting) {
+              window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+            }
+            return;
+          }
+          (reg as any)._hasUpdateListener = true;
+
+          // If a worker is installing, listen for its state change to dispatch event once ready
+          if (reg.installing) {
+            reg.installing.addEventListener('statechange', (e) => {
+              const target = e.target as ServiceWorker;
+              if (target.state === 'installed' && navigator.serviceWorker.controller) {
+                window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+              }
+            });
+          }
+
           reg.addEventListener('updatefound', () => {
             const installingWorker = reg.installing;
             if (installingWorker) {
@@ -46,6 +65,7 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
               });
             }
           });
+
           // Also dispatch if a worker is already waiting from a previous session
           if (reg.waiting) {
             window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
@@ -58,10 +78,8 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
             registration.update().then(newReg => {
-              const reg = (newReg as ServiceWorkerRegistration | undefined) || registration;
-              if (reg.waiting) {
-                window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
-              }
+              const reg = newReg || registration;
+              listenForWaiting(reg);
             }).catch(err => {
               console.error('SW update check failed:', err);
             });
@@ -71,10 +89,8 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
         // Also check for updates periodically (every 5 minutes)
         setInterval(() => {
           registration.update().then(newReg => {
-            const reg = (newReg as ServiceWorkerRegistration | undefined) || registration;
-            if (reg.waiting) {
-              window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
-            }
+            const reg = newReg || registration;
+            listenForWaiting(reg);
           }).catch(err => {
             console.log('Periodic SW update check skipped/failed:', err);
           });

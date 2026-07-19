@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
 
 export default defineConfig(({ mode }) => ({
   base: '/',
@@ -17,6 +18,28 @@ export default defineConfig(({ mode }) => ({
           }
           next();
         });
+      }
+    },
+    {
+      name: 'sw-version-injector',
+      closeBundle() {
+        const swPath = path.resolve(__dirname, 'client/dist/sw.js');
+        if (fs.existsSync(swPath)) {
+          try {
+            let swContent = fs.readFileSync(swPath, 'utf8');
+            const timestamp = Date.now();
+            swContent = swContent.replace(
+              /const CACHE_NAME = '([^']+)';/,
+              (match, p1) => `const CACHE_NAME = '${p1}-${timestamp}';`
+            );
+            fs.writeFileSync(swPath, swContent, 'utf8');
+            console.log(`[sw-version-injector] Successfully injected build version into sw.js (CACHE_NAME: practice-timer-v3-${timestamp})`);
+          } catch (e) {
+            console.error('[sw-version-injector] Failed to inject build version into sw.js:', e);
+          }
+        } else {
+          console.warn('[sw-version-injector] sw.js not found at:', swPath);
+        }
       }
     }
   ],
