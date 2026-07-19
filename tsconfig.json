@@ -7,11 +7,10 @@
   "exclude": [
     "node_modules",
     "build",
-    "dist",
-    "**/*.test.ts"
+    "dist"
   ],
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,

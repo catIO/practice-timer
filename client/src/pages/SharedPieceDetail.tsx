@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Calendar, FileText, Video, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSharedReport } from '@/contexts/SharedReportContext';
+import { ScoreUrlTooltip } from '@/components/ScoreUrlTooltip';
 
 function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
     if (!blocks || blocks.length === 0) {
@@ -336,15 +337,17 @@ export default function SharedPieceDetail() {
                             <span>Score URL</span>
                         </span>
                         <div>
-                            <a
-                                href={piece.score_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-colors hover:bg-primary/20"
-                            >
-                                <span>Open Score</span>
-                                <ExternalLink className="h-3 w-3" />
-                            </a>
+                            <ScoreUrlTooltip url={piece.score_url}>
+                                <a
+                                    href={piece.score_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-colors hover:bg-primary/20"
+                                >
+                                    <span>Open Score</span>
+                                    <ExternalLink className="h-3 w-3" />
+                                </a>
+                            </ScoreUrlTooltip>
                         </div>
                     </>
                 )}

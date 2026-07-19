@@ -47,6 +47,7 @@ import {
     FileText,
     ExternalLink,
 } from 'lucide-react';
+import { ScoreUrlTooltip } from '@/components/ScoreUrlTooltip';
 
 export default function RepertoireDetail() {
     const { id } = useParams<{ id: string }>();
@@ -400,15 +401,17 @@ export default function RepertoireDetail() {
                     />
                 ) : (
                     <div className="flex items-center gap-3 group">
-                        <a
-                            href={localPiece.score_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
-                        >
-                            <span>Open Score</span>
-                            <ExternalLink className="h-3 w-3" />
-                        </a>
+                        <ScoreUrlTooltip url={localPiece.score_url}>
+                            <a
+                                href={localPiece.score_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
+                            >
+                                <span>Open Score</span>
+                                <ExternalLink className="h-3 w-3" />
+                            </a>
+                        </ScoreUrlTooltip>
                         <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
                             <button
                                 type="button"

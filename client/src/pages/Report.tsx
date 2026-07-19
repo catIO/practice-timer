@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { useSharedReport } from "@/contexts/SharedReportContext";
+import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
 
 /** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
 function stripMarkdown(text: string): string {
@@ -158,16 +159,18 @@ function ReportItem({
                       <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
                     </Link>
                     {linkedPiece.score_url && (
-                      <a
-                        href={linkedPiece.score_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 px-1.5 py-0.5 rounded-full font-medium shrink-0 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="material-icons text-[10px] shrink-0 select-none">description</span>
-                        <span>Open Score</span>
-                      </a>
+                      <ScoreUrlTooltip url={linkedPiece.score_url}>
+                        <a
+                          href={linkedPiece.score_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 px-1.5 py-0.5 rounded-full font-medium shrink-0 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="material-icons text-[10px] shrink-0 select-none">description</span>
+                          <span>Open Score</span>
+                        </a>
+                      </ScoreUrlTooltip>
                     )}
                   </span>
                 )}

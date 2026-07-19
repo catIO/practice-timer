@@ -58,7 +58,10 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
             registration.update().then(newReg => {
-              if (newReg) listenForWaiting(newReg);
+              const reg = (newReg as ServiceWorkerRegistration | undefined) || registration;
+              if (reg.waiting) {
+                window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+              }
             }).catch(err => {
               console.error('SW update check failed:', err);
             });
@@ -68,7 +71,10 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
         // Also check for updates periodically (every 5 minutes)
         setInterval(() => {
           registration.update().then(newReg => {
-            if (newReg) listenForWaiting(newReg);
+            const reg = (newReg as ServiceWorkerRegistration | undefined) || registration;
+            if (reg.waiting) {
+              window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+            }
           }).catch(err => {
             console.log('Periodic SW update check skipped/failed:', err);
           });

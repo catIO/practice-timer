@@ -50,6 +50,7 @@ import {
   getReportShareUrl,
   shareReport
 } from "@/lib/reportShare";
+import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { repertoireService } from "@/lib/repertoireService";
@@ -1370,16 +1371,18 @@ function PlanItem({
                             <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
                           </Link>
                           {linkedPiece.score_url && (
-                            <a
-                              href={linkedPiece.score_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border px-1.5 py-0.5 rounded-full font-medium transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <span className="material-icons text-xs shrink-0 select-none">description</span>
-                              <span>Open Score</span>
-                            </a>
+                            <ScoreUrlTooltip url={linkedPiece.score_url}>
+                              <a
+                                href={linkedPiece.score_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border px-1.5 py-0.5 rounded-full font-medium transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span className="material-icons text-xs shrink-0 select-none">description</span>
+                                <span>Open Score</span>
+                              </a>
+                            </ScoreUrlTooltip>
                           )}
                         </span>
                       )}
