@@ -21,6 +21,9 @@ import SharedPieceDetail from '@/pages/SharedPieceDetail';
 import { NavigationLayout } from '@/components/NavigationLayout';
 import { SharedReportProvider } from '@/contexts/SharedReportContext';
 
+import { ToastProvider, useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+
 const queryClient = new QueryClient();
 
 function AppRoutes() {
@@ -57,7 +60,9 @@ function AppRoutes() {
   );
 }
 
-function App() {
+function AppContent() {
+  const { toast } = useToast();
+
   useEffect(() => {
     // Initialize settings from local storage
     const localSettings = getSettings();
@@ -65,17 +70,53 @@ function App() {
     applyTheme(currentTheme);
   }, []);
 
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const registration = (e as CustomEvent).detail as ServiceWorkerRegistration;
+      const waitingWorker = registration.waiting;
+
+      if (waitingWorker) {
+        toast({
+          title: "Update Available",
+          description: "A new version of the app is ready. Click Update to apply changes.",
+          action: (
+            <ToastAction
+              altText="Update"
+              onClick={() => {
+                waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+              }}
+            >
+              Update
+            </ToastAction>
+          ),
+          duration: Infinity,
+        });
+      }
+    };
+
+    window.addEventListener('sw-update-ready', handleUpdate);
+    return () => window.removeEventListener('sw-update-ready', handleUpdate);
+  }, [toast]);
+
+  return (
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <NavigationLayout>
+        <AppRoutes />
+      </NavigationLayout>
+      <Toaster />
+    </Router>
+  );
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SharedReportProvider>
-            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <NavigationLayout>
-                <AppRoutes />
-              </NavigationLayout>
-              <Toaster />
-            </Router>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
           </SharedReportProvider>
         </AuthProvider>
       </QueryClientProvider>

@@ -33,10 +33,34 @@ else if ('serviceWorker' in navigator && !import.meta.env.DEV) {
       .then(registration => {
         console.log('SW registered: ', registration);
         
+        // Handle update checks and dispatch event when waiting
+        const listenForWaiting = (reg: ServiceWorkerRegistration) => {
+          reg.addEventListener('updatefound', () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.addEventListener('statechange', () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+                }
+              });
+            }
+          });
+          // Also dispatch if a worker is already waiting from a previous session
+          if (reg.waiting) {
+            window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+          }
+        };
+
+        listenForWaiting(registration);
+
         // Check for updates when app becomes visible
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
-            registration.update();
+            registration.update().then(newReg => {
+              if (newReg) listenForWaiting(newReg);
+            }).catch(err => {
+              console.error('SW update check failed:', err);
+            });
           }
         });
       })

@@ -23,9 +23,8 @@ let backgroundTimerState = {
 // Background sync registration
 let backgroundSyncRegistered = false;
 
-// Install event - cache static assets; skipWaiting so new SW activates without closing tabs
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -206,9 +205,14 @@ self.addEventListener('notificationclick', (event) => {
 
 // Handle messages from main thread
 self.addEventListener('message', (event) => {
+  if (!event.data) return;
   const { type, payload } = event.data;
 
   switch (type) {
+    case 'SKIP_WAITING':
+      self.skipWaiting();
+      break;
+
     case 'UPDATE_BACKGROUND_TIMER':
       backgroundTimerState = { ...backgroundTimerState, ...payload };
       break;
