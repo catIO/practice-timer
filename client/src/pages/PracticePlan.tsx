@@ -53,7 +53,6 @@ export default function PracticePlan() {
                     console.error('PracticePlan: error playing timer-complete sound', e);
                 }
             }
-            toast({ title: 'Timer Complete', description: 'Your timer has finished!' });
         };
 
         const handlePracticeComplete = async (event: Event) => {

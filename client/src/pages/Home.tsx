@@ -189,16 +189,6 @@ export default function Home() {
         }
 
 
-        try {
-          toast({
-            title: 'Timer Complete',
-            description: 'Your timer has finished!',
-          });
-
-        } catch (toastError) {
-
-        }
-
 
       } catch (error) {
 
