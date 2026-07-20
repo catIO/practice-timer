@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { updatePassword, updateDisplayName } from "@/lib/authService";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { restorePlanFromSnapshot, type ReportSnapshot } from "@/lib/reportShare";
+import { practicePlanApi } from "@/lib/practicePlan";
+import { supabase } from "@/lib/supabaseClient";
 
 
 import {
@@ -39,10 +42,10 @@ export default function Settings() {
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
   const { isRunning } = useTimerStore();
   const { isLoggedIn, user, signOut, refreshUser } = useAuth();
-  
+
   const initialTab = searchParams.get('tab') === 'account' ? 'account' : 'general';
   const [activeTab, setActiveTab] = useState<'general' | 'account'>(initialTab);
-  
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -300,21 +303,19 @@ export default function Settings() {
         <div className="flex gap-2 border-b border-white/10 pb-4">
           <button
             onClick={() => handleTabChange('general')}
-            className={`pb-2 px-3 text-sm font-semibold border-b-2 transition-all ${
-              activeTab === 'general'
+            className={`pb-2 px-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'general'
                 ? 'border-primary text-primary font-bold'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+              }`}
           >
             General
           </button>
           <button
             onClick={() => handleTabChange('account')}
-            className={`pb-2 px-3 text-sm font-semibold border-b-2 transition-all ${
-              activeTab === 'account'
+            className={`pb-2 px-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'account'
                 ? 'border-primary text-primary font-bold'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+              }`}
           >
             Account
           </button>
@@ -657,6 +658,55 @@ export default function Settings() {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Data Recovery */}
+      {isLoggedIn && (
+        <div className="mt-6 pt-4 border-t border-white/10">
+          <h3 className="text-sm font-medium text-foreground mb-1">Data Recovery</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Restore your practice plan from the last published report.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/10"
+            onClick={async () => {
+              if (!supabase) {
+                toast({ title: "Not available", description: "Database connection not configured.", variant: "destructive" });
+                return;
+              }
+              try {
+                const { data: sessionData } = await supabase.auth.getSession();
+                const userId = sessionData.session?.user?.id;
+                if (!userId) {
+                  toast({ title: "Not logged in", description: "Please log in to restore.", variant: "destructive" });
+                  return;
+                }
+                const { data, error } = await supabase
+                  .from("shared_reports")
+                  .select("data")
+                  .eq("user_id", userId)
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .single();
+                if (error || !data) {
+                  toast({ title: "No report found", description: "No published report found for your account.", variant: "destructive" });
+                  return;
+                }
+                const snapshot = data.data as ReportSnapshot;
+                const restoredPlan = restorePlanFromSnapshot(snapshot);
+                practicePlanApi.save(restoredPlan);
+                toast({ title: "Plan restored", description: "Your practice plan has been restored. Reload to see changes." });
+              } catch (e) {
+                console.error("[Settings] Restore failed:", e);
+                toast({ title: "Restore failed", description: "An error occurred while restoring.", variant: "destructive" });
+              }
+            }}
+          >
+            Restore plan from report
+          </Button>
         </div>
       )}
     </div>

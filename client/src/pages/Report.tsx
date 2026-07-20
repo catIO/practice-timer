@@ -3,8 +3,6 @@ import { useParams, useLocation, Link } from "react-router-dom";
 import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type ReportLogSummary } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
@@ -109,8 +107,8 @@ function ReportItem({
     // Match by itemId first (reliable), then fall back to name match
     const practicedEntry = logSummary?.pieces.find(
       (p) => (item.id && p.itemId === item.id) ||
-             stripMarkdown(p.itemName) === title ||
-             p.itemName === item.text
+        stripMarkdown(p.itemName) === title ||
+        p.itemName === item.text
     );
     const practicedSeconds = practicedEntry?.seconds ?? 0;
 
@@ -120,10 +118,10 @@ function ReportItem({
 
     const linkUrl = item.repertoirePieceId
       ? (sharedId
-          ? `/r/${sharedId}/piece/${item.repertoirePieceId}`
-          : (sharedToken
-              ? `/report/${sharedToken}/piece/${item.repertoirePieceId}`
-              : `/report/piece/${item.repertoirePieceId}${window.location.hash}`))
+        ? `/r/${sharedId}/piece/${item.repertoirePieceId}`
+        : (sharedToken
+          ? `/report/${sharedToken}/piece/${item.repertoirePieceId}`
+          : `/report/piece/${item.repertoirePieceId}${window.location.hash}`))
       : "";
 
     return (
@@ -132,16 +130,13 @@ function ReportItem({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span
-                className={cn(
-                  "material-icons text-sm shrink-0 select-none",
-                  item.checked ? "text-green-500" : "text-primary"
-                )}
+                className="material-icons text-sm shrink-0 select-none text-primary"
               >
-                {item.checked ? "task_alt" : "timer"}
+                timer
               </span>
               <span
                 style={{ fontWeight: 600, fontSize: "0.875rem" }}
-                className={cn("truncate flex items-center gap-2", item.checked ? "text-muted-foreground" : "text-foreground")}
+                className="truncate flex items-center gap-2 text-foreground"
               >
                 {item.text ? (
                   <TextWithLinks text={item.text} />
@@ -219,9 +214,7 @@ function ReportItem({
   return (
     <div className="py-0.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
       <div className="flex items-start gap-2 text-foreground">
-        {item.blockType === "todo" ? (
-          <Checkbox checked={item.checked} disabled className="mt-1 shrink-0" />
-        ) : item.blockType === "bullet" ? (
+        {item.blockType === "todo" || item.blockType === "bullet" ? (
           <span className="shrink-0 mt-0.5 text-muted-foreground" aria-hidden>
             •
           </span>
@@ -424,11 +417,16 @@ export default function Report() {
 
   const dateLabel = (() => {
     try {
+      if (snapshot.logSummary?.startDate && snapshot.logSummary?.endDate) {
+        const start = new Date(snapshot.logSummary.startDate + 'T12:00:00');
+        const end = new Date(snapshot.logSummary.endDate + 'T12:00:00');
+        const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+        const startStr = start.toLocaleDateString(undefined, opts);
+        const endStr = end.toLocaleDateString(undefined, { ...opts, year: "numeric" });
+        return `${startStr} – ${endStr}`;
+      }
       const d = new Date(snapshot.date);
-      return d.toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
+      return d.toLocaleDateString(undefined, { dateStyle: "medium" });
     } catch {
       return snapshot.date;
     }
@@ -439,9 +437,9 @@ export default function Report() {
       <header className="border-b border-white/10 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {snapshot.title ?? "Practice Plan & Progress Report"}
+            {snapshot.title ?? "Practice Report"}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Generated {dateLabel}</p>
+          <p className="text-sm text-muted-foreground mt-1">{dateLabel}</p>
         </div>
       </header>
       {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
@@ -450,7 +448,7 @@ export default function Report() {
             <span className="text-4xl font-bold text-primary tabular-nums">
               {formatDuration(snapshot.logSummary.totalSeconds)}
             </span>
-            <span className="text-sm text-muted-foreground">total in last 7 days</span>
+            <span className="text-sm text-muted-foreground">total practice time</span>
           </div>
         </div>
       )}

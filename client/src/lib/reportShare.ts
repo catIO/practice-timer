@@ -4,6 +4,7 @@
  */
 
 import type { PracticePlanItem } from "./practicePlan";
+import { generateId } from "./practicePlan";
 import type { RepertoirePiece } from "./repertoire.types";
 import { supabase } from "./supabaseClient";
 import { nanoid } from "nanoid";
@@ -252,4 +253,28 @@ export async function claimAnonymousReports() {
   } else {
     localStorage.removeItem("local_shared_reports");
   }
+}
+
+/**
+ * Reconstruct a PracticePlanItem[] from a published ReportSnapshot.
+ * Segment IDs are preserved (for log continuity); other items get fresh IDs.
+ * All checked states are reset to false.
+ */
+export function restorePlanFromSnapshot(snapshot: ReportSnapshot): PracticePlanItem[] {
+  function snapshotItemToPlanItem(item: ReportSnapshotItem): PracticePlanItem {
+    return {
+      id: item.id || generateId(),
+      text: item.text,
+      checked: false,
+      children: item.children.map(snapshotItemToPlanItem),
+      isHeader: item.blockType === "heading1" || item.blockType === "heading2" || item.blockType === "heading3",
+      blockType: item.blockType as PracticePlanItem["blockType"],
+      ...(item.allocatedTime != null ? { allocatedTime: item.allocatedTime } : {}),
+      ...(item.allocationPeriod ? { allocationPeriod: item.allocationPeriod } : {}),
+      ...(item.segmentGoal ? { segmentGoal: item.segmentGoal } : {}),
+      ...(item.repertoirePieceId ? { repertoirePieceId: item.repertoirePieceId } : {}),
+    };
+  }
+
+  return snapshot.items.map(snapshotItemToPlanItem);
 }

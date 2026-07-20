@@ -2,12 +2,16 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { SettingsType } from "@/lib/timerService";
 import { SoundType } from "@/lib/soundEffects";
 import { useNotification } from "@/hooks/useNotification";
 import { useToast } from "@/hooks/use-toast";
 import { setVolume, playSound } from "@/lib/soundEffects";
+import { restorePlanFromSnapshot, type ReportSnapshot } from "@/lib/reportShare";
+import { practicePlanApi } from "@/lib/practicePlan";
+import { supabase } from "@/lib/supabaseClient";
 
 interface SettingsProps {
   settings: SettingsType;
@@ -20,18 +24,18 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
   const [soundVolume, setSoundVolume] = useState(0.5); // Default volume at 50%
   const { requestNotificationPermission } = useNotification();
   const { toast } = useToast();
-  
+
   // Update local state when settings prop changes
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
-  
+
   // Handle volume change
   const handleVolumeChange = async (value: number[]) => {
     const newVolume = value[0];
     setSoundVolume(newVolume);
     setVolume(newVolume);
-    
+
     // Play preview sound
     try {
       await playSound('end', 1, newVolume, localSettings.soundType as SoundType);
@@ -39,7 +43,7 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
       console.error('Error playing preview sound:', error);
     }
   };
-  
+
   // Handle toggle changes
   const handleToggleChange = (key: keyof SettingsType, value: boolean) => {
     console.log('Toggle changed:', key, value);
@@ -47,7 +51,7 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
     // Remove userId and id from the settings object
     const { userId, id, ...settingsWithoutIds } = updatedSettings;
     console.log('Updated settings:', settingsWithoutIds);
-    
+
     setLocalSettings(updatedSettings);
     onChange(settingsWithoutIds);
   };
@@ -59,10 +63,10 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
     // Remove userId and id from the settings object
     const { userId, id, ...settingsWithoutIds } = updatedSettings;
     console.log('Updated settings:', settingsWithoutIds);
-    
+
     // Update local state immediately for responsive UI
     setLocalSettings(updatedSettings);
-    
+
     try {
       // Call the onChange handler with the updated settings
       await onChange(settingsWithoutIds);
@@ -92,7 +96,7 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
   return (
     <div className="mt-6 pt-4 border-t border-muted">
       <h3 className="text-lg font-medium mb-4">Settings</h3>
-      
+
       <div className="space-y-4">
         {/* Sound notifications toggle */}
         <div className="flex items-center justify-between">
@@ -194,7 +198,7 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
             min={1}
             max={15}
             step={1}
-            className="break-mode" 
+            className="break-mode"
             onValueChange={(value) => handleSliderChange('breakDuration', value)}
           />
         </div>
@@ -217,6 +221,50 @@ export default function Settings({ settings, isLoading, onChange }: SettingsProp
             Number of work-break cycles to complete before reset.
           </p>
         </div>
+      </div>
+
+      {/* Restore from Report */}
+      <div className="mt-6 pt-4 border-t border-white/10">
+        <Label className="text-sm text-muted-foreground">Data Recovery</Label>
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          Restore your practice plan from the last published report.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-white/10"
+          onClick={async () => {
+            const shareId = practicePlanApi.getPermalinkId();
+            if (!shareId) {
+              toast({ title: "No published report found", description: "You haven't published a report yet.", variant: "destructive" });
+              return;
+            }
+            if (!supabase) {
+              toast({ title: "Not available", description: "Database connection not configured.", variant: "destructive" });
+              return;
+            }
+            try {
+              const { data, error } = await supabase
+                .from("shared_reports")
+                .select("data")
+                .eq("id", shareId)
+                .single();
+              if (error || !data) {
+                toast({ title: "Report not found", description: "Could not fetch the published report.", variant: "destructive" });
+                return;
+              }
+              const snapshot = data.data as ReportSnapshot;
+              const restoredPlan = restorePlanFromSnapshot(snapshot);
+              practicePlanApi.save(restoredPlan);
+              toast({ title: "Plan restored", description: "Your practice plan has been restored from the published report. Reload to see changes." });
+            } catch (e) {
+              console.error("[Settings] Restore failed:", e);
+              toast({ title: "Restore failed", description: "An error occurred while restoring.", variant: "destructive" });
+            }
+          }}
+        >
+          Restore plan from report
+        </Button>
       </div>
     </div>
   );
