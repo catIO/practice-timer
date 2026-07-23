@@ -36,4 +36,12 @@ describe('TextWithLinks', () => {
     expect(pill.className).toContain('bg-red-500');
     expect(pill.className).toContain('mr-1.5');
   });
+
+  it('renders progress scale pills [1] to [10] with red-to-green gradient styles', () => {
+    render(<TextWithLinks text="[1] Beginning piece [10] Mastered piece" />);
+    const pill1 = screen.getByText('1');
+    const pill10 = screen.getByText('10');
+    expect(pill1.className).toContain('bg-red-500');
+    expect(pill10.className).toContain('bg-emerald-600');
+  });
 });
