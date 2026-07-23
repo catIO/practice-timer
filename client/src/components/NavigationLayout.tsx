@@ -184,7 +184,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       {/* 1. Desktop & Tablet Side Sidebar/Rail */}
       <aside
         className={cn(
-          "flex flex-col border-r border-black/5 dark:border-white/10 bg-slate-100/30 dark:bg-slate-900/30 backdrop-blur-md transition-all duration-300 shrink-0",
+          "sticky top-0 h-screen self-start z-30 flex flex-col border-r border-black/5 dark:border-white/10 bg-slate-100/30 dark:bg-slate-900/30 backdrop-blur-md transition-all duration-300 shrink-0",
           isSidebarExpanded ? "w-16 md:w-64" : "w-16 md:w-20"
         )}
       >
