@@ -79,6 +79,7 @@ function AppContent() {
           <ToastAction
             altText="Update"
             onClick={() => {
+              (window as any).__userInitiatedSWUpdate = true;
               waitingWorker.postMessage({ type: 'SKIP_WAITING' });
             }}
           >

@@ -343,11 +343,18 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               // Validate sequence for PAUSED messages
               if (sequence !== undefined) {
                 const lastSeq = get().lastMessageSequence;
-                if (sequence <= lastSeq) {
+                // Ignore stale PAUSED messages if sequence is <= lastSeq OR if a newer outgoing message was sent (e.g. START)
+                if (sequence <= lastSeq || sequence < messageSequence) {
                   return;
                 }
                 set({ lastMessageSequence: sequence });
               }
+
+              // Double check: if user called startTimer after this pause was generated, do not pause
+              if (get().isRunning && sequence !== undefined && sequence < messageSequence) {
+                return;
+              }
+
               set({
                 isRunning: false,
                 timeRemaining: payload.timeRemaining,
@@ -528,38 +535,22 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   pendingMessages.delete(sequence);
                 }
               }
-              // Practice time is now logged incrementally during TICK events
-              const newTimeRemaining = payload.timeRemaining || (
-                payload.mode === 'work'
-                  ? get().settings.workDuration * 60
-                  : get().settings.breakDuration * 60
-              );
-              set({
-                mode: payload.mode,
-                currentIteration: payload.currentIteration,
-                totalIterations: payload.totalIterations,
-                isRunning: false,
-                timeRemaining: newTimeRemaining,
-                totalTime: newTimeRemaining // Reset totalTime to match the new session duration
-              });
-              // Persist progress on session completion
-              persistProgress({
-                timeRemaining: newTimeRemaining,
-                totalTime: newTimeRemaining,
-                mode: payload.mode,
-                currentIteration: payload.currentIteration,
-                totalIterations: payload.totalIterations,
-                isPracticeComplete: get().isPracticeComplete,
-              });
+
+              // Stop running state
+              set({ isRunning: false });
+
               // Trigger completion callback via custom event
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('timer-complete', {
                   detail: payload
                 }));
               }
+
+              // Automatically transition to next session phase (break or practice completion)
+              get().skipTimer();
+
               // If a piece segment still has time remaining after the work session
-              // ended, activate overtime mode so the user can continue the segment
-              // without starting the break or the next iteration.
+              // ended, activate overtime mode so the user can continue the segment.
               if (get().pieceTimeRemaining > 0 && get().activePieceId) {
                 set({ isPieceOvertime: true });
               }
