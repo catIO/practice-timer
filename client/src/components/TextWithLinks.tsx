@@ -8,11 +8,41 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-/** Matches [text](url) or plain https URLs. Markdown links are tried first. */
-const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+)/g;
+/** Matches [text](url), [SHORTCODE] (not followed by '('), or plain https URLs. */
+const TOKEN_REGEX = /\[([^\]]+)\]\(([^)]+)\)|\[([A-Za-z0-9_!?-]+)\](?!\()|(https?:\/\/[^\s]+)/g;
 
 export type LinkPart = { type: "mdlink"; text: string; url: string; start: number; end: number };
+export type ShortcodePart = { type: "shortcode"; code: string };
 export type PlainPart = { type: "plain"; text: string };
+export type TextPart = LinkPart | ShortcodePart | PlainPart;
+
+const SHORTCODE_STYLES: Record<string, string> = {
+  "NEW": "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+  "!": "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+  "IMPORTANT": "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+  "URGENT": "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+  "TODO": "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+  "WIP": "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+  "DONE": "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+  "OK": "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+  "FIXED": "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+  "HOT": "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
+  "REVIEW": "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
+};
+
+const DEFAULT_SHORTCODE_STYLE = "bg-secondary text-secondary-foreground border-border";
+
+function ShortcodePill({ code }: { code: string }) {
+  const upperCode = code.toUpperCase();
+  const style = SHORTCODE_STYLES[upperCode] || DEFAULT_SHORTCODE_STYLE;
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold border rounded-md tracking-wider align-baseline select-none shrink-0 mr-1.5 my-0.5 ${style}`}
+    >
+      {code}
+    </span>
+  );
+}
 
 /** Renders a segment that may contain **bold** and *italic* */
 function renderFormatted(segment: string, keyPrefix: string) {
@@ -49,6 +79,7 @@ interface TextWithLinksProps {
 /**
  * Renders text with:
  * - Markdown links [text](url) as clickable links
+ * - Shortcode pills [NEW], [!], [TODO], etc.
  * - Plain URLs (http/https) as RichLink cards
  * - **bold** and *italic*
  * - Optional: edit chip on link hover when onEditLink provided
@@ -60,10 +91,10 @@ export function TextWithLinks({
   onUpdateLink,
   richLinkVariant = "default",
 }: TextWithLinksProps) {
-  const parts: Array<LinkPart | PlainPart> = [];
+  const parts: Array<TextPart> = [];
   let lastIndex = 0;
   let match;
-  const re = new RegExp(LINK_REGEX.source, "g");
+  const re = new RegExp(TOKEN_REGEX.source, "g");
   while ((match = re.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push({ type: "plain", text: text.slice(lastIndex, match.index) });
@@ -71,7 +102,9 @@ export function TextWithLinks({
     if (match[1] != null && match[2] != null) {
       parts.push({ type: "mdlink", text: match[1], url: match[2], start: match.index, end: re.lastIndex });
     } else if (match[3] != null) {
-      parts.push({ type: "mdlink", text: match[3], url: match[3], start: match.index, end: re.lastIndex });
+      parts.push({ type: "shortcode", code: match[3] });
+    } else if (match[4] != null) {
+      parts.push({ type: "mdlink", text: match[4], url: match[4], start: match.index, end: re.lastIndex });
     }
     lastIndex = re.lastIndex;
   }
@@ -81,7 +114,7 @@ export function TextWithLinks({
 
   // Only show a plain URL as a RichLink card when it is the sole content in the block.
   // When mixed with surrounding text the card style breaks inline text flow.
-  const isUrlOnlyBlock = parts.length === 1;
+  const isUrlOnlyBlock = parts.length === 1 && parts[0].type === "mdlink";
 
   return (
     <>
@@ -99,7 +132,18 @@ export function TextWithLinks({
             />
           );
         }
-        return <React.Fragment key={i}>{renderFormatted(part.text, `p-${i}`)}</React.Fragment>;
+        if (part.type === "shortcode") {
+          return <ShortcodePill key={i} code={part.code} />;
+        }
+
+        let plainText = part.text;
+        if (i > 0 && parts[i - 1].type === "shortcode" && plainText.startsWith(" ")) {
+          plainText = plainText.slice(1);
+        }
+
+        if (!plainText) return null;
+
+        return <React.Fragment key={i}>{renderFormatted(plainText, `p-${i}`)}</React.Fragment>;
       })}
     </>
   );

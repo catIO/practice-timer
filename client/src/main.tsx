@@ -76,9 +76,8 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
         // Check for updates when app becomes visible
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
-            registration.update().then(newReg => {
-              const reg = newReg || registration;
-              listenForWaiting(reg);
+            registration.update().then(() => {
+              listenForWaiting(registration);
             }).catch(err => {
               console.error('SW update check failed:', err);
             });
@@ -87,9 +86,8 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
 
         // Also check for updates periodically (every 5 minutes)
         setInterval(() => {
-          registration.update().then(newReg => {
-            const reg = newReg || registration;
-            listenForWaiting(reg);
+          registration.update().then(() => {
+            listenForWaiting(registration);
           }).catch(err => {
             console.log('Periodic SW update check skipped/failed:', err);
           });
