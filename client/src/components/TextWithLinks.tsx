@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { RichLink } from "./RichLink";
+import { RichLink, YouTubeIcon } from "./RichLink";
+import { cn } from "@/lib/utils";
 import {
   HoverCard,
   HoverCardContent,
@@ -215,13 +216,37 @@ function LinkWithPreview({
     onRemoveLink?.(part.start, part.end);
   };
 
-  const domain = tryGetDomain(part.url);
+  const isYouTube = part.url.includes("youtube.com") || part.url.includes("youtu.be");
 
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
         <span ref={linkRef} className="cursor-pointer">
-          {rich ? (
+          {isYouTube ? (
+            part.text === part.url ? (
+              <RichLink url={part.url} eagerPreview={eagerRichPreview} />
+            ) : (
+              <a
+                href={part.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "inline-flex items-center gap-2 px-3 py-1 rounded-xl shrink-0",
+                  "bg-slate-900/80 dark:bg-slate-900/90 border border-black/10 dark:border-white/10",
+                  "hover:bg-slate-800/90 hover:border-white/20",
+                  "transition-all no-underline text-foreground align-middle my-0.5",
+                  "-ml-0.5 mr-1"
+                )}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <YouTubeIcon className="w-4 h-4 shrink-0" />
+                <span className="text-sm font-medium leading-tight whitespace-nowrap text-foreground">
+                  {renderFormatted(part.text, `link-${part.start}`)}
+                </span>
+              </a>
+            )
+          ) : rich ? (
             <RichLink url={part.url} eagerPreview={eagerRichPreview} />
           ) : (
             <a

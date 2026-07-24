@@ -1,11 +1,11 @@
 ---
 # practice-timer-j1h6
 title: Fix repertoire detail page editor issues
-status: todo
+status: completed
 type: bug
 priority: normal
 created_at: 2026-07-23T12:24:48Z
-updated_at: 2026-07-23T12:25:52Z
+updated_at: 2026-07-23T21:29:26Z
 ---
 
 Investigate and resolve editor functionality issues on the repertoire detail page.
@@ -26,3 +26,14 @@ Investigate and resolve editor functionality issues on the repertoire detail pag
 
 5. **Markdown Shortcut Prefix Cleanup**:
    - Converting a block to heading or list via markdown space shortcuts (e.g. `# ` or `- `) needs to ensure clean text stripping and caret positioning across block type conversions.
+
+## Summary of Changes
+
+- **Fix Cloned Piece Block ID Collision**: Updated `cloneMutation` in `RepertoireDetail.tsx` to map fresh unique IDs for all cloned blocks.
+- **Fix Video & Score URL Buttons**: Fixed duplicate handler bug on "Replace URL" and "Remove" buttons, and added auto-focus to input elements.
+- **YouTube Link Paste & Instant Embed**:
+  - Added instant paste and change handlers on `video_url` in `RepertoireDetail.tsx`.
+  - Added paste detection in `RepertoireEditor.tsx`: pasting a YouTube URL on an empty block automatically transforms it into an embedded YouTube video.
+  - Formatted pasted URLs over text selections into Markdown links (`[selectedText](pastedUrl)`), matching Practice Plan behavior.
+- **Fix Inline Formatting Toolbar & Blur Lockout**: Connected `onToolbarInteraction` ref handling so clicking formatting buttons does not prematurely close edit mode.
+- **Fix Slash Command Menu Bounds & Markdown Shortcuts**: Clamped `safeSlashHighlight` index to prevent out-of-bounds array access on filtered slash commands.

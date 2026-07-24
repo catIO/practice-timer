@@ -101,7 +101,9 @@ export default function RepertoireDetail() {
                 target_date: localPiece!.target_date,
                 video_url: localPiece!.video_url,
                 score_url: localPiece!.score_url,
-                notes: localPiece!.notes,
+                notes: localPiece!.notes
+                    ? localPiece!.notes.map((b) => ({ ...b, id: Math.random().toString(36).slice(2, 10) }))
+                    : [],
             }),
         onSuccess: (cloned) => {
             queryClient.invalidateQueries({ queryKey: ['repertoire'] });
@@ -137,6 +139,9 @@ export default function RepertoireDetail() {
         },
         [updateField]
     );
+
+    const videoInputRef = useRef<HTMLInputElement>(null);
+    const scoreInputRef = useRef<HTMLInputElement>(null);
 
     if (isLoading || !localPiece) {
         return (
@@ -305,11 +310,24 @@ export default function RepertoireDetail() {
                 </span>
                 {!localPiece.video_url ? (
                     <input
+                        ref={videoInputRef}
                         type="text"
                         placeholder="Add YouTube URL"
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (extractYouTubeId(val) || val.startsWith("http://") || val.startsWith("https://")) {
+                                updateField('video_url', val.trim());
+                            }
+                        }}
+                        onPaste={(e) => {
+                            const pastedText = e.clipboardData.getData("text").trim();
+                            if (pastedText) {
+                                updateField('video_url', pastedText);
+                            }
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                                updateField('video_url', e.currentTarget.value);
+                                updateField('video_url', e.currentTarget.value.trim());
                             }
                         }}
                         onBlur={(e) => {
@@ -317,9 +335,10 @@ export default function RepertoireDetail() {
                                 updateField('video_url', e.target.value.trim());
                             }
                         }}
-                        className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
+                        className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm w-full"
+                        autoFocus
                     />
-                                ) : (
+                ) : (
                     <div>
                         {extractYouTubeId(localPiece.video_url) ? (
                             <div className="space-y-2 group">
@@ -329,7 +348,10 @@ export default function RepertoireDetail() {
                                 <div className="flex items-center gap-2 mt-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
                                     <button
                                         type="button"
-                                        onClick={() => updateField('video_url', '')}
+                                        onClick={() => {
+                                            updateField('video_url', '');
+                                            setTimeout(() => videoInputRef.current?.focus(), 50);
+                                        }}
                                         className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
                                     >
                                         <span className="material-icons text-sm">link</span>
@@ -359,7 +381,10 @@ export default function RepertoireDetail() {
                                 <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
                                     <button
                                         type="button"
-                                        onClick={() => updateField('video_url', '')}
+                                        onClick={() => {
+                                            updateField('video_url', '');
+                                            setTimeout(() => videoInputRef.current?.focus(), 50);
+                                        }}
                                         className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
                                     >
                                         <span className="material-icons text-sm">link</span>
@@ -385,11 +410,24 @@ export default function RepertoireDetail() {
                 </span>
                 {!localPiece.score_url ? (
                     <input
+                        ref={scoreInputRef}
                         type="text"
                         placeholder="Add score URL"
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val.startsWith("http://") || val.startsWith("https://")) {
+                                updateField('score_url', val.trim());
+                            }
+                        }}
+                        onPaste={(e) => {
+                            const pastedText = e.clipboardData.getData("text").trim();
+                            if (pastedText) {
+                                updateField('score_url', pastedText);
+                            }
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                                updateField('score_url', e.currentTarget.value);
+                                updateField('score_url', e.currentTarget.value.trim());
                             }
                         }}
                         onBlur={(e) => {
@@ -397,7 +435,8 @@ export default function RepertoireDetail() {
                                 updateField('score_url', e.target.value.trim());
                             }
                         }}
-                        className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm"
+                        className="bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/30 text-sm w-full"
+                        autoFocus
                     />
                 ) : (
                     <div className="flex items-center gap-3 group">
@@ -415,7 +454,10 @@ export default function RepertoireDetail() {
                         <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-200">
                             <button
                                 type="button"
-                                onClick={() => updateField('score_url', '')}
+                                onClick={() => {
+                                    updateField('score_url', '');
+                                    setTimeout(() => scoreInputRef.current?.focus(), 50);
+                                }}
                                 className="flex items-center gap-1 text-xs text-muted-foreground border border-white/10 rounded px-2 py-1 hover:bg-white/5 hover:text-foreground transition-colors"
                             >
                                 <span className="material-icons text-sm">link</span>

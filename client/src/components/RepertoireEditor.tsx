@@ -41,7 +41,7 @@ interface BlockItemProps {
     onFocused: () => void;
     onChange: (id: string, updates: Partial<RepertoireBlock>) => void;
     onDelete: (id: string) => void;
-    onInsertBelow: (id: string, type: RepertoireBlock["type"]) => void;
+    onInsertBelow: (id: string, type: RepertoireBlock["type"], initialText?: string) => void;
     onFocusPrev: (id: string) => void;
     onFocusNext: (id: string) => void;
 }
@@ -66,6 +66,7 @@ function BlockItem({
     const [slashFilter, setSlashFilter] = useState("");
     const [slashHighlight, setSlashHighlight] = useState(0);
     const slashOpenRef = useRef(false);
+    const [turnIntoOpen, setTurnIntoOpen] = useState(false);
 
     const {
         selection,
@@ -75,7 +76,6 @@ function BlockItem({
         linkPopoverOpenRef,
     } = useTextSelection();
 
-    // Position the toolbar anchor at the selection midpoint
     const positionToolbarAnchor = useCallback(() => {
         const ta = taRef.current;
         const anchor = toolbarAnchorRef.current;
@@ -83,36 +83,48 @@ function BlockItem({
         const { selectionStart, selectionEnd } = ta;
         if (selectionStart === selectionEnd) return;
 
-        // Create a mirror div to measure caret position
-        const mirror = document.createElement("div");
+        const taRect = ta.getBoundingClientRect();
         const style = window.getComputedStyle(ta);
+        const lineHeight = parseFloat(style.lineHeight) || 24;
+
+        const textBefore = ta.value.slice(0, selectionStart);
+        const lineIndex = textBefore.split("\n").length - 1;
+        const lineTop = taRect.top + (lineIndex * lineHeight) - ta.scrollTop;
+
+        const mirror = document.createElement("div");
         mirror.style.cssText = `
-            position: absolute; visibility: hidden; white-space: pre-wrap; word-wrap: break-word;
-            width: ${ta.clientWidth}px;
-            font: ${style.font}; letter-spacing: ${style.letterSpacing};
-            padding: ${style.padding}; border: ${style.border};
-            line-height: ${style.lineHeight};
+            position: fixed; top: ${taRect.top}px; left: ${taRect.left}px; width: ${taRect.width}px;
+            visibility: hidden; pointer-events: none; white-space: pre-wrap; word-wrap: break-word;
+            font-family: ${style.fontFamily}; font-size: ${style.fontSize}; font-weight: ${style.fontWeight};
+            line-height: ${style.lineHeight}; letter-spacing: ${style.letterSpacing};
+            padding: ${style.padding}; border: ${style.border}; box-sizing: border-box; z-index: -9999;
         `;
-        mirror.textContent = ta.value.slice(0, selectionStart);
-        const span = document.createElement("span");
-        span.textContent = ta.value.slice(selectionStart, selectionEnd) || ".";
-        mirror.appendChild(span);
+        const lines = textBefore.split("\n");
+        const currentLineBefore = lines[lines.length - 1];
+        const selectedChunk = ta.value.slice(selectionStart, selectionEnd).split("\n")[0];
+
+        const spanBefore = document.createElement("span");
+        spanBefore.textContent = currentLineBefore;
+        const spanSel = document.createElement("span");
+        spanSel.textContent = selectedChunk || ".";
+        mirror.appendChild(spanBefore);
+        mirror.appendChild(spanSel);
         document.body.appendChild(mirror);
 
-        const taRect = ta.getBoundingClientRect();
-        const spanRect = span.getBoundingClientRect();
-        const mirrorRect = mirror.getBoundingClientRect();
+        const selRect = spanSel.getBoundingClientRect();
+        document.body.removeChild(mirror);
 
-        const top = taRect.top + (spanRect.top - mirrorRect.top) - ta.scrollTop;
-        const left = taRect.left + (spanRect.left - mirrorRect.left) + spanRect.width / 2;
+        let top = lineTop;
+        let left = selRect.left + selRect.width / 2;
+
+        top = Math.max(taRect.top - 10, Math.min(top, taRect.bottom - lineHeight));
+        left = Math.max(taRect.left + 40, Math.min(left, taRect.right - 40));
 
         anchor.style.position = "fixed";
         anchor.style.top = `${top}px`;
         anchor.style.left = `${left}px`;
         anchor.style.width = "1px";
         anchor.style.height = "1px";
-
-        document.body.removeChild(mirror);
     }, []);
 
     const handleSelect = useCallback(() => {
@@ -124,6 +136,7 @@ function BlockItem({
             requestAnimationFrame(positionToolbarAnchor);
         } else {
             setSelection(null);
+            setTurnIntoOpen(false);
         }
     }, [positionToolbarAnchor, setSelection]);
 
@@ -170,11 +183,15 @@ function BlockItem({
         }
     }, [editing]);
 
+    const isToolbarInteractingRef = useRef(false);
+
     const filteredSlash = useMemo(() => {
         if (!slashFilter) return BLOCK_OPTIONS;
         const f = slashFilter.toLowerCase();
         return BLOCK_OPTIONS.filter((o) => o.label.toLowerCase().includes(f) || o.type.includes(f));
     }, [slashFilter]);
+
+    const safeSlashHighlight = Math.min(slashHighlight, Math.max(0, filteredSlash.length - 1));
 
     const applySlash = useCallback(
         (type: RepertoireBlock["type"]) => {
@@ -214,6 +231,44 @@ function BlockItem({
         [block.id, onChange]
     );
 
+    const handlePaste = useCallback(
+        (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+            const rawText = e.clipboardData.getData("text");
+            const pastedText = rawText.trim();
+            if (!pastedText) return;
+
+            let isUrl = false;
+            try {
+                const u = new URL(pastedText);
+                if (u.protocol === "http:" || u.protocol === "https:") {
+                    isUrl = true;
+                }
+            } catch { }
+
+            if (isUrl) {
+                const start = e.currentTarget.selectionStart;
+                const end = e.currentTarget.selectionEnd;
+
+                // If text is selected, wrap selected text as markdown link [selectedText](pastedUrl)
+                if (start !== null && end !== null && start !== end) {
+                    e.preventDefault();
+                    const selectedText = blockText.slice(start, end);
+                    const newText = blockText.slice(0, start) + `[${selectedText}](${pastedText})` + blockText.slice(end);
+                    onChange(block.id, { text: newText });
+                    setSelection(null);
+
+                    const newCursorPos = start + selectedText.length + pastedText.length + 4;
+                    requestAnimationFrame(() => {
+                        if (taRef.current) {
+                            taRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                        }
+                    });
+                }
+            }
+        },
+        [block.id, blockText, onChange, setSelection]
+    );
+
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
             const ta = e.currentTarget;
@@ -222,7 +277,11 @@ function BlockItem({
             if (slashOpenRef.current) {
                 if (e.key === "ArrowDown") { e.preventDefault(); setSlashHighlight((h) => Math.min(h + 1, filteredSlash.length - 1)); return; }
                 if (e.key === "ArrowUp") { e.preventDefault(); setSlashHighlight((h) => Math.max(h - 1, 0)); return; }
-                if (e.key === "Enter") { e.preventDefault(); if (filteredSlash[slashHighlight]) applySlash(filteredSlash[slashHighlight].type); return; }
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (filteredSlash[safeSlashHighlight]) applySlash(filteredSlash[safeSlashHighlight].type);
+                    return;
+                }
                 if (e.key === "Escape") { e.preventDefault(); setSlashOpen(false); slashOpenRef.current = false; setSlashFilter(""); return; }
                 if (e.key === "Backspace" && ta.value === "/") { setSlashOpen(false); slashOpenRef.current = false; setSlashFilter(""); }
             }
@@ -242,13 +301,41 @@ function BlockItem({
                 }
             }
 
-            // ── Enter: new block below ──
+            // ── Enter key handling ──
             if (e.key === "Enter") {
-                if (block.type === "text" && !e.shiftKey) return; // allow newlines in text blocks
+                setSelection(null);
+                setTurnIntoOpen(false);
+
+                if (block.type === "text") {
+                    if (e.shiftKey) {
+                        return;
+                    }
+
+                    e.preventDefault();
+                    const start = ta.selectionStart;
+                    const textBefore = blockText.slice(0, start);
+                    const textAfter = blockText.slice(start);
+
+                    if (textAfter) {
+                        onChange(block.id, { text: textBefore });
+                        onInsertBelow(block.id, "text", textAfter);
+                    } else {
+                        onInsertBelow(block.id, "text", "");
+                    }
+                    return;
+                }
+
+                // Headings / Lists / Todos / Dividers
                 e.preventDefault();
+
+                if (["bullet", "number", "todo"].includes(block.type) && blockText.trim() === "") {
+                    onChange(block.id, { type: "text" });
+                    return;
+                }
+
                 const newType: RepertoireBlock["type"] =
                     block.type === "heading1" || block.type === "heading2" ? "text" : block.type;
-                onInsertBelow(block.id, newType);
+                onInsertBelow(block.id, newType, "");
                 return;
             }
 
@@ -277,7 +364,7 @@ function BlockItem({
                 onFocusNext(block.id);
             }
         },
-        [block.id, block.type, filteredSlash, slashHighlight, applySlash, onChange, onDelete, onInsertBelow, onFocusPrev, onFocusNext]
+        [block.id, block.type, filteredSlash, safeSlashHighlight, applySlash, onChange, onDelete, onInsertBelow, onFocusPrev, onFocusNext]
     );
 
     const taBase =
@@ -293,10 +380,7 @@ function BlockItem({
             )}
 
             {/* Left hover bar */}
-            <div className={cn(
-                "absolute top-1 flex items-center gap-0.5 opacity-0 group-hover/block:opacity-100 transition-opacity z-10 pr-1",
-                isRenderedYouTube ? "-left-8 -translate-x-full" : "left-0 -translate-x-full"
-            )}>
+            <div className="absolute -left-14 sm:-left-16 top-1 flex items-center gap-0.5 opacity-0 group-hover/block:opacity-100 transition-opacity z-10">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
@@ -327,18 +411,6 @@ function BlockItem({
                 </DropdownMenu>
             </div>
 
-            {/* Delete button — shown on hover, inside the block boundary */}
-            {block.type !== "youtube" && (
-                <button
-                    type="button"
-                    onClick={() => onDelete(block.id)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/block:opacity-100 transition-opacity text-muted-foreground/40 hover:text-destructive z-10"
-                    tabIndex={-1}
-                >
-                    <span className="material-icons text-base">close</span>
-                </button>
-            )}
-
             {/* Divider */}
             {block.type === "divider" ? (
                 <div className="flex items-center py-3">
@@ -347,7 +419,7 @@ function BlockItem({
 
             ) : block.type === "youtube" ? (
                 /* YouTube */
-                <div className="-ml-8 -mr-2">
+                <div className="my-2">
                     {extractYouTubeId(blockText) ? (
                         <div className="relative">
                             <div className="relative w-full aspect-video">
@@ -356,7 +428,7 @@ function BlockItem({
                                     title="YouTube video"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
-                                    className="absolute top-0 left-0 w-full h-full border-0"
+                                    className="absolute top-0 left-0 w-full h-full border-0 rounded-xl"
                                 />
                             </div>
                             {/* Three-dot menu — top-right corner */}
@@ -388,14 +460,21 @@ function BlockItem({
                         <input
                             ref={ytInputRef}
                             type="url"
+                            autoFocus
                             value={blockText}
-                            onChange={(e) => onChange(block.id, { text: e.target.value })}
+                            onChange={(e) => onChange(block.id, { text: e.target.value.trim() })}
+                            onPaste={(e) => {
+                                const pastedText = e.clipboardData.getData("text").trim();
+                                if (pastedText) {
+                                    onChange(block.id, { text: pastedText });
+                                }
+                            }}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") e.preventDefault();
                                 if (e.key === "Backspace" && blockText === "") { e.preventDefault(); onDelete(block.id); onFocusPrev(block.id); }
                             }}
                             placeholder="Paste YouTube URL..."
-                            className="w-full bg-transparent border border-border/50 rounded px-3 py-2 text-sm outline-none focus:border-primary placeholder:text-muted-foreground/50"
+                            className="w-full bg-transparent border border-border/50 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary placeholder:text-muted-foreground/50"
                         />
                     )}
                 </div>
@@ -429,14 +508,18 @@ function BlockItem({
                                     value={blockText}
                                     rows={1}
                                     onChange={handleChange}
+                                    onPaste={handlePaste}
                                     onKeyDown={handleKeyDown}
                                     onSelect={handleSelect}
                                     onMouseUp={handleSelect}
                                     onBlur={() => {
-                                        if (!linkPopoverOpenRef.current) {
-                                            setSelection(null);
-                                            setEditing(false);
-                                        }
+                                        setTimeout(() => {
+                                            if (!linkPopoverOpenRef.current && !isToolbarInteractingRef.current) {
+                                                setSelection(null);
+                                                setEditing(false);
+                                            }
+                                            isToolbarInteractingRef.current = false;
+                                        }, 150);
                                     }}
                                     placeholder={
                                         block.type === "heading1" ? "Heading 1" :
@@ -466,7 +549,7 @@ function BlockItem({
                                                     onMouseDown={(e) => { e.preventDefault(); applySlash(opt.type); }}
                                                     className={cn(
                                                         "w-full flex items-center gap-2 px-3 py-2 text-sm rounded text-left",
-                                                        i === slashHighlight ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
+                                                        i === safeSlashHighlight ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
                                                     )}
                                                 >
                                                     <span className="w-5 text-center font-semibold text-muted-foreground text-xs">{opt.icon}</span>
@@ -478,11 +561,14 @@ function BlockItem({
                                 )}
 
                                 {/* Inline formatting toolbar */}
-                                <input ref={toolbarAnchorRef} className="pointer-events-none absolute w-0 h-0 opacity-0 overflow-hidden" tabIndex={-1} aria-hidden="true" />
+                                <input ref={toolbarAnchorRef} className="pointer-events-none fixed opacity-0 w-0 h-0" tabIndex={-1} aria-hidden />
                                 <InlineToolbar
                                     anchorRef={toolbarAnchorRef}
                                     visible={!!selection && !slashOpen && !linkPopoverOpen}
                                     selectedText={selection ? blockText.slice(selection.start, selection.end) : ""}
+                                    currentBlockType={block.type as any}
+                                    turnIntoOpen={turnIntoOpen}
+                                    onTurnIntoOpenChange={setTurnIntoOpen}
                                     onFormat={(action) => {
                                         if (action === "link") {
                                             linkPopoverOpenRef.current = true;
@@ -495,7 +581,14 @@ function BlockItem({
                                         linkPopoverOpenRef.current = true;
                                         setLinkPopoverOpen(true);
                                     }}
-                                    onToolbarInteraction={() => { }}
+                                    onConvertType={(type) => {
+                                        if (type !== "segment") {
+                                            onChange(block.id, { type });
+                                        }
+                                    }}
+                                    onToolbarInteraction={() => {
+                                        isToolbarInteractingRef.current = true;
+                                    }}
                                 />
                                 <LinkPopover
                                     open={linkPopoverOpen}
@@ -530,15 +623,7 @@ function BlockItem({
                             >
                                 {blockText ? (
                                     <TextWithLinks text={blockText} />
-                                ) : (
-                                    <span className="select-none">
-                                        {block.type === "heading1" ? "Heading 1" :
-                                            block.type === "heading2" ? "Heading 2" :
-                                                block.type === "bullet" ? "List item" :
-                                                    block.type === "todo" ? "To-do item" :
-                                                        "Type '/' for blocks..."}
-                                    </span>
-                                )}
+                                ) : null}
                             </div>
                         )}
                     </div>
@@ -573,11 +658,11 @@ export function RepertoireEditor({ blocks: rawBlocks, onChange }: RepertoireEdit
     );
 
     const insertBlock = useCallback(
-        (afterId: string | null, type: RepertoireBlock["type"]) => {
+        (afterId: string | null, type: RepertoireBlock["type"], initialText: string = "") => {
             const newBlock: RepertoireBlock = {
                 id: generateId(),
                 type,
-                text: "",
+                text: initialText,
                 checked: type === "todo" ? false : undefined,
             };
             if (!afterId) {
@@ -610,7 +695,7 @@ export function RepertoireEditor({ blocks: rawBlocks, onChange }: RepertoireEdit
     );
 
     return (
-        <div className="pl-8">
+        <div className="pl-14 sm:pl-16">
             {blocks.map((block, i) => (
                 <BlockItem
                     key={block.id}

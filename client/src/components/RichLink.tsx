@@ -56,7 +56,24 @@ async function fetchMetadata(url: string, fetchOpts?: { cache?: RequestCache }):
     return res.json();
 }
 
+export function YouTubeIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
+    return (
+        <svg className={cn("w-4 h-4 shrink-0", className)} viewBox="0 0 24 24">
+            <path
+                fill="#FF0000"
+                d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"
+            />
+            <path
+                fill="#FFFFFF"
+                d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z"
+            />
+        </svg>
+    );
+}
+
 export function RichLink({ url, eagerPreview }: RichLinkProps) {
+    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+
     const { data: metadata, isLoading, isError } = useQuery({
         queryKey: ['metadata', url],
         queryFn: () =>
@@ -67,6 +84,30 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
         refetchOnMount: eagerPreview ? "always" : true,
     });
+
+    if (isYouTube) {
+        return (
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1 rounded-xl shrink-0",
+                    "bg-slate-900/80 dark:bg-slate-900/90 border border-black/10 dark:border-white/10",
+                    "hover:bg-slate-800/90 hover:border-white/20",
+                    "transition-all no-underline text-foreground align-middle my-0.5",
+                    "-ml-1.5"
+                )}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+            >
+                <YouTubeIcon className="w-4 h-4 shrink-0" />
+                <span className="text-sm font-medium leading-tight whitespace-nowrap text-foreground">
+                    {metadata?.title || url}
+                </span>
+            </a>
+        );
+    }
 
     if (isLoading) {
         return (
