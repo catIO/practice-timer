@@ -46,7 +46,36 @@ export default function PracticeLog() {
     const planItems = getPracticePlan();
     const range = selectedWeek === 'this' ? getThisWeekRange(weekStartsOn) : getLastWeekRange(weekStartsOn);
     const summaries = getPieceTimeForRange(range.start, range.end, planItems);
-    summaries.sort((a, b) => b.seconds - a.seconds);
+    
+    summaries.sort((a, b) => {
+      const getPercent = (item: PieceTimeSummary) => {
+        if (!item.allocatedTime) return null;
+        const isWeekly = item.allocationPeriod === 'week';
+        const targetMins = isWeekly ? item.allocatedTime : item.allocatedTime * 7;
+        if (targetMins <= 0) return null;
+        const practicedMins = Math.round(item.seconds / 60);
+        return (practicedMins / targetMins) * 100;
+      };
+
+      const percentA = getPercent(a);
+      const percentB = getPercent(b);
+
+      if (percentA !== null && percentB !== null) {
+        if (percentA !== percentB) {
+          return percentA - percentB; // Lowest completion % first (needs practice most)
+        }
+        // Secondary tiebreaker: larger target mins first
+        const targetA = a.allocationPeriod === 'week' ? a.allocatedTime! : a.allocatedTime! * 7;
+        const targetB = b.allocationPeriod === 'week' ? b.allocatedTime! : b.allocatedTime! * 7;
+        return targetB - targetA;
+      }
+
+      if (percentA !== null) return -1;
+      if (percentB !== null) return 1;
+
+      return b.seconds - a.seconds;
+    });
+
     setPieceSummaries(summaries);
   }, [selectedWeek, weekStartsOn, timeRemaining]);
 
