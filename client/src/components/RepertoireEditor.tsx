@@ -246,18 +246,28 @@ function BlockItem({
             } catch { }
 
             if (isUrl) {
-                const start = e.currentTarget.selectionStart;
-                const end = e.currentTarget.selectionEnd;
+                e.preventDefault();
+                const start = e.currentTarget.selectionStart ?? blockText.length;
+                const end = e.currentTarget.selectionEnd ?? blockText.length;
 
-                // If text is selected, wrap selected text as markdown link [selectedText](pastedUrl)
-                if (start !== null && end !== null && start !== end) {
-                    e.preventDefault();
+                if (start !== end) {
                     const selectedText = blockText.slice(start, end);
                     const newText = blockText.slice(0, start) + `[${selectedText}](${pastedText})` + blockText.slice(end);
                     onChange(block.id, { text: newText });
                     setSelection(null);
 
                     const newCursorPos = start + selectedText.length + pastedText.length + 4;
+                    requestAnimationFrame(() => {
+                        if (taRef.current) {
+                            taRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                        }
+                    });
+                } else {
+                    const newText = blockText.slice(0, start) + `[${pastedText}](${pastedText})` + blockText.slice(end);
+                    onChange(block.id, { text: newText });
+                    setSelection(null);
+
+                    const newCursorPos = start + (pastedText.length * 2) + 4;
                     requestAnimationFrame(() => {
                         if (taRef.current) {
                             taRef.current.setSelectionRange(newCursorPos, newCursorPos);

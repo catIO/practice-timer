@@ -217,11 +217,19 @@ function headingLevel(blockType?: BlockType): 1 | 2 | 3 {
 }
 
 function parseSegmentLink(text: string): { label: string; url: string; hasLink: boolean } {
-  const match = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(text.trim());
+  const trimmed = text.trim();
+  const match = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(trimmed);
   if (match) {
     return {
       label: match[1],
       url: match[2],
+      hasLink: true,
+    };
+  }
+  if (/^https?:\/\/[^\s]+$/.test(trimmed)) {
+    return {
+      label: trimmed,
+      url: trimmed,
       hasLink: true,
     };
   }
@@ -425,6 +433,8 @@ function PlanItem({
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // isLinkPopoverOpenRef is provided by useTextSelection hook above
+  const isVideoPopoverOpenRef = useRef(false);
+  const [videoPopoverAnchor, setVideoPopoverAnchor] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -1121,6 +1131,7 @@ function PlanItem({
                   // If focus stayed inside the form, don't save yet.
                   if (segmentFormRef.current?.contains(e.relatedTarget as Node)) return;
                   if (isLinkPopoverOpenRef.current) return;
+                  if (isVideoPopoverOpenRef.current) return;
                   if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                   // 200ms gives native elements (select, link popover) time to settle focus
                   saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; closeSegment(); }, 200);
@@ -1171,18 +1182,27 @@ function PlanItem({
                       } catch { }
 
                       if (isUrl) {
+                        e.preventDefault();
                         const start = e.currentTarget.selectionStart;
                         const end = e.currentTarget.selectionEnd;
                         if (start !== null && end !== null && start !== end) {
-                          e.preventDefault();
+                          // Text is selected -> wrap selected text with link
+                          const selectedText = editValue.slice(start, end);
+                          setEditValue(selectedText);
                           setSegmentLinkUrl(pastedText);
                           setHasSegmentLink(true);
-                          setToolbarSelection(null);
+                        } else {
+                          // No text selected -> if editValue has content use it as label, else use pasted url as label
+                          const currentLabel = editValue.trim() || pastedText;
+                          setEditValue(currentLabel);
+                          setSegmentLinkUrl(pastedText);
+                          setHasSegmentLink(true);
                         }
+                        setToolbarSelection(null);
                       }
                     }}
                     placeholder="Segment name..."
-                    className="flex-1 h-7 text-sm font-semibold border-none shadow-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="flex-1 h-7 text-base font-semibold border-none shadow-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     autoFocus
                   />
                   {/* Link icon — always visible; click opens LinkPopover to add/edit */}
@@ -1221,6 +1241,42 @@ function PlanItem({
                       <span className="material-icons text-sm">close</span>
                     </Button>
                   )}
+
+                  {/* Video link icon — always visible; click opens LinkPopover to add/edit video URL */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-7 w-7 shrink-0 ml-0.5",
+                      segmentVideoUrlValue ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title={segmentVideoUrlValue ? "Edit video link" : "Add video link"}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      isVideoPopoverOpenRef.current = true;
+                      setVideoPopoverAnchor(e.currentTarget);
+                    }}
+                  >
+                    <span className="material-icons text-base">videocam</span>
+                  </Button>
+                  {segmentVideoUrlValue && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      title="Remove video link"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSegmentVideoUrlValue("");
+                      }}
+                    >
+                      <span className="material-icons text-sm">close</span>
+                    </Button>
+                  )}
                 </div>
                 <div className="pl-6 space-y-1.5">
                   <textarea
@@ -1232,42 +1288,39 @@ function PlanItem({
                       e.target.style.height = 'auto';
                       e.target.style.height = `${e.target.scrollHeight}px`;
                     }}
+                    onPaste={(e) => {
+                      const rawText = e.clipboardData.getData("text");
+                      const pastedText = rawText.trim();
+                      let isUrl = false;
+                      try {
+                        const url = new URL(pastedText);
+                        if (url.protocol === "http:" || url.protocol === "https:") {
+                          isUrl = true;
+                        }
+                      } catch { }
+
+                      if (isUrl) {
+                        e.preventDefault();
+                        const start = e.currentTarget.selectionStart ?? segmentGoalValue.length;
+                        const end = e.currentTarget.selectionEnd ?? segmentGoalValue.length;
+                        if (start !== end) {
+                          const selectedText = segmentGoalValue.slice(start, end);
+                          const newText = segmentGoalValue.slice(0, start) + `[${selectedText}](${pastedText})` + segmentGoalValue.slice(end);
+                          setSegmentGoalValue(newText);
+                        } else {
+                          const newText = segmentGoalValue.slice(0, start) + `[${pastedText}](${pastedText})` + segmentGoalValue.slice(end);
+                          setSegmentGoalValue(newText);
+                        }
+                      }
+                    }}
                     onBlur={undefined}
                     onKeyDown={(e) => {
                       if (e.key === 'Escape') { setEditing(false); requestAnimationFrame(() => rowRef.current?.focus()); }
                     }}
                     placeholder="Goal — what do you want to achieve?"
                     rows={1}
-                    className="w-full text-xs bg-transparent border-none outline-none text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none resize-none overflow-hidden"
+                    className="w-full text-sm bg-transparent border-none outline-none text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none resize-none overflow-hidden"
                   />
-                  <div className="flex items-center gap-2">
-                    <span className="material-icons text-muted-foreground text-sm shrink-0">videocam</span>
-                    <Input
-                      type="url"
-                      value={segmentVideoUrlValue}
-                      onBlur={undefined}
-                      onChange={(e) => setSegmentVideoUrlValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); closeSegment(); } }}
-                      placeholder="Practice video link (e.g. YouTube, Vimeo...)"
-                      className="flex-1 h-7 text-xs"
-                    />
-                    {segmentVideoUrlValue && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                        title="Remove video link"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSegmentVideoUrlValue("");
-                        }}
-                      >
-                        <span className="material-icons text-sm">close</span>
-                      </Button>
-                    )}
-                  </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Input
                       type="number"
@@ -1277,13 +1330,13 @@ function PlanItem({
                       onChange={(e) => setSegmentDurationValue(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); closeSegment(); } }}
                       placeholder="Min"
-                      className="w-20 h-7 text-xs"
+                      className="w-20 h-7 text-sm"
                     />
-                    <span className="text-xs text-muted-foreground">min /</span>
+                    <span className="text-sm text-muted-foreground">min /</span>
                     <select
                       value={segmentPeriodValue}
                       onChange={(e) => setSegmentPeriodValue(e.target.value as 'day' | 'week')}
-                      className="h-7 text-xs bg-background border border-input rounded px-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="h-7 text-sm bg-background border border-input rounded px-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="day">day</option>
                       <option value="week">week</option>
@@ -1299,7 +1352,7 @@ function PlanItem({
                             setEditValue(piece.title);
                           }
                         }}
-                        className="h-7 text-xs bg-background border border-input rounded px-1.5 max-w-[180px] truncate focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="h-7 text-sm bg-background border border-input rounded px-1.5 max-w-[180px] truncate focus:outline-none focus:ring-1 focus:ring-ring"
                       >
                         <option value="">No linked piece</option>
                         {repertoirePieces.map((p) => (
@@ -1327,7 +1380,7 @@ function PlanItem({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      className="h-7 px-2 text-sm text-muted-foreground hover:text-foreground"
                       onMouseDown={(e) => { e.preventDefault(); closeSegment(); }}
                     >
                       Done
@@ -1379,7 +1432,7 @@ function PlanItem({
                   {/* Title & Links */}
                   <div className="flex-1 min-w-0 pr-1">
                     <h4 className={cn(
-                      "font-semibold text-sm leading-tight text-foreground break-words flex items-center flex-wrap gap-1.5",
+                      "font-semibold text-base leading-tight text-foreground break-words flex items-center flex-wrap gap-1.5",
                       item.checked && "text-muted-foreground"
                     )}>
                       {item.text ? (
@@ -1492,7 +1545,13 @@ function PlanItem({
                 {/* Segment Goal Supporting Text */}
                 {item.segmentGoal && (
                   <div className="pt-1 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap" style={{ paddingLeft: '1.85rem' }}>
-                    {item.segmentGoal}
+                    <TextWithLinks
+                      text={item.segmentGoal}
+                      linkVariant="inline"
+                      onEditLink={handleEditLink}
+                      onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
+                      onRemoveLink={handleRemoveLink}
+                    />
                   </div>
                 )}
 
@@ -1671,11 +1730,10 @@ function PlanItem({
                     }
 
                     if (isUrl) {
-                      // Check if we have a selection
-                      const start = e.currentTarget.selectionStart;
-                      const end = e.currentTarget.selectionEnd;
-                      if (start !== null && end !== null && start !== end) {
-                        e.preventDefault();
+                      e.preventDefault();
+                      const start = e.currentTarget.selectionStart ?? editValue.length;
+                      const end = e.currentTarget.selectionEnd ?? editValue.length;
+                      if (start !== end) {
                         const selectedText = editValue.slice(start, end);
                         const newText = editValue.slice(0, start) + `[${selectedText}](${pastedText})` + editValue.slice(end);
                         setEditValue(newText);
@@ -1683,6 +1741,17 @@ function PlanItem({
 
                         // Restore cursor after the link
                         const newCursorPos = start + selectedText.length + pastedText.length + 4; // [ + ] + ( + )
+                        requestAnimationFrame(() => {
+                          if (inputRef.current) {
+                            inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                          }
+                        });
+                      } else {
+                        const newText = editValue.slice(0, start) + `[${pastedText}](${pastedText})` + editValue.slice(end);
+                        setEditValue(newText);
+                        onUpdateText(item.id, newText);
+
+                        const newCursorPos = start + (pastedText.length * 2) + 4;
                         requestAnimationFrame(() => {
                           if (inputRef.current) {
                             inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
@@ -1874,6 +1943,40 @@ function PlanItem({
                 }
                 : undefined
             }
+          />
+          <LinkPopover
+            open={!!videoPopoverAnchor}
+            onOpenChange={(open) => {
+              if (!open) {
+                isVideoPopoverOpenRef.current = false;
+                setVideoPopoverAnchor(null);
+
+                const activeEl = document.activeElement;
+                const isInside = segmentFormRef.current?.contains(activeEl) || activeEl === inputRef.current;
+                if (isInside) return;
+                saveSegment();
+              }
+            }}
+            anchor={videoPopoverAnchor}
+            selectedText={editValue || "Practice Video"}
+            initialUrl={segmentVideoUrlValue}
+            onConfirm={(url) => {
+              isVideoPopoverOpenRef.current = false;
+              setSegmentVideoUrlValue(url);
+              setVideoPopoverAnchor(null);
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
+            onCancel={() => {
+              isVideoPopoverOpenRef.current = false;
+              setVideoPopoverAnchor(null);
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
+            onRemove={() => {
+              isVideoPopoverOpenRef.current = false;
+              setSegmentVideoUrlValue("");
+              setVideoPopoverAnchor(null);
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
           />
         </>
       )}

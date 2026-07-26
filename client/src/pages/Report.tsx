@@ -184,7 +184,9 @@ function ReportItem({
             </div>
           </div>
           {item.segmentGoal && (
-            <p className="text-sm text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
+            <p className="text-sm text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">
+              <TextWithLinks text={item.segmentGoal} richLinkVariant="report" linkVariant="inline" />
+            </p>
           )}
           {(linkedPiece || item.videoUrl) && (
             <div className="pl-7 pt-1 flex items-center gap-1.5 flex-wrap">

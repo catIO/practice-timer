@@ -86,6 +86,8 @@ interface TextWithLinksProps {
   onRemoveLink?: (start: number, end: number) => void;
   /** Progress report: fetch link previews aggressively (avoids stale SW / React Query edge cases). */
   richLinkVariant?: "default" | "report";
+  /** Control link visual style: default (cards/pills for standalone URLs) or inline (underlined text with external icon). */
+  linkVariant?: "default" | "inline";
 }
 
 
@@ -93,7 +95,7 @@ interface TextWithLinksProps {
  * Renders text with:
  * - Markdown links [text](url) as clickable links
  * - Shortcode pills [NEW], [!], [TODO], etc.
- * - Plain URLs (http/https) as RichLink cards
+ * - Plain URLs (http/https) as RichLink cards (or inline links if linkVariant="inline")
  * - **bold** and *italic*
  * - Optional: edit chip on link hover when onEditLink provided
  */
@@ -103,6 +105,7 @@ export function TextWithLinks({
   onRemoveLink,
   onUpdateLink,
   richLinkVariant = "default",
+  linkVariant = "default",
 }: TextWithLinksProps) {
   const parts: Array<TextPart> = [];
   let lastIndex = 0;
@@ -142,6 +145,7 @@ export function TextWithLinks({
               onRemoveLink={onRemoveLink}
               rich={part.text === part.url && isUrlOnlyBlock}
               eagerRichPreview={richLinkVariant === "report"}
+              linkVariant={linkVariant}
             />
           );
         }
@@ -169,6 +173,7 @@ function LinkWithPreview({
   onRemoveLink,
   rich,
   eagerRichPreview,
+  linkVariant = "default",
 }: {
   part: LinkPart;
   onEditLink?: (linkText: string, linkUrl: string, start: number, end: number, anchor: HTMLElement | null) => void;
@@ -176,6 +181,7 @@ function LinkWithPreview({
   onRemoveLink?: (start: number, end: number) => void;
   rich?: boolean;
   eagerRichPreview?: boolean;
+  linkVariant?: "default" | "inline";
 }) {
   const [copied, setCopied] = useState(false);
   const [editingUrl, setEditingUrl] = useState(false);
@@ -222,7 +228,19 @@ function LinkWithPreview({
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
         <span ref={linkRef} className="cursor-pointer">
-          {isYouTube ? (
+          {linkVariant === "inline" ? (
+            <a
+              href={part.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-medium break-all no-underline"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <span className="underline underline-offset-2">{renderFormatted(part.text, `link-${part.start}`)}</span>
+              <span className="material-icons text-[13px] no-underline opacity-80 shrink-0 select-none">open_in_new</span>
+            </a>
+          ) : isYouTube ? (
             part.text === part.url ? (
               <RichLink url={part.url} eagerPreview={eagerRichPreview} />
             ) : (
