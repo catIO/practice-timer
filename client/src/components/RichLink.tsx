@@ -71,6 +71,8 @@ export function YouTubeIcon({ className = "w-4 h-4 shrink-0" }: { className?: st
     );
 }
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 export function RichLink({ url, eagerPreview }: RichLinkProps) {
     const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
 
@@ -85,88 +87,78 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
         refetchOnMount: eagerPreview ? "always" : true,
     });
 
-    if (isYouTube) {
-        return (
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                    "inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full",
-                    "text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20",
-                    "transition-colors no-underline select-none shrink-0"
-                )}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-            >
-                <YouTubeIcon className="w-3.5 h-3.5 shrink-0" />
-                <span className="max-w-[180px] sm:max-w-[220px] truncate">
-                    {metadata?.title || url}
-                </span>
-            </a>
-        );
-    }
+    const titleText = metadata?.title || url;
 
-    if (isLoading) {
+    if (isLoading || isError || !metadata) {
         return (
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20 transition-colors no-underline select-none shrink-0"
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-            >
-                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
-                <span className="max-w-[180px] sm:max-w-[220px] truncate">{url}</span>
-            </a>
-        );
-    }
-
-    if (isError || !metadata) {
-        return (
-            <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20 transition-colors no-underline select-none shrink-0"
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-            >
-                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
-                <span className="max-w-[180px] sm:max-w-[220px] truncate">{url}</span>
-            </a>
+            <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={url}
+                            className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20 transition-colors no-underline select-none shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            {isYouTube ? (
+                                <YouTubeIcon className="w-3.5 h-3.5 shrink-0" />
+                            ) : (
+                                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
+                            )}
+                            <span className="max-w-[180px] sm:max-w-[220px] truncate">{url}</span>
+                        </a>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs sm:max-w-sm text-xs font-medium leading-relaxed bg-popover text-popover-foreground border border-border shadow-md">
+                        {url}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
         );
     }
 
     return (
-        <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-                "inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full",
-                "text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20",
-                "transition-colors no-underline select-none shrink-0"
-            )}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-        >
-            {metadata.icon ? (
-                <img
-                    src={metadata.icon}
-                    alt=""
-                    className="w-3.5 h-3.5 object-contain shrink-0 rounded-sm"
-                    onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                    }}
-                />
-            ) : (
-                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
-            )}
-            <span className="max-w-[180px] sm:max-w-[220px] truncate">
-                {metadata.title || url}
-            </span>
-        </a>
+        <TooltipProvider delayDuration={300}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={titleText}
+                        className={cn(
+                            "inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full",
+                            "text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20",
+                            "transition-colors no-underline select-none shrink-0"
+                        )}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        {isYouTube ? (
+                            <YouTubeIcon className="w-3.5 h-3.5 shrink-0" />
+                        ) : metadata.icon ? (
+                            <img
+                                src={metadata.icon}
+                                alt=""
+                                className="w-3.5 h-3.5 object-contain shrink-0 rounded-sm"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                }}
+                            />
+                        ) : (
+                            <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
+                        )}
+                        <span className="max-w-[180px] sm:max-w-[220px] truncate">
+                            {titleText}
+                        </span>
+                    </a>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs sm:max-w-sm text-xs font-medium leading-relaxed bg-popover text-popover-foreground border border-border shadow-md">
+                    {titleText}
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
     );
 }

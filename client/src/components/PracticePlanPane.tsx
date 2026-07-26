@@ -1491,7 +1491,7 @@ function PlanItem({
 
                 {/* Segment Goal Supporting Text */}
                 {item.segmentGoal && (
-                  <div className="pt-1 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap" style={{ paddingLeft: '1.85rem' }}>
+                  <div className="pt-1 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap" style={{ paddingLeft: '1.85rem' }}>
                     {item.segmentGoal}
                   </div>
                 )}
@@ -1503,6 +1503,7 @@ function PlanItem({
                       <>
                         <Link
                           to={`/repertoire/${linkedPiece.id}`}
+                          title={linkedPiece.title}
                           className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs text-primary bg-primary/10 border border-primary/25 rounded-full font-medium transition-colors hover:bg-primary/20 select-none"
                           onClick={(e) => e.stopPropagation()}
                         >

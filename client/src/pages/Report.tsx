@@ -74,8 +74,8 @@ function ReportItem({
       item.blockType === "heading1"
         ? "text-xl sm:text-2xl font-semibold tracking-tight"
         : item.blockType === "heading2"
-          ? "text-lg sm:text-xl font-semibold"
-          : "text-base sm:text-lg font-semibold";
+          ? "text-lg font-semibold"
+          : "text-base font-semibold";
     return (
       <>
         <Tag
@@ -145,10 +145,7 @@ function ReportItem({
               >
                 timer
               </span>
-              <span
-                style={{ fontWeight: 600, fontSize: "0.875rem" }}
-                className="truncate flex items-center gap-2 text-foreground"
-              >
+              <span className="text-base font-semibold truncate flex items-center gap-2 text-foreground">
                 {item.text ? (
                   <TextWithLinks text={item.text} />
                 ) : (
@@ -187,7 +184,7 @@ function ReportItem({
             </div>
           </div>
           {item.segmentGoal && (
-            <p className="text-xs text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
+            <p className="text-sm text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
           )}
           {(linkedPiece || item.videoUrl) && (
             <div className="pl-7 pt-1 flex items-center gap-1.5 flex-wrap">
@@ -195,6 +192,7 @@ function ReportItem({
                 <>
                   <Link
                     to={linkUrl}
+                    title={linkedPiece.title}
                     className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20 select-none"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -481,7 +479,7 @@ export default function Report() {
     <div className="space-y-6 text-foreground">
       <header className="border-b border-white/10 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             {snapshot.title ?? "Practice Report"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">{dateLabel}</p>
