@@ -159,32 +159,6 @@ function ReportItem({
                     Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
                   </span>
                 )}
-                {linkedPiece && (
-                  <span className="inline-flex items-center gap-1 select-none">
-                    <Link
-                      to={linkUrl}
-                      className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="material-icons text-[11px] shrink-0 select-none">music_note</span>
-                      <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
-                    </Link>
-                    {linkedPiece.score_url && (
-                      <ScoreUrlTooltip url={linkedPiece.score_url}>
-                        <a
-                          href={linkedPiece.score_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 rounded-full shrink-0 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span className="material-icons text-[11px] shrink-0 select-none">description</span>
-                          <span>Open Score</span>
-                        </a>
-                      </ScoreUrlTooltip>
-                    )}
-                  </span>
-                )}
               </span>
             </div>
             <div className="flex items-center gap-2 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
@@ -215,13 +189,35 @@ function ReportItem({
           {item.segmentGoal && (
             <p className="text-xs text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
           )}
-          {item.videoUrl && (
+          {(linkedPiece || item.videoUrl) && (
             <div className="pl-7 pt-1 flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                <span className="material-icons text-xs text-muted-foreground select-none">videocam</span>
-                Video:
-              </span>
-              <RichLink url={item.videoUrl} eagerPreview />
+              {linkedPiece && (
+                <>
+                  <Link
+                    to={linkUrl}
+                    className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20 select-none"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="material-icons text-[11px] shrink-0 select-none">music_note</span>
+                    <span className="max-w-[140px] truncate">{linkedPiece.title}</span>
+                  </Link>
+                  {linkedPiece.score_url && (
+                    <ScoreUrlTooltip url={linkedPiece.score_url}>
+                      <a
+                        href={linkedPiece.score_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 rounded-full shrink-0 transition-colors select-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="material-icons text-[11px] shrink-0 select-none">description</span>
+                        <span>Open Score</span>
+                      </a>
+                    </ScoreUrlTooltip>
+                  )}
+                </>
+              )}
+              {item.videoUrl && <RichLink url={item.videoUrl} eagerPreview />}
             </div>
           )}
         </div>

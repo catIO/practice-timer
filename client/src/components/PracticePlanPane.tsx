@@ -1392,33 +1392,6 @@ function PlanItem({
                       ) : (
                         <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>
                       )}
-
-                      {linkedPiece && (
-                        <span className="inline-flex items-center gap-1 select-none font-sans font-normal normal-case ml-1">
-                          <Link
-                            to={`/repertoire/${linkedPiece.id}`}
-                            className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full font-medium transition-colors hover:bg-primary/20"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="material-icons text-xs shrink-0 select-none">music_note</span>
-                            <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
-                          </Link>
-                          {linkedPiece.score_url && (
-                            <ScoreUrlTooltip url={linkedPiece.score_url}>
-                              <a
-                                href={linkedPiece.score_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border px-1.5 py-0.5 rounded-full font-medium transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <span className="material-icons text-xs shrink-0 select-none">description</span>
-                                <span>Open Score</span>
-                              </a>
-                            </ScoreUrlTooltip>
-                          )}
-                        </span>
-                      )}
                     </h4>
                   </div>
 
@@ -1523,14 +1496,36 @@ function PlanItem({
                   </div>
                 )}
 
-                {/* Practice Video Link */}
-                {item.videoUrl && (
+                {/* Practice Links & Media Resources */}
+                {(linkedPiece || item.videoUrl) && (
                   <div className="pt-1 flex items-center gap-1.5 flex-wrap" style={{ paddingLeft: '1.85rem' }}>
-                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                      <span className="material-icons text-xs text-muted-foreground">videocam</span>
-                      Video:
-                    </span>
-                    <RichLink url={item.videoUrl} />
+                    {linkedPiece && (
+                      <>
+                        <Link
+                          to={`/repertoire/${linkedPiece.id}`}
+                          className="inline-flex items-center gap-1 h-[22px] px-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded-full font-medium transition-colors hover:bg-primary/20 select-none"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="material-icons text-[11px] shrink-0 select-none">music_note</span>
+                          <span className="max-w-[140px] truncate">{linkedPiece.title}</span>
+                        </Link>
+                        {linkedPiece.score_url && (
+                          <ScoreUrlTooltip url={linkedPiece.score_url}>
+                            <a
+                              href={linkedPiece.score_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 h-[22px] px-2 text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border rounded-full font-medium transition-colors select-none"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span className="material-icons text-[11px] shrink-0 select-none">description</span>
+                              <span>Open Score</span>
+                            </a>
+                          </ScoreUrlTooltip>
+                        )}
+                      </>
+                    )}
+                    {item.videoUrl && <RichLink url={item.videoUrl} />}
                   </div>
                 )}
                 
