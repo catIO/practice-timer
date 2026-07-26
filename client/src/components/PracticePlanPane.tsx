@@ -37,6 +37,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ToastAction } from "@/components/ui/toast";
+import {
   type PracticePlanItem,
   type BlockType,
   getPracticePlan,
@@ -2105,6 +2116,7 @@ export function PracticePlanPane({
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; name: string } | null>(null);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [permalinkId, setPermalinkId] = useState<string | null>(() => practicePlanApi.getPermalinkId());
@@ -2366,7 +2378,18 @@ export function PracticePlanPane({
     setFocusRequest({ id, type: actualType === "divider" ? "row" : "edit", cursorPosition: "start" });
   }, [applyChange]);
 
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = useCallback((id: string, force = false) => {
+    const flat = flatList.find((x) => x.id === id);
+    if (!flat) return;
+
+    const isSegmentOrHasContent = flat.item.blockType === "segment" || !!flat.item.text.trim() || (flat.item.children && flat.item.children.length > 0);
+
+    if (!force && isSegmentOrHasContent) {
+      const rawName = stripMarkdownLinks(flat.item.text.trim());
+      setDeleteConfirmItem({ id, name: rawName || "this segment" });
+      return;
+    }
+
     const index = flatList.findIndex((x) => x.id === id);
     let nextFocusId: string | null = null;
     if (index > 0) {
@@ -2375,11 +2398,22 @@ export function PracticePlanPane({
       nextFocusId = flatList[index + 1].id;
     }
 
+    const deletedName = stripMarkdownLinks(flat.item.text.trim()) || "Segment";
+
     applyChange((prev) => practicePlanApi.delete(prev, id));
     if (nextFocusId) {
       setFocusRequest({ id: nextFocusId, type: "row" });
     }
-  }, [flatList, applyChange]);
+
+    toast({
+      title: `Deleted "${deletedName}"`,
+      action: (
+        <ToastAction altText="Undo deletion" onClick={handleUndo}>
+          Undo
+        </ToastAction>
+      ),
+    });
+  }, [flatList, applyChange, handleUndo, toast]);
 
   const handleInsertBlock = useCallback(
     (index: number, blockType: BlockType | "repertoire-piece", initialText?: string) => {
@@ -3009,6 +3043,31 @@ export function PracticePlanPane({
             </DialogContent>
           </Dialog>
 
+          <AlertDialog open={!!deleteConfirmItem} onOpenChange={(open) => { if (!open) setDeleteConfirmItem(null); }}>
+            <AlertDialogContent className="sm:max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete practice segment?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{deleteConfirmItem?.name}"? You can undo this action if needed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => {
+                    if (deleteConfirmItem) {
+                      const targetId = deleteConfirmItem.id;
+                      setDeleteConfirmItem(null);
+                      handleDelete(targetId, true);
+                    }
+                  }}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
     </div>
   );
