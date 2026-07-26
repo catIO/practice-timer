@@ -9,8 +9,19 @@ const injectTimestampPlugin = () => ({
   closeBundle() {
     const swPath = path.resolve(__dirname, 'dist', 'sw.js');
     if (fs.existsSync(swPath)) {
-      const timestamp = Date.now();
-      fs.appendFileSync(swPath, `\n// BUILD_TIMESTAMP: ${timestamp}\n`);
+      try {
+        let swContent = fs.readFileSync(swPath, 'utf8');
+        const timestamp = Date.now();
+        swContent = swContent.replace(
+          /const CACHE_NAME = '([^']+)';/,
+          (match, p1) => `const CACHE_NAME = '${p1}-${timestamp}';`
+        );
+        swContent += `\n// BUILD_TIMESTAMP: ${timestamp}\n`;
+        fs.writeFileSync(swPath, swContent, 'utf8');
+        console.log(`[inject-timestamp-sw] Injected build version into dist/sw.js (timestamp: ${timestamp})`);
+      } catch (e) {
+        console.error('[inject-timestamp-sw] Failed to inject build version:', e);
+      }
     }
   }
 });
