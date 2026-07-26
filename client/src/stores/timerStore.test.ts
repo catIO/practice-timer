@@ -125,4 +125,37 @@ describe('timerStore', () => {
 
         vi.useRealTimers();
     });
+
+    it('skipTimer updates mode and timeRemaining atomically from work to break', async () => {
+        useTimerStore.setState({
+            mode: 'work',
+            timeRemaining: 1500,
+            totalTime: 1500,
+            currentIteration: 1,
+            totalIterations: 4,
+            settings: DEFAULT_SETTINGS,
+            isSkipping: false
+        });
+
+        await useTimerStore.getState().skipTimer();
+
+        const state = useTimerStore.getState();
+        expect(state.mode).toBe('break');
+        expect(state.timeRemaining).toBe(DEFAULT_SETTINGS.breakDuration * 60);
+        expect(state.totalTime).toBe(DEFAULT_SETTINGS.breakDuration * 60);
+    });
+
+    it('startTimer corrects desynchronized mode when timeRemaining exceeds break duration', async () => {
+        useTimerStore.setState({
+            mode: 'break',
+            timeRemaining: 1500, // 25 minutes work duration
+            totalTime: 1500,
+            settings: DEFAULT_SETTINGS
+        });
+
+        await useTimerStore.getState().startTimer();
+
+        const state = useTimerStore.getState();
+        expect(state.mode).toBe('work');
+    });
 });

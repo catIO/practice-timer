@@ -75,6 +75,25 @@ const DEFAULT_WORK_TIME = savedSettings.workDuration * 60;
 // Rehydrate timer progress from localStorage (always restored as paused)
 const savedProgress = getTimerProgress();
 
+// Sanitize savedProgress if it holds a corrupt/desynchronized state (e.g. break mode with work duration timeRemaining)
+let initialMode: 'work' | 'break' = (savedProgress?.mode ?? 'work') as 'work' | 'break';
+let initialTimeRemaining = savedProgress?.timeRemaining ?? DEFAULT_WORK_TIME;
+let initialTotalTime = savedProgress?.totalTime ?? initialTimeRemaining;
+
+if (savedProgress && !savedProgress.isPracticeComplete) {
+  const workSec = savedSettings.workDuration * 60;
+  const breakSec = savedSettings.breakDuration * 60;
+
+  if (initialMode === 'break' && initialTimeRemaining > breakSec) {
+    console.warn('Store rehydrate: Healing desynchronized state (mode break with work duration timeRemaining -> mode set to work)');
+    initialMode = 'work';
+  } else if (initialMode === 'work' && initialTimeRemaining > workSec) {
+    console.warn('Store rehydrate: Healing desynchronized state (work timeRemaining exceeds work duration)');
+    initialTimeRemaining = workSec;
+    initialTotalTime = workSec;
+  }
+}
+
 /** Persist current timer progress snapshot to localStorage */
 function persistProgress(state: {
   timeRemaining: number;
@@ -206,8 +225,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         // so it starts from the right mode/iteration/timeRemaining instead of defaults.
         if (savedProgress && !savedProgress.isPracticeComplete) {
           await sendMessage('UPDATE_MODE', {
-            mode: savedProgress.mode,
-            timeRemaining: savedProgress.timeRemaining,
+            mode: initialMode,
+            timeRemaining: initialTimeRemaining,
             currentIteration: savedProgress.currentIteration,
             totalIterations: savedProgress.totalIterations,
             isRunning: false
@@ -536,8 +555,31 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                 }
               }
 
-              // Stop running state
-              set({ isRunning: false });
+              // Stop running state & transition to completed mode from worker payload
+              const completeTimeRemaining = payload.timeRemaining || (
+                payload.mode === 'work'
+                  ? get().settings.workDuration * 60
+                  : get().settings.breakDuration * 60
+              );
+
+              set({
+                isRunning: false,
+                mode: payload.mode,
+                timeRemaining: completeTimeRemaining,
+                totalTime: completeTimeRemaining,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isSkipping: false
+              });
+
+              persistProgress({
+                timeRemaining: completeTimeRemaining,
+                totalTime: completeTimeRemaining,
+                mode: payload.mode,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isPracticeComplete: get().isPracticeComplete,
+              });
 
               // Trigger completion callback via custom event
               if (typeof window !== 'undefined') {
@@ -545,9 +587,6 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   detail: payload
                 }));
               }
-
-              // Automatically transition to next session phase (break or practice completion)
-              get().skipTimer();
 
               // If a piece segment still has time remaining after the work session
               // ended, activate overtime mode so the user can continue the segment.
@@ -624,10 +663,10 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
   return {
     // Initial state — rehydrate from localStorage if available, otherwise use defaults
-    timeRemaining: savedProgress?.timeRemaining ?? DEFAULT_WORK_TIME,
-    totalTime: savedProgress?.totalTime ?? DEFAULT_WORK_TIME,
+    timeRemaining: initialTimeRemaining,
+    totalTime: initialTotalTime,
     isRunning: false, // always restore as paused
-    mode: (savedProgress?.mode ?? 'work') as 'work' | 'break',
+    mode: initialMode,
     currentIteration: savedProgress?.currentIteration ?? 1,
     totalIterations: savedProgress?.totalIterations ?? savedSettings.iterations,
     isPracticeComplete: savedProgress?.isPracticeComplete ?? false,
@@ -753,9 +792,24 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         return;
       }
 
+      // Defensive check: ensure mode and timeRemaining are consistent before starting worker
+      let effectiveMode = state.mode;
+      const workSec = state.settings.workDuration * 60;
+      const breakSec = state.settings.breakDuration * 60;
+
+      if (state.mode === 'break' && state.timeRemaining > breakSec) {
+        console.warn('Store startTimer: mode was break but timeRemaining exceeds break duration. Correcting mode to work.');
+        effectiveMode = 'work';
+        set({ mode: 'work' });
+      } else if (state.mode === 'work' && state.timeRemaining <= breakSec && breakSec < workSec && state.timeRemaining === breakSec) {
+        console.warn('Store startTimer: mode was work but timeRemaining matches break duration. Correcting mode to break.');
+        effectiveMode = 'break';
+        set({ mode: 'break' });
+      }
+
       console.log('Store: Starting timer with state:', {
         timeRemaining: state.timeRemaining,
-        mode: state.mode,
+        mode: effectiveMode,
         currentIteration: state.currentIteration,
         totalIterations: state.totalIterations,
         workerReady: state.workerReady
@@ -764,7 +818,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       try {
         await sendMessage('START', {
           timeRemaining: state.timeRemaining,
-          mode: state.mode,
+          mode: effectiveMode,
           currentIteration: state.currentIteration,
           totalIterations: state.totalIterations
         });
@@ -894,7 +948,18 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
           // Go to break mode
           const newTimeRemaining = freshState.settings.breakDuration * 60;
-          console.log('Store: Sending UPDATE_MODE to break, iteration:', freshState.currentIteration);
+          console.log('Store: Transitioning to break, iteration:', freshState.currentIteration);
+
+          // Update store state atomically with consistent mode and duration
+          set({
+            mode: 'break',
+            timeRemaining: newTimeRemaining,
+            totalTime: newTimeRemaining,
+            currentIteration: freshState.currentIteration,
+            isRunning: false,
+            isSkipping: false
+          });
+
           await sendMessage('UPDATE_MODE', {
             mode: 'break',
             timeRemaining: newTimeRemaining,
@@ -902,39 +967,30 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
             totalIterations: freshState.totalIterations,
             isRunning: false
           });
-
-          // Only optimistically update timeRemaining - wait for worker confirmation for mode/iteration
-          // This prevents the dot indicator from glitching during the transition
-          set({
-            timeRemaining: newTimeRemaining,
-            totalTime: newTimeRemaining,
-            isRunning: false
-            // Don't update mode/currentIteration here - wait for worker confirmation
-            // Don't clear isSkipping here - wait for worker confirmation (or timeout)
-          });
         } else {
           // After break, increment iteration and go to work
           const nextIteration = freshState.currentIteration + 1;
           const newIteration = nextIteration > freshState.totalIterations ? 1 : nextIteration;
           const newTimeRemaining = freshState.settings.workDuration * 60;
 
-          console.log('Store: Sending UPDATE_MODE to work, iteration:', newIteration);
+          console.log('Store: Transitioning to work, iteration:', newIteration);
+
+          // Update store state atomically with consistent mode and duration
+          set({
+            mode: 'work',
+            timeRemaining: newTimeRemaining,
+            totalTime: newTimeRemaining,
+            currentIteration: newIteration,
+            isRunning: false,
+            isSkipping: false
+          });
+
           await sendMessage('UPDATE_MODE', {
             mode: 'work',
             timeRemaining: newTimeRemaining,
             currentIteration: newIteration,
             totalIterations: freshState.totalIterations,
             isRunning: false
-          });
-
-          // Only optimistically update timeRemaining - wait for worker confirmation for mode/iteration
-          // This prevents the dot indicator from glitching during the transition
-          set({
-            timeRemaining: newTimeRemaining,
-            totalTime: newTimeRemaining,
-            isRunning: false
-            // Don't update mode/currentIteration here - wait for worker confirmation
-            // Don't clear isSkipping here - wait for worker confirmation
           });
         }
       } catch (error) {
