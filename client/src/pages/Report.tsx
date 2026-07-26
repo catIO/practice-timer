@@ -180,14 +180,14 @@ function ReportItem({
                     )}
                   </span>
                 )}
+                {item.allocatedTime != null && (
+                  <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight shrink-0 select-none ml-1">
+                    Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
+                  </span>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
-              {item.allocatedTime != null && (
-                <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight">
-                  Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
-                </span>
-              )}
               {targetSeconds > 0 && logSummary ? (
                 <div
                   className="inline-flex items-center gap-1.5 bg-muted/20 border border-border/40 px-2 py-0.5 rounded-full text-[10px] font-mono"
