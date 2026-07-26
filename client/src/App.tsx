@@ -21,6 +21,7 @@ import SharedPieceDetail from '@/pages/SharedPieceDetail';
 import { NavigationLayout } from '@/components/NavigationLayout';
 import { SharedReportProvider } from '@/contexts/SharedReportContext';
 
+import { useTimerStore } from '@/stores/timerStore';
 import { ToastProvider, useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 
@@ -71,6 +72,18 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    // Service worker updates only apply in production mode
+    if (import.meta.env.DEV) return;
+
+    let reloaded = false;
+    const triggerReload = () => {
+      if (reloaded) return;
+      const isRunning = useTimerStore.getState().isRunning;
+      if (isRunning) return;
+      reloaded = true;
+      window.location.reload();
+    };
+
     const showUpdateToast = (waitingWorker: ServiceWorker) => {
       toast({
         title: "Update Available",
@@ -80,7 +93,21 @@ function AppContent() {
             altText="Update"
             onClick={() => {
               (window as any).__userInitiatedSWUpdate = true;
-              waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+              try {
+                waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+              } catch (err) {
+                console.warn('Failed to send SKIP_WAITING to service worker:', err);
+              }
+              // Listen for worker activation
+              waitingWorker.addEventListener('statechange', () => {
+                if (waitingWorker.state === 'activated') {
+                  triggerReload();
+                }
+              });
+              // Direct fallback reload if controllerchange / statechange does not fire
+              setTimeout(() => {
+                triggerReload();
+              }, 400);
             }}
           >
             Update

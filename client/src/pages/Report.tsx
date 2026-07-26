@@ -154,6 +154,11 @@ function ReportItem({
                 ) : (
                   <span className="text-muted-foreground italic font-normal">Untitled segment</span>
                 )}
+                {item.allocatedTime != null && (
+                  <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight shrink-0 select-none ml-1">
+                    Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
+                  </span>
+                )}
                 {linkedPiece && (
                   <span className="inline-flex items-center gap-1 select-none">
                     <Link
@@ -178,11 +183,6 @@ function ReportItem({
                         </a>
                       </ScoreUrlTooltip>
                     )}
-                  </span>
-                )}
-                {item.allocatedTime != null && (
-                  <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight shrink-0 select-none ml-1">
-                    Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
                   </span>
                 )}
               </span>
