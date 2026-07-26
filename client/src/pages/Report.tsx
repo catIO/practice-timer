@@ -125,6 +125,16 @@ function ReportItem({
           : `/report/piece/${item.repertoirePieceId}${window.location.hash}`))
       : "";
 
+    const reportDays = getReportDays(logSummary);
+    const targetSeconds = item.allocatedTime != null
+      ? (item.allocationPeriod === "week"
+          ? (item.allocatedTime * 60) * (reportDays / 7)
+          : (item.allocatedTime * 60) * reportDays)
+      : 0;
+    const progressPercent = targetSeconds > 0
+      ? Math.round((practicedSeconds / targetSeconds) * 100)
+      : 0;
+
     return (
       <div className="py-1" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
         <div className="rounded-lg border border-muted/40 bg-muted/10 px-3 py-2 space-y-1">
@@ -172,17 +182,34 @@ function ReportItem({
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0">
+            <div className="flex items-center gap-2 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
               {item.allocatedTime != null && (
                 <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight">
                   Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
                 </span>
               )}
-              {practicedSeconds > 0 && (
+              {targetSeconds > 0 && logSummary ? (
+                <div
+                  className="inline-flex items-center gap-1.5 bg-muted/20 border border-border/40 px-2 py-0.5 rounded-full text-[10px] font-mono"
+                  title={`${formatDuration(practicedSeconds)} of ${formatDuration(targetSeconds)} target (${progressPercent}%)`}
+                >
+                  <div className="w-12 sm:w-16 h-1.5 bg-muted/80 rounded-full overflow-hidden shrink-0 border border-border/20">
+                    <div
+                      className={`h-full transition-all rounded-full ${
+                        progressPercent >= 100 ? "bg-emerald-500" : "bg-primary"
+                      }`}
+                      style={{ width: `${Math.min(100, progressPercent)}%` }}
+                    />
+                  </div>
+                  <span className="font-semibold text-foreground tracking-tight">
+                    {formatDuration(practicedSeconds)} ({progressPercent}%)
+                  </span>
+                </div>
+              ) : practicedSeconds > 0 ? (
                 <span className="inline-flex items-center bg-primary/10 border border-primary/25 text-primary px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight">
-                  Total: {formatDuration(practicedSeconds)}
+                  {formatDuration(practicedSeconds)}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
           {item.segmentGoal && (
@@ -265,6 +292,18 @@ function formatDuration(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
   return `${m} min`;
+}
+
+function getReportDays(logSummary?: ReportLogSummary): number {
+  if (!logSummary?.startDate || !logSummary?.endDate) return 7;
+  try {
+    const startMs = new Date(logSummary.startDate + "T00:00:00").getTime();
+    const endMs = new Date(logSummary.endDate + "T00:00:00").getTime();
+    const diff = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
+    return diff > 0 ? diff : 7;
+  } catch {
+    return 7;
+  }
 }
 
 
