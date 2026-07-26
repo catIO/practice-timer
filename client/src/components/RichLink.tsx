@@ -92,17 +92,15 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                    "inline-flex items-center gap-2 px-3 py-1 rounded-xl shrink-0",
-                    "bg-slate-900/80 dark:bg-slate-900/90 border border-black/10 dark:border-white/10",
-                    "hover:bg-slate-800/90 hover:border-white/20",
-                    "transition-all no-underline text-foreground align-middle my-0.5",
-                    "-ml-1.5"
+                    "inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full",
+                    "text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20",
+                    "transition-colors no-underline select-none shrink-0"
                 )}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                <YouTubeIcon className="w-4 h-4 shrink-0" />
-                <span className="text-sm font-medium leading-tight whitespace-nowrap text-foreground">
+                <YouTubeIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="max-w-[180px] sm:max-w-[220px] truncate">
                     {metadata?.title || url}
                 </span>
             </a>
@@ -115,11 +113,12 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground underline decoration-muted-foreground/30 hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20 transition-colors no-underline select-none shrink-0"
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                {url}
+                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
+                <span className="max-w-[180px] sm:max-w-[220px] truncate">{url}</span>
             </a>
         );
     }
@@ -130,11 +129,12 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary underline hover:text-primary/80"
+                className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20 transition-colors no-underline select-none shrink-0"
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                {url}
+                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
+                <span className="max-w-[180px] sm:max-w-[220px] truncate">{url}</span>
             </a>
         );
     }
@@ -145,10 +145,9 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-                "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded shrink-0",
-                "bg-[rgba(135,131,120,0.15)] hover:bg-[rgba(135,131,120,0.25)]",
-                "transition-colors no-underline text-foreground align-middle",
-                "-ml-1.5"
+                "inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full",
+                "text-primary bg-primary/10 border border-primary/25 hover:bg-primary/20",
+                "transition-colors no-underline select-none shrink-0"
             )}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -157,16 +156,15 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
                 <img
                     src={metadata.icon}
                     alt=""
-                    className="w-4 h-4 object-contain shrink-0 rounded-sm"
+                    className="w-3.5 h-3.5 object-contain shrink-0 rounded-sm"
                     onError={(e) => {
-                        // Fallback to simple icon if image load fails
                         e.currentTarget.style.display = 'none';
                     }}
                 />
             ) : (
-                <span className="material-icons text-[16px] text-muted-foreground">public</span>
+                <span className="material-icons text-[12px] shrink-0 select-none">videocam</span>
             )}
-            <span className="text-sm font-medium leading-tight whitespace-nowrap">
+            <span className="max-w-[180px] sm:max-w-[220px] truncate">
                 {metadata.title || url}
             </span>
         </a>

@@ -136,8 +136,8 @@ function ReportItem({
       : 0;
 
     return (
-      <div className="py-1" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
-        <div className="rounded-lg border border-muted/40 bg-muted/10 px-3 py-2 space-y-1">
+      <div className="py-1.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
+        <div className="rounded-xl border border-border/80 border-l-4 border-l-primary/70 bg-card/60 dark:bg-muted/15 px-3.5 py-2.5 space-y-1.5 shadow-sm transition-all hover:border-border hover:bg-card/90">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -195,10 +195,10 @@ function ReportItem({
                 <>
                   <Link
                     to={linkUrl}
-                    className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20 select-none"
+                    className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20 select-none"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <span className="material-icons text-[11px] shrink-0 select-none">music_note</span>
+                    <span className="material-icons text-[12px] shrink-0 select-none">music_note</span>
                     <span className="max-w-[140px] truncate">{linkedPiece.title}</span>
                   </Link>
                   {linkedPiece.score_url && (
@@ -207,10 +207,10 @@ function ReportItem({
                         href={linkedPiece.score_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 rounded-full shrink-0 transition-colors select-none"
+                        className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20 select-none"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <span className="material-icons text-[11px] shrink-0 select-none">description</span>
+                        <span className="material-icons text-[12px] shrink-0 select-none">description</span>
                         <span>Open Score</span>
                       </a>
                     </ScoreUrlTooltip>

@@ -1339,14 +1339,14 @@ function PlanItem({
               /* Segment card view */
               <div
                 className={cn(
-                  "flex-1 rounded-xl border p-3.5 space-y-3 transition-all duration-200 shadow-sm",
+                  "flex-1 rounded-xl border border-l-4 p-3.5 space-y-3 transition-all duration-200 shadow-sm",
                   selected
                     ? item.checked
-                      ? "border-muted-foreground/30 bg-muted/40"
-                      : "border-primary bg-primary/5 shadow-md shadow-primary/5"
+                      ? "border-muted-foreground/30 border-l-muted-foreground/40 bg-muted/40"
+                      : "border-primary border-l-primary bg-primary/10 shadow-md shadow-primary/5"
                     : item.checked
-                      ? "border-muted bg-muted/20"
-                      : "border-border bg-card hover:bg-muted/30 hover:border-muted-foreground/30"
+                      ? "border-muted/80 border-l-muted-foreground/30 bg-muted/20 opacity-75"
+                      : "border-border/80 border-l-primary/70 bg-card hover:bg-muted/30 hover:border-primary/40"
                 )}
               >
                 {/* Header Row: Checkbox, Title, and Timer Actions */}
@@ -1503,10 +1503,10 @@ function PlanItem({
                       <>
                         <Link
                           to={`/repertoire/${linkedPiece.id}`}
-                          className="inline-flex items-center gap-1 h-[22px] px-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded-full font-medium transition-colors hover:bg-primary/20 select-none"
+                          className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs text-primary bg-primary/10 border border-primary/25 rounded-full font-medium transition-colors hover:bg-primary/20 select-none"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <span className="material-icons text-[11px] shrink-0 select-none">music_note</span>
+                          <span className="material-icons text-[12px] shrink-0 select-none">music_note</span>
                           <span className="max-w-[140px] truncate">{linkedPiece.title}</span>
                         </Link>
                         {linkedPiece.score_url && (
@@ -1515,10 +1515,10 @@ function PlanItem({
                               href={linkedPiece.score_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 h-[22px] px-2 text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border rounded-full font-medium transition-colors select-none"
+                              className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs text-primary bg-primary/10 border border-primary/25 rounded-full font-medium transition-colors hover:bg-primary/20 select-none"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <span className="material-icons text-[11px] shrink-0 select-none">description</span>
+                              <span className="material-icons text-[12px] shrink-0 select-none">description</span>
                               <span>Open Score</span>
                             </a>
                           </ScoreUrlTooltip>
