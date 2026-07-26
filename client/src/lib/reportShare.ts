@@ -19,6 +19,7 @@ export interface ReportSnapshotItem {
   allocatedTime?: number;
   allocationPeriod?: 'day' | 'week';
   repertoirePieceId?: string;
+  videoUrl?: string;
 }
 
 export interface ReportLogEntry {
@@ -56,6 +57,7 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
       segmentGoal: item.segmentGoal,
       allocatedTime: item.allocatedTime,
       allocationPeriod: item.allocationPeriod,
+      videoUrl: item.videoUrl,
     } : {}),
   };
 }
@@ -273,6 +275,7 @@ export function restorePlanFromSnapshot(snapshot: ReportSnapshot): PracticePlanI
       ...(item.allocationPeriod ? { allocationPeriod: item.allocationPeriod } : {}),
       ...(item.segmentGoal ? { segmentGoal: item.segmentGoal } : {}),
       ...(item.repertoirePieceId ? { repertoirePieceId: item.repertoirePieceId } : {}),
+      ...(item.videoUrl ? { videoUrl: item.videoUrl } : {}),
     };
   }
 

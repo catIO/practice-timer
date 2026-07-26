@@ -32,6 +32,8 @@ export interface PracticePlanItem {
   segmentGoal?: string;
   /** ID of linked repertoire piece, if any. */
   repertoirePieceId?: string;
+  /** Practice video recording link (e.g. YouTube, Vimeo). */
+  videoUrl?: string;
 }
 
 export function generateId(): string {
@@ -448,7 +450,8 @@ export const practicePlanApi = {
     segmentGoal: string | undefined,
     allocatedTime: number | undefined,
     allocationPeriod: "day" | "week" | undefined,
-    repertoirePieceId: string | undefined
+    repertoirePieceId: string | undefined,
+    videoUrl: string | undefined
   ): PracticePlanItem[] => {
     const next = updateItemInTree(items, id, (item) => ({
       ...item,
@@ -457,6 +460,7 @@ export const practicePlanApi = {
       allocatedTime,
       allocationPeriod,
       repertoirePieceId,
+      videoUrl,
     }));
     savePracticePlan(next);
     return next;

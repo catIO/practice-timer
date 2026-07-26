@@ -3,6 +3,7 @@ import { useParams, useLocation, Link } from "react-router-dom";
 import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type ReportLogSummary } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
 import { TextWithLinks } from "@/components/TextWithLinks";
+import { RichLink } from "@/components/RichLink";
 import { supabase } from "@/lib/supabaseClient";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
@@ -186,6 +187,15 @@ function ReportItem({
           </div>
           {item.segmentGoal && (
             <p className="text-xs text-muted-foreground pl-7 leading-relaxed whitespace-pre-wrap">{item.segmentGoal}</p>
+          )}
+          {item.videoUrl && (
+            <div className="pl-7 pt-1 flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                <span className="material-icons text-xs text-muted-foreground select-none">videocam</span>
+                Video:
+              </span>
+              <RichLink url={item.videoUrl} eagerPreview />
+            </div>
           )}
         </div>
         {item.children.length > 0 && (

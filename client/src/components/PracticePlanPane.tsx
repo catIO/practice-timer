@@ -59,6 +59,7 @@ import type { RepertoirePiece } from "@/lib/repertoire.types";
 import { cn } from "@/lib/utils";
 import { playSound, resumeAudioContext } from "@/lib/soundEffects";
 import { TextWithLinks } from "./TextWithLinks";
+import { RichLink } from "./RichLink";
 import { InlineToolbar, type InlineToolbarProps } from "./InlineToolbar";
 import { LinkPopover } from "./LinkPopover";
 import { Link } from "react-router-dom";
@@ -280,7 +281,7 @@ interface PlanItemProps {
   onUndo: () => void;
   onOpenAllocationDialog: (id: string, text: string, currentMinutes?: number, currentPeriod?: 'day' | 'week') => void;
   onPlayPiece: (id: string, name: string, minutes: number, period: 'day' | 'week') => void;
-  onSaveSegment: (id: string, name: string, goal: string | undefined, allocatedTime: number | undefined, allocationPeriod: 'day' | 'week' | undefined, repertoirePieceId: string | undefined) => void;
+  onSaveSegment: (id: string, name: string, goal: string | undefined, allocatedTime: number | undefined, allocationPeriod: 'day' | 'week' | undefined, repertoirePieceId: string | undefined, videoUrl: string | undefined) => void;
   repertoirePieces?: RepertoirePiece[];
 }
 
@@ -394,6 +395,7 @@ function PlanItem({
   );
   const [segmentPeriodValue, setSegmentPeriodValue] = useState<'day' | 'week'>(item.allocationPeriod ?? 'day');
   const [segmentPieceId, setSegmentPieceId] = useState(item.repertoirePieceId ?? "");
+  const [segmentVideoUrlValue, setSegmentVideoUrlValue] = useState(item.videoUrl ?? "");
   // Guard: don't clobber in-progress edits while the segment form is open
   useEffect(() => { if (!editing) setSegmentGoalValue(item.segmentGoal ?? ""); }, [item.segmentGoal, editing]);
   useEffect(() => {
@@ -401,8 +403,9 @@ function PlanItem({
       setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : "");
       setSegmentPeriodValue(item.allocationPeriod ?? 'day');
       setSegmentPieceId(item.repertoirePieceId ?? "");
+      setSegmentVideoUrlValue(item.videoUrl ?? "");
     }
-  }, [item.allocatedTime, item.allocationPeriod, item.repertoirePieceId, editing]);
+  }, [item.allocatedTime, item.allocationPeriod, item.repertoirePieceId, item.videoUrl, editing]);
 
   // Slash command state
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -440,8 +443,9 @@ function PlanItem({
     const goal = segmentGoalValue.trim() || undefined;
     const mins = parseInt(segmentDurationValue, 10);
     const duration = isNaN(mins) || mins <= 0 ? undefined : mins;
-    onSaveSegment(item.id, name, goal, duration, segmentPeriodValue, segmentPieceId || undefined);
-  }, [editValue, hasSegmentLink, segmentLinkUrl, segmentGoalValue, segmentDurationValue, segmentPeriodValue, segmentPieceId, item.id, onSaveSegment]);
+    const videoUrl = segmentVideoUrlValue.trim() || undefined;
+    onSaveSegment(item.id, name, goal, duration, segmentPeriodValue, segmentPieceId || undefined, videoUrl);
+  }, [editValue, hasSegmentLink, segmentLinkUrl, segmentGoalValue, segmentDurationValue, segmentPeriodValue, segmentPieceId, segmentVideoUrlValue, item.id, onSaveSegment]);
 
   // closeSegment: saves data AND closes the form. Called by Enter, Done button,
   // and the form-container blur handler (when focus truly leaves the form).
@@ -1150,6 +1154,7 @@ function PlanItem({
                         setSegmentDurationValue(item.allocatedTime ? String(item.allocatedTime) : '');
                         setSegmentPeriodValue(item.allocationPeriod ?? 'day');
                         setSegmentPieceId(item.repertoirePieceId ?? '');
+                        setSegmentVideoUrlValue(item.videoUrl ?? '');
                         setEditing(false);
                         requestAnimationFrame(() => rowRef.current?.focus());
                       }
@@ -1235,6 +1240,34 @@ function PlanItem({
                     rows={1}
                     className="w-full text-xs bg-transparent border-none outline-none text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none resize-none overflow-hidden"
                   />
+                  <div className="flex items-center gap-2">
+                    <span className="material-icons text-muted-foreground text-sm shrink-0">videocam</span>
+                    <Input
+                      type="url"
+                      value={segmentVideoUrlValue}
+                      onBlur={undefined}
+                      onChange={(e) => setSegmentVideoUrlValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); closeSegment(); } }}
+                      placeholder="Practice video link (e.g. YouTube, Vimeo...)"
+                      className="flex-1 h-7 text-xs"
+                    />
+                    {segmentVideoUrlValue && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                        title="Remove video link"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSegmentVideoUrlValue("");
+                        }}
+                      >
+                        <span className="material-icons text-sm">close</span>
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Input
                       type="number"
@@ -1487,6 +1520,17 @@ function PlanItem({
                 {item.segmentGoal && (
                   <div className="pt-1 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap" style={{ paddingLeft: '1.85rem' }}>
                     {item.segmentGoal}
+                  </div>
+                )}
+
+                {/* Practice Video Link */}
+                {item.videoUrl && (
+                  <div className="pt-1 flex items-center gap-1.5 flex-wrap" style={{ paddingLeft: '1.85rem' }}>
+                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <span className="material-icons text-xs text-muted-foreground">videocam</span>
+                      Video:
+                    </span>
+                    <RichLink url={item.videoUrl} />
                   </div>
                 )}
                 
@@ -2060,9 +2104,10 @@ export function PracticePlanPane({
     goal: string | undefined,
     allocatedTime: number | undefined,
     allocationPeriod: 'day' | 'week' | undefined,
-    repertoirePieceId: string | undefined
+    repertoirePieceId: string | undefined,
+    videoUrl: string | undefined
   ) => {
-    applyChange((prev) => practicePlanApi.updateSegment(prev, id, name, goal, allocatedTime, allocationPeriod, repertoirePieceId));
+    applyChange((prev) => practicePlanApi.updateSegment(prev, id, name, goal, allocatedTime, allocationPeriod, repertoirePieceId, videoUrl));
   }, [applyChange]);
 
   const sensors = useSensors(

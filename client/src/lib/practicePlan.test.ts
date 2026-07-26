@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { generateId, getPracticePlan, savePracticePlan, type PracticePlanItem } from './practicePlan';
+import { generateId, getPracticePlan, savePracticePlan, practicePlanApi, type PracticePlanItem } from './practicePlan';
+import { createReportSnapshot, restorePlanFromSnapshot } from './reportShare';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -86,4 +87,50 @@ describe('practicePlan', () => {
             );
         });
     });
+
+    describe('updateSegment with videoUrl', () => {
+        it('updates segment properties including videoUrl', () => {
+            const items: PracticePlanItem[] = [
+                { id: 'seg-1', text: 'Chopin Etude', checked: false, blockType: 'segment', children: [] },
+            ];
+            const updated = practicePlanApi.updateSegment(
+                items,
+                'seg-1',
+                'Chopin Etude Op. 10 No. 4',
+                'Work on tempo and clarity',
+                15,
+                'day',
+                'piece-123',
+                'https://youtu.be/dQw4w9WgXcQ'
+            );
+
+            expect(updated[0].text).toBe('Chopin Etude Op. 10 No. 4');
+            expect(updated[0].segmentGoal).toBe('Work on tempo and clarity');
+            expect(updated[0].allocatedTime).toBe(15);
+            expect(updated[0].repertoirePieceId).toBe('piece-123');
+            expect(updated[0].videoUrl).toBe('https://youtu.be/dQw4w9WgXcQ');
+        });
+    });
+
+    describe('reportShare with videoUrl', () => {
+        it('serializes videoUrl into report snapshot and restores it', () => {
+            const items: PracticePlanItem[] = [
+                {
+                    id: 'seg-1',
+                    text: 'Bach Prelude',
+                    checked: false,
+                    blockType: 'segment',
+                    videoUrl: 'https://www.youtube.com/watch?v=12345',
+                    children: [],
+                },
+            ];
+
+            const snapshot = createReportSnapshot(items);
+            expect(snapshot.items[0].videoUrl).toBe('https://www.youtube.com/watch?v=12345');
+
+            const restored = restorePlanFromSnapshot(snapshot);
+            expect(restored[0].videoUrl).toBe('https://www.youtube.com/watch?v=12345');
+        });
+    });
 });
+
