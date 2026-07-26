@@ -30,57 +30,49 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
     refreshing = true;
     window.location.reload();
   });
+
+  const notifyUpdateReady = (reg: ServiceWorkerRegistration) => {
+    (window as any).__swWaitingRegistration = reg;
+    window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
+  };
+
+  const setupRegistrationListeners = (reg: ServiceWorkerRegistration) => {
+    // 1. If a worker is already waiting, dispatch immediately
+    if (reg.waiting) {
+      notifyUpdateReady(reg);
+    }
+
+    // 2. Attach statechange listener to an installing worker
+    const attachWorkerListener = (worker: ServiceWorker) => {
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed') {
+          notifyUpdateReady(reg);
+        }
+      });
+    };
+
+    if (reg.installing) {
+      attachWorkerListener(reg.installing);
+    }
+
+    // 3. Watch for future updates (e.g. when reg.update() finds a new version)
+    reg.addEventListener('updatefound', () => {
+      if (reg.installing) {
+        attachWorkerListener(reg.installing);
+      }
+    });
+  };
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('SW registered: ', registration);
-        
-        // Handle update checks and dispatch event when waiting
-        const listenForWaiting = (reg: ServiceWorkerRegistration) => {
-          // Prevent adding duplicate listeners to the same registration object
-          if ((reg as any)._hasUpdateListener) {
-            if (reg.waiting) {
-              window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
-            }
-            return;
-          }
-          (reg as any)._hasUpdateListener = true;
-
-          // If a worker is installing, listen for its state change to dispatch event once ready
-          if (reg.installing) {
-            reg.installing.addEventListener('statechange', (e) => {
-              const target = e.target as ServiceWorker;
-              if (target.state === 'installed' && navigator.serviceWorker.controller) {
-                window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
-              }
-            });
-          }
-
-          reg.addEventListener('updatefound', () => {
-            const installingWorker = reg.installing;
-            if (installingWorker) {
-              installingWorker.addEventListener('statechange', () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
-                }
-              });
-            }
-          });
-
-          // Also dispatch if a worker is already waiting from a previous session
-          if (reg.waiting) {
-            window.dispatchEvent(new CustomEvent('sw-update-ready', { detail: reg }));
-          }
-        };
-
-        listenForWaiting(registration);
+        setupRegistrationListeners(registration);
 
         // Check for updates when app becomes visible
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
-            registration.update().then(() => {
-              listenForWaiting(registration);
-            }).catch(err => {
+            registration.update().catch(err => {
               console.error('SW update check failed:', err);
             });
           }
@@ -88,9 +80,7 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
 
         // Also check for updates periodically (every 5 minutes)
         setInterval(() => {
-          registration.update().then(() => {
-            listenForWaiting(registration);
-          }).catch(err => {
+          registration.update().catch(err => {
             console.log('Periodic SW update check skipped/failed:', err);
           });
         }, 5 * 60 * 1000);

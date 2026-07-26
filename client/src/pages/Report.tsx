@@ -155,7 +155,7 @@ function ReportItem({
                   <span className="text-muted-foreground italic font-normal">Untitled segment</span>
                 )}
                 {item.allocatedTime != null && (
-                  <span className="inline-flex items-center bg-muted/60 border border-muted-foreground/15 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight shrink-0 select-none ml-1">
+                  <span className="inline-flex items-center h-[22px] px-2 text-xs font-mono font-medium rounded-full bg-muted/60 border border-muted-foreground/20 text-muted-foreground shrink-0 select-none">
                     Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
                   </span>
                 )}
@@ -163,10 +163,10 @@ function ReportItem({
                   <span className="inline-flex items-center gap-1 select-none">
                     <Link
                       to={linkUrl}
-                      className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 border border-primary/25 px-1.5 py-0.5 rounded-full font-medium ml-1 shrink-0 transition-colors hover:bg-primary/20"
+                      className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span className="material-icons text-[10px] shrink-0 select-none">music_note</span>
+                      <span className="material-icons text-[11px] shrink-0 select-none">music_note</span>
                       <span className="max-w-[120px] truncate">{linkedPiece.title}</span>
                     </Link>
                     {linkedPiece.score_url && (
@@ -175,10 +175,10 @@ function ReportItem({
                           href={linkedPiece.score_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 px-1.5 py-0.5 rounded-full font-medium shrink-0 transition-colors"
+                          className="inline-flex items-center gap-1 h-[22px] px-2 text-xs font-medium text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/10 border border-muted-foreground/20 hover:border-primary/30 rounded-full shrink-0 transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <span className="material-icons text-[10px] shrink-0 select-none">description</span>
+                          <span className="material-icons text-[11px] shrink-0 select-none">description</span>
                           <span>Open Score</span>
                         </a>
                       </ScoreUrlTooltip>
@@ -190,7 +190,7 @@ function ReportItem({
             <div className="flex items-center gap-2 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
               {targetSeconds > 0 && logSummary ? (
                 <div
-                  className="inline-flex items-center gap-1.5 bg-muted/20 border border-border/40 px-2 py-0.5 rounded-full text-[10px] font-mono"
+                  className="inline-flex items-center gap-1.5 h-[22px] bg-muted/20 border border-border/40 px-2 rounded-full text-xs font-mono"
                   title={`${formatDuration(practicedSeconds)} of ${formatDuration(targetSeconds)} target (${progressPercent}%)`}
                 >
                   <div className="w-12 sm:w-16 h-1.5 bg-muted/80 rounded-full overflow-hidden shrink-0 border border-border/20">
@@ -206,7 +206,7 @@ function ReportItem({
                   </span>
                 </div>
               ) : practicedSeconds > 0 ? (
-                <span className="inline-flex items-center bg-primary/10 border border-primary/25 text-primary px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono tracking-tight">
+                <span className="inline-flex items-center h-[22px] bg-primary/10 border border-primary/25 text-primary px-2 rounded-full text-xs font-semibold font-mono tracking-tight">
                   {formatDuration(practicedSeconds)}
                 </span>
               ) : null}

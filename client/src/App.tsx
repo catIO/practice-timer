@@ -119,7 +119,7 @@ function AppContent() {
 
     const handleUpdate = (e: Event) => {
       const registration = (e as CustomEvent).detail as ServiceWorkerRegistration;
-      const waitingWorker = registration.waiting;
+      const waitingWorker = registration?.waiting;
       if (waitingWorker) {
         showUpdateToast(waitingWorker);
       }
@@ -127,7 +127,13 @@ function AppContent() {
 
     window.addEventListener('sw-update-ready', handleUpdate);
 
-    // If a service worker is already waiting (e.g. from a previous session or registered before App mounted), show toast immediately
+    // 1. Check window global in case event fired before component mounted
+    const existingReg = (window as any).__swWaitingRegistration as ServiceWorkerRegistration | undefined;
+    if (existingReg?.waiting) {
+      showUpdateToast(existingReg.waiting);
+    }
+
+    // 2. Also check active registration via ServiceWorker API
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration && registration.waiting) {
