@@ -76,6 +76,8 @@ function AppContent() {
     if (import.meta.env.DEV) return;
 
     let reloaded = false;
+    let hasShownUpdateToast = false;
+
     const triggerReload = () => {
       if (reloaded) return;
       const isRunning = useTimerStore.getState().isRunning;
@@ -85,6 +87,9 @@ function AppContent() {
     };
 
     const showUpdateToast = (waitingWorker: ServiceWorker) => {
+      if (hasShownUpdateToast) return;
+      hasShownUpdateToast = true;
+
       toast({
         title: "Update Available",
         description: "A new version of the app is ready. Click Update to apply changes.",

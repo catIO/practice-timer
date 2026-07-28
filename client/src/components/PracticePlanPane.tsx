@@ -1403,49 +1403,17 @@ function PlanItem({
               /* Segment card view */
               <div
                 className={cn(
-                  "flex-1 rounded-xl border border-l-4 p-3.5 space-y-3 transition-all duration-200 shadow-sm",
+                  "flex-1 rounded-xl border border-l-2 p-3.5 space-y-3 transition-all duration-200 shadow-xs",
                   selected
-                    ? item.checked
-                      ? "border-muted-foreground/30 border-l-muted-foreground/40 bg-muted/40"
-                      : "border-primary border-l-primary bg-primary/10 shadow-md shadow-primary/5"
-                    : item.checked
-                      ? "border-muted/80 border-l-muted-foreground/30 bg-muted/20 opacity-75"
-                      : "border-border/80 border-l-primary/70 bg-card hover:bg-muted/30 hover:border-primary/40"
+                    ? "border-primary border-l-primary/80 bg-primary/10 shadow-sm shadow-primary/5"
+                    : "border-border/80 border-l-primary/40 bg-card hover:bg-muted/30 hover:border-primary/30"
                 )}
               >
-                {/* Header Row: Checkbox, Title, and Timer Actions */}
+                {/* Header Row: Title and Timer Actions */}
                 <div className="flex items-start gap-2.5">
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={item.checked}
-                    aria-label={item.checked ? "Mark incomplete" : "Mark complete"}
-                    className={cn(
-                      "flex items-center justify-center shrink-0 h-5 w-5 mt-0.5 rounded border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      item.checked 
-                        ? "bg-green-500 border-green-500 text-white dark:text-slate-900" 
-                        : "border-muted-foreground/40 hover:border-primary text-transparent"
-                    )}
-                    onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
-                    onKeyDown={(e) => {
-                      if (e.key === ' ' || e.key === 'Enter') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onToggle(item.id);
-                      }
-                    }}
-                  >
-                    <span className="material-icons text-[10px] font-bold select-none" aria-hidden="true">
-                      done
-                    </span>
-                  </button>
-                  
                   {/* Title & Links */}
                   <div className="flex-1 min-w-0 pr-1">
-                    <h4 className={cn(
-                      "font-semibold text-base leading-tight text-foreground break-words flex items-center flex-wrap gap-1.5",
-                      item.checked && "text-muted-foreground"
-                    )}>
+                    <h4 className="font-semibold text-lg leading-snug text-foreground break-words flex items-center flex-wrap gap-1.5">
                       {item.text ? (
                         <TextWithLinks
                           text={item.text}
@@ -1565,7 +1533,7 @@ function PlanItem({
 
                 {/* Segment Goal Supporting Text */}
                 {item.segmentGoal && (
-                  <div className="pt-1 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap" style={{ paddingLeft: '1.85rem' }}>
+                  <div className="pt-1 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                     <TextWithLinks
                       text={item.segmentGoal}
                       linkVariant="inline"
@@ -1578,7 +1546,7 @@ function PlanItem({
 
                 {/* Practice Links & Media Resources */}
                 {(linkedPiece || item.videoUrl) && (
-                  <div className="pt-1 flex items-center gap-1.5 flex-wrap" style={{ paddingLeft: '1.85rem' }}>
+                  <div className="pt-1 flex items-center gap-1.5 flex-wrap">
                     {linkedPiece && (
                       <>
                         <Link
@@ -1611,7 +1579,7 @@ function PlanItem({
                 )}
                 
                 {!item.segmentGoal && !item.allocatedTime && !item.text && (
-                  <div className="pt-1 text-xs text-muted-foreground/40 italic" style={{ paddingLeft: '1.85rem' }}>
+                  <div className="pt-1 text-xs text-muted-foreground/40 italic">
                     Double-click to add name, goal & time...
                   </div>
                 )}
