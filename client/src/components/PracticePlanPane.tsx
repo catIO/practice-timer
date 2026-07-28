@@ -1504,32 +1504,42 @@ function PlanItem({
                       <>
                         {item.allocatedTime ? (
                           (() => {
-                            const practicedMins = Math.floor(getPiecePracticedSeconds(item.id, 'day') / 60);
+                            const period = item.allocationPeriod ?? 'day';
+                            const settings = getSettings();
+                            const weekStartsOn = settings?.weekStartsOn ?? 'monday';
+                            const practicedMins = Math.floor(getPiecePracticedSeconds(item.id, period, weekStartsOn) / 60);
+                            const isComplete = practicedMins >= item.allocatedTime;
+
                             return (
-                              <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground mr-0.5">
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
-                                  className="hover:text-foreground transition-colors py-0.5 px-1 hover:bg-muted/40 rounded flex items-center"
-                                  title="Edit duration goal"
-                                >
-                                  <span className={cn(
-                                    "font-semibold",
-                                    practicedMins >= item.allocatedTime
-                                      ? "text-green-600 dark:text-green-400"
+                                  className={cn(
+                                    "flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded-full border shadow-xs transition-all duration-150 select-none hover:scale-[1.02] cursor-pointer",
+                                    isComplete
+                                      ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 font-semibold"
                                       : practicedMins > 0
-                                        ? "text-amber-600 dark:text-amber-400"
-                                        : "text-muted-foreground"
-                                  )}>
-                                    {practicedMins}m
+                                        ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                                        : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70"
+                                  )}
+                                  title={`Goal: ${item.allocatedTime}m per ${period}. Click to edit.`}
+                                >
+                                  {isComplete && (
+                                    <span className="material-icons text-[13px] text-emerald-600 dark:text-emerald-400 font-bold -mr-0.5" aria-hidden="true">
+                                      check_circle
+                                    </span>
+                                  )}
+                                  <span>{practicedMins}/{item.allocatedTime}m</span>
+                                  <span className="text-[10px] px-1 py-0.2 rounded font-sans font-semibold uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border/40">
+                                    {period === 'week' ? 'week' : 'day'}
                                   </span>
-                                  <span>/{item.allocatedTime}m</span>
                                 </button>
                                 
                                 <Button
                                   variant="ghost" size="icon"
                                   className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
-                                  onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, item.allocationPeriod!)}
+                                  onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, period)}
                                   title="Start segment timer"
                                 >
                                   <span className="material-icons text-base">play_arrow</span>
