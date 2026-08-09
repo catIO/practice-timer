@@ -3,7 +3,8 @@
  * Report page uses noindex, nofollow; only people with the link can view.
  */
 
-import type { PracticePlanItem } from "./practicePlan";
+import type { PlanItem } from "./planTypes";
+import { getLessonPlan } from "./lessonPlan";
 import { generateId } from "./practicePlan";
 import type { RepertoirePiece } from "./repertoire.types";
 import { supabase } from "./supabaseClient";
@@ -40,17 +41,18 @@ export interface ReportSnapshot {
   date: string; // ISO
   title?: string;
   items: ReportSnapshotItem[];
+  lessonPlanItems?: ReportSnapshotItem[];
   logSummary?: ReportLogSummary;
   embeddedPieces?: Record<string, RepertoirePiece>;
   creatorName?: string;
 }
 
-function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
+function itemToSnapshot(item: PlanItem): ReportSnapshotItem {
   return {
     text: item.text,
     checked: item.checked ?? false,
     blockType: item.blockType,
-    children: item.children.map(itemToSnapshot),
+    children: item.children ? item.children.map(itemToSnapshot) : [],
     repertoirePieceId: item.repertoirePieceId,
     ...(item.blockType === 'segment' ? {
       id: item.id,
@@ -63,30 +65,34 @@ function itemToSnapshot(item: PracticePlanItem): ReportSnapshotItem {
 }
 
 export function createReportSnapshot(
-  items: PracticePlanItem[],
+  items: PlanItem[],
   title?: string,
   logSummary?: ReportLogSummary,
   repertoirePieces?: RepertoirePiece[],
-  creatorName?: string
+  creatorName?: string,
+  lessonItems?: PlanItem[]
 ): ReportSnapshot {
+  const effectiveLessonItems = lessonItems ?? getLessonPlan();
   const snapshot: ReportSnapshot = {
     v: 1,
     date: new Date().toISOString(),
-    title: title ?? "Practice Plan & Progress Report",
+    title: title ?? "Practice & Lesson Plan Report",
     items: items.map(itemToSnapshot),
+    lessonPlanItems: effectiveLessonItems.map(itemToSnapshot),
     logSummary,
     creatorName,
   };
 
   if (repertoirePieces && repertoirePieces.length > 0) {
     const embeddedPieceIds = new Set<string>();
-    const collectPieceIds = (item: PracticePlanItem) => {
+    const collectPieceIds = (item: PlanItem | ReportSnapshotItem) => {
       if (item.repertoirePieceId) {
         embeddedPieceIds.add(item.repertoirePieceId);
       }
-      item.children.forEach(collectPieceIds);
+      item.children?.forEach(collectPieceIds);
     };
     items.forEach(collectPieceIds);
+    effectiveLessonItems.forEach(collectPieceIds);
 
     const embeddedPieces: Record<string, RepertoirePiece> = {};
     repertoirePieces.forEach((piece) => {
@@ -262,15 +268,15 @@ export async function claimAnonymousReports() {
  * Segment IDs are preserved (for log continuity); other items get fresh IDs.
  * All checked states are reset to false.
  */
-export function restorePlanFromSnapshot(snapshot: ReportSnapshot): PracticePlanItem[] {
-  function snapshotItemToPlanItem(item: ReportSnapshotItem): PracticePlanItem {
+export function restorePlanFromSnapshot(snapshot: ReportSnapshot): PlanItem[] {
+  function snapshotItemToPlanItem(item: ReportSnapshotItem): PlanItem {
     return {
       id: item.id || generateId(),
       text: item.text,
       checked: false,
-      children: item.children.map(snapshotItemToPlanItem),
+      children: item.children ? item.children.map(snapshotItemToPlanItem) : [],
       isHeader: item.blockType === "heading1" || item.blockType === "heading2" || item.blockType === "heading3",
-      blockType: item.blockType as PracticePlanItem["blockType"],
+      blockType: item.blockType as PlanItem["blockType"],
       ...(item.allocatedTime != null ? { allocatedTime: item.allocatedTime } : {}),
       ...(item.allocationPeriod ? { allocationPeriod: item.allocationPeriod } : {}),
       ...(item.segmentGoal ? { segmentGoal: item.segmentGoal } : {}),

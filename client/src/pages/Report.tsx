@@ -497,23 +497,58 @@ export default function Report() {
           </div>
         </div>
       )}
-      <main className="w-full">
-        <div className="space-y-1">
-          {snapshot.items.map((item, i, arr) => {
-            const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-            return (
-              <ReportItem
-                key={i}
-                item={item}
-                numberIndex={numIdx}
-                logSummary={snapshot.logSummary}
-                embeddedPieces={snapshot.embeddedPieces}
-                sharedId={id}
-                sharedToken={token}
-              />
-            );
-          })}
-        </div>
+      <main className="w-full space-y-8">
+        {snapshot.items && snapshot.items.length > 0 && (
+          <section className="space-y-3">
+            {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 && (
+              <h2 className="text-xl font-bold text-primary flex items-center gap-2 border-b border-border/40 pb-2">
+                <span className="material-icons text-base">assignment</span>
+                Practice Plan
+              </h2>
+            )}
+            <div className="space-y-1">
+              {snapshot.items.map((item, i, arr) => {
+                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+                return (
+                  <ReportItem
+                    key={i}
+                    item={item}
+                    numberIndex={numIdx}
+                    logSummary={snapshot.logSummary}
+                    embeddedPieces={snapshot.embeddedPieces}
+                    sharedId={id}
+                    sharedToken={token}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 && (
+          <section className="space-y-3 pt-4">
+            <h2 className="text-xl font-bold text-primary flex items-center gap-2 border-b border-border/40 pb-2">
+              <span className="material-icons text-base">school</span>
+              Lesson Plan
+            </h2>
+            <div className="space-y-1">
+              {snapshot.lessonPlanItems.map((item, i, arr) => {
+                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+                return (
+                  <ReportItem
+                    key={i}
+                    item={item}
+                    numberIndex={numIdx}
+                    logSummary={snapshot.logSummary}
+                    embeddedPieces={snapshot.embeddedPieces}
+                    sharedId={id}
+                    sharedToken={token}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

@@ -112,6 +112,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   const navItems = [
     { path: '/', label: 'Timer', icon: 'timer' },
     { path: '/practice-plan', label: 'Practice Plan', icon: 'assignment' },
+    { path: '/lesson-plan', label: 'Lesson Plan', icon: 'school' },
     { path: '/repertoire', label: 'Repertoire', icon: 'library_music' },
     { path: '/practice-log', label: 'Practice Log', icon: 'history' },
   ];
@@ -128,6 +129,8 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
     pageTitle = 'Timer';
   } else if (pathname === '/practice-plan') {
     pageTitle = 'Practice Plan';
+  } else if (pathname === '/lesson-plan') {
+    pageTitle = 'Lesson Plan';
   } else if (pathname === '/repertoire') {
     pageTitle = 'Repertoire';
   } else if (isRepertoireDetail || isReportSubPage) {

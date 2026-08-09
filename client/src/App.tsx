@@ -14,6 +14,7 @@ import Settings from '@/pages/Settings';
 import PracticeLog from '@/pages/PracticeLog';
 import Report from '@/pages/Report';
 import PracticePlan from '@/pages/PracticePlan';
+import LessonPlan from '@/pages/LessonPlan';
 import RepertoireList from '@/pages/RepertoireList';
 import RepertoireDetail from '@/pages/RepertoireDetail';
 import ResetPassword from '@/pages/ResetPassword';
@@ -45,6 +46,7 @@ function AppRoutes() {
       {/* Timer routes */}
       <Route path="/" element={isRepertoire ? <Navigate to="/repertoire" replace /> : <Home />} />
       <Route path="/practice-plan" element={<PracticePlan />} />
+      <Route path="/lesson-plan" element={<LessonPlan />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/practice-log" element={<PracticeLog />} />
       <Route path="/report" element={<Report />} />
