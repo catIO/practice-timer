@@ -141,9 +141,11 @@ const ALL_BLOCK_OPTIONS = [...BASIC_BLOCK_OPTIONS, ...PRACTICE_BLOCK_OPTIONS];
 function EmptyLineSlot({
   index,
   onInsert,
+  allowSegments = true,
 }: {
   index: number;
   onInsert: (index: number, blockType: BlockType | "repertoire-piece") => void;
+  allowSegments?: boolean;
 }) {
   return (
     <div
@@ -175,20 +177,24 @@ function EmptyLineSlot({
                 {label}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-muted-foreground">Practice</DropdownMenuLabel>
-            {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
-              <DropdownMenuItem
-                key={type}
-                onSelect={() => onInsert(index, type)}
-                className="flex items-center gap-2"
-              >
-                <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
-                  <span className="material-icons text-base">{icon}</span>
-                </span>
-                {label}
-              </DropdownMenuItem>
-            ))}
+            {allowSegments && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-muted-foreground">Practice</DropdownMenuLabel>
+                {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                  <DropdownMenuItem
+                    key={type}
+                    onSelect={() => onInsert(index, type)}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                      <span className="material-icons text-base">{icon}</span>
+                    </span>
+                    {label}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -272,13 +278,136 @@ interface FlatItem {
   parentId: string | null;
 }
 
-// Clone a practice plan item (and its children) with fresh IDs.
 function cloneWithNewIds(item: PracticePlanItem): PracticePlanItem {
   return {
     ...item,
     id: generateId(),
-    children: item.children.map(cloneWithNewIds),
+    children: item.children ? item.children.map(cloneWithNewIds) : [],
   };
+}
+
+function isAncestorSelected(id: string, selectedSet: Set<string>, flatList: FlatItem[]): boolean {
+  const flat = flatList.find((f) => f.id === id);
+  if (!flat || !flat.parentId) return false;
+  if (selectedSet.has(flat.parentId)) return true;
+  return isAncestorSelected(flat.parentId, selectedSet, flatList);
+}
+
+function countTotalNodesInForest(items: PracticePlanItem[]): number {
+  let count = 0;
+  for (const item of items) {
+    count += 1;
+    if (item.children && item.children.length > 0) {
+      count += countTotalNodesInForest(item.children);
+    }
+  }
+  return count;
+}
+
+function formatItemAsOutlineText(item: PracticePlanItem, indentLevel = 0): string {
+  const indent = "  ".repeat(indentLevel);
+  let prefix = "";
+  if (item.blockType === "bullet") prefix = "- ";
+  else if (item.blockType === "number") prefix = "1. ";
+  else if (item.blockType === "todo") prefix = item.checked ? "[x] " : "[ ] ";
+  else if (item.blockType === "heading1") prefix = "# ";
+  else if (item.blockType === "heading2") prefix = "## ";
+  else if (item.blockType === "heading3") prefix = "### ";
+
+  let line = `${indent}${prefix}${item.text}`;
+  if (item.children && item.children.length > 0) {
+    const childrenText = item.children.map((c) => formatItemAsOutlineText(c, indentLevel + 1)).join("\n");
+    line += "\n" + childrenText;
+  }
+  return line;
+}
+
+export function parseTextToPlanItems(text: string): PracticePlanItem[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  interface RawNode {
+    text: string;
+    blockType: BlockType;
+    depth: number;
+    children: RawNode[];
+  }
+
+  const nodes: RawNode[] = [];
+
+  for (const line of lines) {
+    const leadingMatch = line.match(/^[ \t]*/);
+    const leadingSpaces = leadingMatch ? leadingMatch[0] : "";
+    let depth = 0;
+    for (const char of leadingSpaces) {
+      if (char === "\t") depth += 1;
+      else depth += 0.5;
+    }
+    depth = Math.floor(depth);
+
+    let trimmed = line.trim();
+    let blockType: BlockType = "text";
+
+    if (trimmed.startsWith("# ")) {
+      blockType = "heading1";
+      trimmed = trimmed.slice(2).trim();
+    } else if (trimmed.startsWith("## ")) {
+      blockType = "heading2";
+      trimmed = trimmed.slice(3).trim();
+    } else if (trimmed.startsWith("### ")) {
+      blockType = "heading3";
+      trimmed = trimmed.slice(4).trim();
+    } else if (/^[-*•]\s+/.test(trimmed)) {
+      blockType = "bullet";
+      trimmed = trimmed.replace(/^[-*•]\s+/, "").trim();
+    } else if (/^\d+\.\s+/.test(trimmed)) {
+      blockType = "number";
+      trimmed = trimmed.replace(/^\d+\.\s+/, "").trim();
+    } else if (/^\[[ xX]\]\s+/.test(trimmed)) {
+      blockType = "todo";
+      trimmed = trimmed.replace(/^\[[ xX]\]\s+/, "").trim();
+    } else if (depth === 0 && lines.length > 1) {
+      blockType = "heading1";
+    } else if (depth === 1 && lines.length > 1) {
+      blockType = "heading2";
+    }
+
+    nodes.push({
+      text: trimmed,
+      blockType,
+      depth,
+      children: [],
+    });
+  }
+
+  const rootNodes: RawNode[] = [];
+  const stack: RawNode[] = [];
+
+  for (const node of nodes) {
+    while (stack.length > 0 && stack[stack.length - 1].depth >= node.depth) {
+      stack.pop();
+    }
+
+    if (stack.length === 0) {
+      rootNodes.push(node);
+    } else {
+      stack[stack.length - 1].children.push(node);
+    }
+
+    stack.push(node);
+  }
+
+  function convertNode(n: RawNode): PracticePlanItem {
+    return {
+      id: generateId(),
+      text: n.text,
+      blockType: n.blockType,
+      checked: false,
+      children: n.children.map(convertNode),
+    };
+  }
+
+  return rootNodes.map(convertNode);
 }
 
 interface PlanItemProps {
@@ -302,14 +431,17 @@ interface PlanItemProps {
   onInputFocus: (id: string) => void; // Notify parent that this item is focused
   selected: boolean;
   onRowClick: (id: string, e: any) => void;
-  onCopySelection: () => void;
-  onCutSelection: () => void;
-  onPasteBelowSelection: (targetId: string) => void;
+  onCopySelection: (targetItem?: PracticePlanItem) => void;
+  onCutSelection: (targetItem?: PracticePlanItem) => void;
+  onPasteBelowSelection: (targetId?: string) => void;
+  onPasteMultiLineText: (targetId: string, rawText: string) => void;
   onUndo: () => void;
   onOpenAllocationDialog: (id: string, text: string, currentMinutes?: number, currentPeriod?: 'day' | 'week') => void;
   onPlayPiece: (id: string, name: string, minutes: number, period: 'day' | 'week') => void;
   onSaveSegment: (id: string, name: string, goal: string | undefined, allocatedTime: number | undefined, allocationPeriod: 'day' | 'week' | undefined, repertoirePieceId: string | undefined, videoUrl: string | undefined) => void;
   repertoirePieces?: RepertoirePiece[];
+  allowSegments?: boolean;
+  onSelectAllBlocks: () => void;
 }
 
 function PlanItem({
@@ -336,11 +468,14 @@ function PlanItem({
   onCopySelection,
   onCutSelection,
   onPasteBelowSelection,
+  onPasteMultiLineText,
   onUndo,
   onOpenAllocationDialog,
   onPlayPiece,
   onSaveSegment,
   repertoirePieces,
+  allowSegments = true,
+  onSelectAllBlocks,
 }: PlanItemProps & { repertoirePieces?: RepertoirePiece[] }) {
   const activePieceId = useTimerStore((state) => state.activePieceId);
   const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
@@ -695,6 +830,11 @@ function PlanItem({
       if (editing) return;
 
       // Clipboard-style operations work on the current selection (managed by parent).
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        onSelectAllBlocks();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
         e.preventDefault();
         onCopySelection();
@@ -770,6 +910,15 @@ function PlanItem({
     (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const target = e.currentTarget;
       const isTextBlock = blockType === "text";
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        const isFullInputSelected = target.selectionStart === 0 && target.selectionEnd === target.value.length;
+        if (isFullInputSelected) {
+          e.preventDefault();
+          onSelectAllBlocks();
+          return;
+        }
+      }
 
       // Slash command keyboard navigation
       if (slashMenuOpen) {
@@ -923,6 +1072,7 @@ function PlanItem({
     <div ref={setNodeRef} style={style}>
       <div
         ref={rowRef}
+        data-item-id={item.id}
         tabIndex={0}
         role="group"
         aria-label="Plan item"
@@ -935,7 +1085,7 @@ function PlanItem({
           isHeader && "first:mt-0",
           blockType === "segment" ? "my-1" : "my-0.5",
           blockType === "text" && "mb-2",
-          selected && blockType !== "segment" && "bg-accent/40"
+          selected && selectedIdSet.size > 1 && "bg-sky-500/10 dark:bg-sky-400/10 border-l border-sky-400/50 rounded-sm px-1 transition-colors duration-150"
         )}
         onKeyDown={handleKeyDown}
         onClick={(e) => {
@@ -1057,20 +1207,24 @@ function PlanItem({
                   {label}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-muted-foreground">Practice</DropdownMenuLabel>
-              {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
-                <DropdownMenuItem
-                  key={type}
-                  onSelect={() => onInsertBelow(item.id, type)}
-                  className="flex items-center gap-2"
-                >
-                  <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
-                    <span className="material-icons text-base">{icon}</span>
-                  </span>
-                  {label}
-                </DropdownMenuItem>
-              ))}
+              {allowSegments && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-muted-foreground">Practice</DropdownMenuLabel>
+                  {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                    <DropdownMenuItem
+                      key={type}
+                      onSelect={() => onInsertBelow(item.id, type)}
+                      className="flex items-center gap-2"
+                    >
+                      <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                        <span className="material-icons text-base">{icon}</span>
+                      </span>
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -1712,6 +1866,11 @@ function PlanItem({
                   onKeyDown={handleInputKeyDown}
                   onPaste={(e) => {
                     const rawText = e.clipboardData.getData("text");
+                    if (rawText.includes("\n") || rawText.includes("\r")) {
+                      e.preventDefault();
+                      onPasteMultiLineText(item.id, rawText);
+                      return;
+                    }
                     const pastedText = rawText.trim();
 
                     let isUrl = false;
@@ -2010,11 +2169,14 @@ function PlanItem({
                 onCopySelection={onCopySelection}
                 onCutSelection={onCutSelection}
                 onPasteBelowSelection={onPasteBelowSelection}
+                onPasteMultiLineText={onPasteMultiLineText}
                 onUndo={onUndo}
                 onOpenAllocationDialog={onOpenAllocationDialog}
                 onPlayPiece={onPlayPiece}
                 onSaveSegment={onSaveSegment}
                 repertoirePieces={repertoirePieces}
+                allowSegments={allowSegments}
+                onSelectAllBlocks={onSelectAllBlocks}
               />
             ))}
           </SortableContext>
@@ -2074,6 +2236,7 @@ export function PlanEditorPane({
   onSkip,
   onStartNewSession,
 }: PlanEditorPaneProps) {
+  const allowSegments = planType === "practice";
 
 
   const [items, setItems] = useState<PracticePlanItem[]>([]);
@@ -2111,7 +2274,7 @@ export function PlanEditorPane({
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
-  const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; name: string; isSegment?: boolean; hasChildren?: boolean } | null>(null);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [permalinkId, setPermalinkId] = useState<string | null>(() => planApi.getPermalinkId());
@@ -2294,32 +2457,87 @@ export function PlanEditorPane({
     [flatList, lastSelectedId]
   );
 
-  const handleCopySelection = useCallback(() => {
-    if (selectedIds.length === 0) return;
-    const idsInOrder = flatList.map((f) => f.id);
-    const ordered = [...selectedIds].sort(
-      (a, b) => idsInOrder.indexOf(a) - idsInOrder.indexOf(b)
-    );
-    const copies: PracticePlanItem[] = [];
-    for (const id of ordered) {
-      const flat = flatList.find((f) => f.id === id);
-      if (flat) {
-        // Deep clone to detach from current tree
-        copies.push(JSON.parse(JSON.stringify(flat.item)));
+  const getSelectedBlockIdsFromDOM = useCallback((): string[] => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return [];
+
+    const container = contentRef.current;
+    if (!container) return [];
+
+    const allBlockEls = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+    if (allBlockEls.length === 0) return [];
+
+    const findBlockEl = (node: Node | null): HTMLElement | null => {
+      let curr: Node | null = node;
+      while (curr && curr !== container && curr !== document.body) {
+        if (curr.nodeType === Node.ELEMENT_NODE && (curr as HTMLElement).hasAttribute("data-item-id")) {
+          return curr as HTMLElement;
+        }
+        curr = curr.parentNode;
+      }
+      return null;
+    };
+
+    let startEl = findBlockEl(sel.anchorNode);
+    let endEl = findBlockEl(sel.focusNode);
+
+    if (!startEl || !endEl) {
+      const activeEl = document.activeElement;
+      if (activeEl && container.contains(activeEl)) {
+        const activeBlockEl = findBlockEl(activeEl);
+        if (activeBlockEl) {
+          if (!startEl) startEl = activeBlockEl;
+          if (!endEl) endEl = activeBlockEl;
+        }
       }
     }
-    if (copies.length > 0) {
-      setClipboard(copies);
-    }
-  }, [selectedIds, flatList]);
 
-  const handleCutSelection = useCallback(() => {
-    if (selectedIds.length === 0) return;
-    handleCopySelection();
+    if (startEl && endEl) {
+      const startIdx = allBlockEls.indexOf(startEl);
+      const endIdx = allBlockEls.indexOf(endEl);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const min = Math.min(startIdx, endIdx);
+        const max = Math.max(startIdx, endIdx);
+        return allBlockEls.slice(min, max + 1).map((el) => el.getAttribute("data-item-id")!).filter(Boolean);
+      }
+    }
+
+    const selectedIds: string[] = [];
+    allBlockEls.forEach((el) => {
+      try {
+        if (sel.containsNode(el, true)) {
+          const id = el.getAttribute("data-item-id");
+          if (id && !selectedIds.includes(id)) {
+            selectedIds.push(id);
+          }
+        } else {
+          for (let i = 0; i < sel.rangeCount; i++) {
+            const range = sel.getRangeAt(i);
+            if (range.intersectsNode(el)) {
+              const id = el.getAttribute("data-item-id");
+              if (id && !selectedIds.includes(id)) {
+                selectedIds.push(id);
+              }
+              break;
+            }
+          }
+        }
+      } catch {}
+    });
+
+    return selectedIds;
+  }, []);
+
+  const handleDeleteMultiple = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const selectedSet = new Set(ids);
+    const topLevelIds = ids.filter((id) => !isAncestorSelected(id, selectedSet, flatList));
+
     const idsInOrder = flatList.map((f) => f.id);
-    const orderedDesc = [...selectedIds].sort(
+    const orderedDesc = [...topLevelIds].sort(
       (a, b) => idsInOrder.indexOf(b) - idsInOrder.indexOf(a)
     );
+
     applyChange((prev) => {
       let result = prev;
       for (const id of orderedDesc) {
@@ -2327,25 +2545,262 @@ export function PlanEditorPane({
       }
       return result;
     });
+
+    try {
+      window.getSelection()?.removeAllRanges();
+    } catch {}
     setSelectedIds([]);
     setLastSelectedId(null);
-  }, [selectedIds, flatList, handleCopySelection, applyChange, planApi]);
+
+    toast({
+      title: `Deleted ${topLevelIds.length} block${topLevelIds.length > 1 ? "s" : ""}`,
+      action: (
+        <ToastAction altText="Undo deletion" onClick={handleUndo}>
+          Undo
+        </ToastAction>
+      ),
+    });
+  }, [flatList, applyChange, planApi, handleUndo, toast]);
+
+  const handleSelectAllBlocks = useCallback(() => {
+    const allIds = flatList.map((f) => f.id);
+    setSelectedIds(allIds);
+    if (allIds.length > 0) {
+      setLastSelectedId(allIds[0]);
+    }
+  }, [flatList]);
+
+  const handleCopySelectionIds = useCallback((targetIds?: string[] | PracticePlanItem, clipboardEvent?: ClipboardEvent) => {
+    let idsToCopy: string[] = [];
+    let directCopies: PracticePlanItem[] | null = null;
+
+    if (targetIds && !Array.isArray(targetIds)) {
+      directCopies = [JSON.parse(JSON.stringify(targetIds))];
+    } else if (Array.isArray(targetIds) && targetIds.length > 0) {
+      idsToCopy = targetIds;
+    } else {
+      idsToCopy = selectedIds;
+    }
+
+    let copies: PracticePlanItem[] = [];
+
+    if (directCopies) {
+      copies = directCopies;
+    } else if (idsToCopy.length > 0) {
+      const selectedSet = new Set(idsToCopy);
+      const topLevelSelectedIds = idsToCopy.filter(
+        (id) => !isAncestorSelected(id, selectedSet, flatList)
+      );
+      const idsInOrder = flatList.map((f) => f.id);
+      const ordered = topLevelSelectedIds.sort(
+        (a, b) => idsInOrder.indexOf(a) - idsInOrder.indexOf(b)
+      );
+      for (const id of ordered) {
+        const flat = flatList.find((f) => f.id === id);
+        if (flat) {
+          copies.push(JSON.parse(JSON.stringify(flat.item)));
+        }
+      }
+    }
+
+    if (copies.length > 0) {
+      setClipboard(copies);
+      const outlineText = copies.map((c) => formatItemAsOutlineText(c)).join("\n");
+      if (clipboardEvent && clipboardEvent.clipboardData) {
+        clipboardEvent.clipboardData.setData("text/plain", outlineText);
+      } else {
+        try {
+          navigator.clipboard.writeText(outlineText).catch(() => {});
+        } catch {}
+      }
+      try {
+        localStorage.setItem("practice-timer-plan-clipboard", JSON.stringify(copies));
+      } catch (e) {
+        console.warn("[clipboard] Failed to save to localStorage", e);
+      }
+      const totalCount = countTotalNodesInForest(copies);
+      toast({
+        title: "Copied to clipboard",
+        description: `Copied ${totalCount} item${totalCount > 1 ? "s" : ""}.`,
+        duration: 2000,
+      });
+    }
+  }, [selectedIds, flatList, toast]);
+
+  const handleCutSelectionIds = useCallback((targetIds?: string[] | PracticePlanItem, clipboardEvent?: ClipboardEvent) => {
+    let idsToCut: string[] = [];
+    if (targetIds && !Array.isArray(targetIds)) {
+      idsToCut = [targetIds.id];
+    } else if (Array.isArray(targetIds) && targetIds.length > 0) {
+      idsToCut = targetIds;
+    } else {
+      idsToCut = selectedIds;
+    }
+
+    if (idsToCut.length === 0) return;
+
+    handleCopySelectionIds(idsToCut, clipboardEvent);
+
+    const selectedSet = new Set(idsToCut);
+    const topLevelCutIds = idsToCut.filter(
+      (id) => !isAncestorSelected(id, selectedSet, flatList)
+    );
+
+    const idsInOrder = flatList.map((f) => f.id);
+    const orderedDesc = [...topLevelCutIds].sort(
+      (a, b) => idsInOrder.indexOf(b) - idsInOrder.indexOf(a)
+    );
+
+    applyChange((prev) => {
+      let result = prev;
+      for (const id of orderedDesc) {
+        result = planApi.delete(result, id);
+      }
+      return result;
+    });
+
+    try {
+      window.getSelection()?.removeAllRanges();
+    } catch {}
+    setSelectedIds([]);
+    setLastSelectedId(null);
+    toast({
+      title: "Cut to clipboard",
+      description: `Cut ${idsToCut.length} block${idsToCut.length > 1 ? "s" : ""} (including sub-items).`,
+      duration: 2000,
+    });
+  }, [selectedIds, flatList, handleCopySelectionIds, applyChange, planApi, toast]);
+
+  const handleCopySelection = useCallback((targetItem?: PracticePlanItem) => {
+    handleCopySelectionIds(targetItem);
+  }, [handleCopySelectionIds]);
+
+  const handleCutSelection = useCallback((targetItem?: PracticePlanItem) => {
+    handleCutSelectionIds(targetItem);
+  }, [handleCutSelectionIds]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
+      const isInputFocused = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+      const hasPartialTextSelection = isInputFocused && activeEl.selectionStart !== activeEl.selectionEnd;
+
+      if ((e.key === "a" || e.key === "A") && (e.metaKey || e.ctrlKey)) {
+        if (!isInputFocused || (activeEl.selectionStart === 0 && activeEl.selectionEnd === activeEl.value.length)) {
+          e.preventDefault();
+          handleSelectAllBlocks();
+          return;
+        }
+      }
+
+      if ((e.key === "Backspace" || e.key === "Delete") && !hasPartialTextSelection) {
+        const domSelectedIds = getSelectedBlockIdsFromDOM();
+        if (domSelectedIds.length > 1) {
+          e.preventDefault();
+          handleDeleteMultiple(domSelectedIds);
+        }
+      }
+    };
+
+    const handleGlobalCopy = (e: ClipboardEvent) => {
+      const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
+      const isInputFocused = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+      const hasPartialTextSelection = isInputFocused && activeEl.selectionStart !== activeEl.selectionEnd;
+
+      if (!hasPartialTextSelection) {
+        const domSelectedIds = getSelectedBlockIdsFromDOM();
+        const idsToCopy = domSelectedIds.length > 0 ? domSelectedIds : selectedIds;
+        if (idsToCopy.length > 0) {
+          e.preventDefault();
+          handleCopySelectionIds(idsToCopy, e);
+        }
+      }
+    };
+
+    const handleGlobalCut = (e: ClipboardEvent) => {
+      const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
+      const isInputFocused = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+      const hasPartialTextSelection = isInputFocused && activeEl.selectionStart !== activeEl.selectionEnd;
+
+      if (!hasPartialTextSelection) {
+        const domSelectedIds = getSelectedBlockIdsFromDOM();
+        const idsToCut = domSelectedIds.length > 0 ? domSelectedIds : selectedIds;
+        if (idsToCut.length > 0) {
+          e.preventDefault();
+          handleCutSelectionIds(idsToCut, e);
+        }
+      }
+    };
+
+    let rafId: number | null = null;
+    const handleSelectionChange = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const domSelectedIds = getSelectedBlockIdsFromDOM();
+        if (domSelectedIds.length > 1) {
+          setSelectedIds(domSelectedIds);
+        }
+      });
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    document.addEventListener("copy", handleGlobalCopy);
+    document.addEventListener("cut", handleGlobalCut);
+    document.addEventListener("selectionchange", handleSelectionChange);
+
+    return () => {
+      document.removeEventListener("keydown", handleGlobalKeyDown);
+      document.removeEventListener("copy", handleGlobalCopy);
+      document.removeEventListener("cut", handleGlobalCut);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [getSelectedBlockIdsFromDOM, selectedIds, handleDeleteMultiple, handleCopySelectionIds, handleCutSelectionIds, handleSelectAllBlocks]);
 
   const handlePasteBelowSelection = useCallback(
-    (targetId: string) => {
-      if (!clipboard || clipboard.length === 0) return;
+    (targetId?: string) => {
+      let activeClipboard = clipboard;
+      if (!activeClipboard || activeClipboard.length === 0) {
+        try {
+          const raw = localStorage.getItem("practice-timer-plan-clipboard");
+          if (raw) {
+            activeClipboard = JSON.parse(raw);
+          }
+        } catch {}
+      }
+
+      if (!activeClipboard || activeClipboard.length === 0) {
+        toast({
+          title: "Clipboard empty",
+          description: "No items in clipboard. Copy or cut a block first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const newIds: string[] = [];
       applyChange((prev) => {
         let result = prev;
-        let insertAfterId = targetId;
-        for (const snippet of clipboard) {
+        let insertAfterId = targetId || (prev.length > 0 ? prev[prev.length - 1].id : null);
+        if (!insertAfterId && prev.length === 0) {
+          const cloned = activeClipboard.map(cloneWithNewIds);
+          newIds.push(...cloned.map((c) => c.id));
+          return cloned;
+        }
+        for (const snippet of activeClipboard) {
           const cloned = cloneWithNewIds(snippet);
-          result = planApi.insertExistingAfter(result, insertAfterId, cloned);
-          insertAfterId = cloned.id;
+          if (insertAfterId) {
+            result = planApi.insertExistingAfter(result, insertAfterId, cloned);
+            insertAfterId = cloned.id;
+          } else {
+            result = [...result, cloned];
+            insertAfterId = cloned.id;
+          }
           newIds.push(cloned.id);
         }
         return result;
       });
+
       if (newIds.length > 0) {
         setSelectedIds(newIds);
         setLastSelectedId(newIds[newIds.length - 1] ?? null);
@@ -2353,10 +2808,56 @@ export function PlanEditorPane({
           id: newIds[newIds.length - 1],
           type: "row",
         });
+        const totalCount = countTotalNodesInForest(activeClipboard);
+        toast({
+          title: "Pasted",
+          description: `Pasted ${totalCount} item${totalCount > 1 ? "s" : ""}.`,
+          duration: 2500,
+        });
       }
     },
-    [clipboard, applyChange, planApi]
+    [clipboard, applyChange, planApi, toast]
   );
+
+  const handlePasteMultiLineText = useCallback((targetId: string, rawText: string) => {
+    const parsedItems = parseTextToPlanItems(rawText);
+    if (parsedItems.length === 0) return;
+
+    applyChange((prev) => {
+      const flat = flatList.find((f) => f.id === targetId);
+      if (!flat) {
+        return [...prev, ...parsedItems];
+      }
+
+      if (!flat.item.text.trim() && (!flat.item.children || flat.item.children.length === 0)) {
+        let result = prev;
+        let insertAfterId = targetId;
+        for (const newItem of parsedItems) {
+          result = planApi.insertExistingAfter(result, insertAfterId, newItem);
+          insertAfterId = newItem.id;
+        }
+        result = planApi.delete(result, targetId);
+        return result;
+      } else {
+        let result = prev;
+        let insertAfterId = targetId;
+        for (const newItem of parsedItems) {
+          result = planApi.insertExistingAfter(result, insertAfterId, newItem);
+          insertAfterId = newItem.id;
+        }
+        return result;
+      }
+    });
+
+    if (parsedItems.length > 0) {
+      const lastItem = parsedItems[parsedItems.length - 1];
+      setFocusRequest({
+        id: lastItem.id,
+        type: "edit",
+        cursorPosition: "end",
+      });
+    }
+  }, [flatList, applyChange, planApi]);
 
   const handleToggleCheck = useCallback((id: string) => {
     applyChange((prev) => planApi.toggleCheck(prev, id));
@@ -2377,11 +2878,17 @@ export function PlanEditorPane({
     const flat = flatList.find((x) => x.id === id);
     if (!flat) return;
 
-    const isSegmentOrHasContent = flat.item.blockType === "segment" || !!flat.item.text.trim() || (flat.item.children && flat.item.children.length > 0);
+    const isSegment = flat.item.blockType === "segment";
+    const hasChildren = !!(flat.item.children && flat.item.children.length > 0);
 
-    if (!force && isSegmentOrHasContent) {
+    if (!force && (isSegment || hasChildren)) {
       const rawName = stripMarkdownLinks(flat.item.text.trim());
-      setDeleteConfirmItem({ id, name: rawName || "this segment" });
+      setDeleteConfirmItem({
+        id,
+        name: rawName || (isSegment ? "this segment" : "this block"),
+        isSegment,
+        hasChildren,
+      });
       return;
     }
 
@@ -2393,7 +2900,7 @@ export function PlanEditorPane({
       nextFocusId = flatList[index + 1].id;
     }
 
-    const deletedName = stripMarkdownLinks(flat.item.text.trim()) || "Segment";
+    const deletedName = stripMarkdownLinks(flat.item.text.trim()) || (isSegment ? "Segment" : "Block");
 
     applyChange((prev) => planApi.delete(prev, id));
     if (nextFocusId) {
@@ -2689,7 +3196,7 @@ export function PlanEditorPane({
   }, [flatList, handleDelete, applyChange, planApi]);
 
   const handleInputFocus = useCallback((id: string) => {
-    // no-op or tracking
+    setSelectedIds((prev) => (prev.length <= 1 ? [] : prev));
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -2812,20 +3319,24 @@ export function PlanEditorPane({
                               {label}
                             </DropdownMenuItem>
                           ))}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel>Practice</DropdownMenuLabel>
-                          {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
-                            <DropdownMenuItem
-                              key={type}
-                              onSelect={() => handleInsertBlock(0, type)}
-                              className="flex items-center gap-2"
-                            >
-                              <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
-                                <span className="material-icons text-base">{icon}</span>
-                              </span>
-                              {label}
-                            </DropdownMenuItem>
-                          ))}
+                          {allowSegments && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel>Practice</DropdownMenuLabel>
+                              {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                                <DropdownMenuItem
+                                  key={type}
+                                  onSelect={() => handleInsertBlock(0, type)}
+                                  className="flex items-center gap-2"
+                                >
+                                  <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                                    <span className="material-icons text-base">{icon}</span>
+                                  </span>
+                                  {label}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -2855,11 +3366,14 @@ export function PlanEditorPane({
                       onCopySelection={handleCopySelection}
                       onCutSelection={handleCutSelection}
                       onPasteBelowSelection={handlePasteBelowSelection}
+                      onPasteMultiLineText={handlePasteMultiLineText}
                       onUndo={handleUndo}
                       onOpenAllocationDialog={handleOpenAllocationDialog}
                       onPlayPiece={handlePlayPiece}
                       onSaveSegment={handleSaveSegment}
                       repertoirePieces={repertoirePieces}
+                      allowSegments={allowSegments}
+                      onSelectAllBlocks={handleSelectAllBlocks}
                     />
                   ))}
                 </div>
@@ -3041,9 +3555,15 @@ export function PlanEditorPane({
           <AlertDialog open={!!deleteConfirmItem} onOpenChange={(open) => { if (!open) setDeleteConfirmItem(null); }}>
             <AlertDialogContent className="sm:max-w-md">
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete practice segment?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {deleteConfirmItem?.isSegment
+                    ? `Delete segment?`
+                    : deleteConfirmItem?.hasChildren
+                    ? `Delete block and sub-items?`
+                    : `Delete block?`}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{deleteConfirmItem?.name}"? You can undo this action if needed.
+                  Are you sure you want to delete "{deleteConfirmItem?.name}"{deleteConfirmItem?.hasChildren ? " and all of its sub-items" : ""}? You can undo this action if needed.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
