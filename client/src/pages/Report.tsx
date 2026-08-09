@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
 import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type ReportLogSummary } from "@/lib/reportShare";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import { RichLink } from "@/components/RichLink";
 import { supabase } from "@/lib/supabaseClient";
@@ -137,7 +138,7 @@ function ReportItem({
 
     return (
       <div className="py-1.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
-        <div className="rounded-xl border border-border/80 border-l-4 border-l-primary/70 bg-card/60 dark:bg-muted/15 px-3.5 py-2.5 space-y-1.5 shadow-sm transition-all hover:border-border hover:bg-card/90">
+        <div className="rounded-xl border border-border/80 bg-card/60 dark:bg-muted/15 px-3.5 py-2.5 space-y-1.5 shadow-sm transition-all hover:border-primary/50 hover:bg-accent/30 dark:hover:bg-muted/30">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -400,10 +401,12 @@ export default function Report() {
   }, [id]);
 
   useEffect(() => {
-    if (snapshot?.title) {
-      document.title = snapshot.title;
-    }
     if (snapshot) {
+      const docTitle =
+        snapshot.title && snapshot.title !== "Practice & Lesson Plan Report"
+          ? snapshot.title
+          : "Practice Plan & Progress Report";
+      document.title = docTitle;
       setCreatorName(snapshot.creatorName || null);
     }
     let meta = document.querySelector('meta[name="robots"]');
@@ -477,35 +480,87 @@ export default function Report() {
     }
   })();
 
+  const headerTitle =
+    snapshot.title && snapshot.title !== "Practice & Lesson Plan Report"
+      ? snapshot.title
+      : "Practice Plan & Progress Report";
+
   return (
     <div className="space-y-6 text-foreground">
       <header className="border-b border-white/10 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            {snapshot.title ?? "Practice Report"}
+            {headerTitle}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">{dateLabel}</p>
-        </div>
-      </header>
-      {snapshot.logSummary && snapshot.logSummary.totalSeconds > 0 && (
-        <div className="py-2 border-b border-white/10 pb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold text-primary tabular-nums">
-              {formatDuration(snapshot.logSummary.totalSeconds)}
-            </span>
-            <span className="text-sm text-muted-foreground">total practice time</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1.5">
+            <span>{dateLabel}</span>
+            {snapshot.logSummary && (
+              <>
+                <span className="text-muted-foreground/40 hidden sm:inline">•</span>
+                <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
+                  <span className="material-icons text-base text-primary select-none">timer</span>
+                  <span className="font-bold text-primary tabular-nums">
+                    {formatDuration(snapshot.logSummary.totalSeconds ?? 0)}
+                  </span>
+                  <span className="text-muted-foreground">total practice time in last 7 days</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </header>
       <main className="w-full space-y-8">
-        {snapshot.items && snapshot.items.length > 0 && (
-          <section className="space-y-3">
-            {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 && (
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2 border-b border-border/40 pb-2">
+        {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 ? (
+          <Tabs defaultValue="practice" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-xs sm:max-w-sm mb-6 bg-muted/50 p-1 rounded-xl">
+              <TabsTrigger value="practice" className="flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors data-[state=active]:bg-background data-[state=active]:shadow-sm">
                 <span className="material-icons text-base">assignment</span>
                 Practice Plan
-              </h2>
-            )}
+              </TabsTrigger>
+              <TabsTrigger value="lesson" className="flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <span className="material-icons text-base">school</span>
+                Lesson Plan
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="practice" className="space-y-1 mt-0 focus-visible:outline-none focus-visible:ring-0">
+              {snapshot.items && snapshot.items.length > 0 ? (
+                snapshot.items.map((item, i, arr) => {
+                  const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+                  return (
+                    <ReportItem
+                      key={i}
+                      item={item}
+                      numberIndex={numIdx}
+                      logSummary={snapshot.logSummary}
+                      embeddedPieces={snapshot.embeddedPieces}
+                      sharedId={id}
+                      sharedToken={token}
+                    />
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground italic py-4">No practice plan items available.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="lesson" className="space-y-1 mt-0 focus-visible:outline-none focus-visible:ring-0">
+              {snapshot.lessonPlanItems.map((item, i, arr) => {
+                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+                return (
+                  <ReportItem
+                    key={i}
+                    item={item}
+                    numberIndex={numIdx}
+                    logSummary={snapshot.logSummary}
+                    embeddedPieces={snapshot.embeddedPieces}
+                    sharedId={id}
+                    sharedToken={token}
+                  />
+                );
+              })}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          snapshot.items && snapshot.items.length > 0 && (
             <div className="space-y-1">
               {snapshot.items.map((item, i, arr) => {
                 const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
@@ -522,32 +577,7 @@ export default function Report() {
                 );
               })}
             </div>
-          </section>
-        )}
-
-        {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 && (
-          <section className="space-y-3 pt-4">
-            <h2 className="text-xl font-bold text-primary flex items-center gap-2 border-b border-border/40 pb-2">
-              <span className="material-icons text-base">school</span>
-              Lesson Plan
-            </h2>
-            <div className="space-y-1">
-              {snapshot.lessonPlanItems.map((item, i, arr) => {
-                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-                return (
-                  <ReportItem
-                    key={i}
-                    item={item}
-                    numberIndex={numIdx}
-                    logSummary={snapshot.logSummary}
-                    embeddedPieces={snapshot.embeddedPieces}
-                    sharedId={id}
-                    sharedToken={token}
-                  />
-                );
-              })}
-            </div>
-          </section>
+          )
         )}
       </main>
     </div>

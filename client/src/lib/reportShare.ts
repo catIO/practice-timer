@@ -76,7 +76,7 @@ export function createReportSnapshot(
   const snapshot: ReportSnapshot = {
     v: 1,
     date: new Date().toISOString(),
-    title: title ?? "Practice & Lesson Plan Report",
+    title: title ?? "Practice Plan & Progress Report",
     items: items.map(itemToSnapshot),
     lessonPlanItems: effectiveLessonItems.map(itemToSnapshot),
     logSummary,

@@ -361,11 +361,8 @@ export interface Last7DaysSummary {
 }
 
 export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSummary {
-  // Use the 7 most recent *complete* days (yesterday and the 6 days before it)
-  const todayD = new Date();
-  const yesterdayD = new Date(todayD);
-  yesterdayD.setDate(todayD.getDate() - 1);
-  const endDate = getLocalYMD(yesterdayD);
+  // Use the 7 most recent days including today
+  const endDate = getLocalYMD();
   const endD = new Date(endDate + 'T12:00:00');
   const startD = new Date(endD);
   startD.setDate(startD.getDate() - 6);
@@ -392,6 +389,11 @@ export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSum
         pieceMap[itemId].seconds += entry.seconds;
       }
     }
+  }
+
+  const detailedTotalSeconds = Object.values(pieceMap).reduce((sum, item) => sum + item.seconds, 0);
+  if (detailedTotalSeconds > totalSeconds) {
+    totalSeconds = detailedTotalSeconds;
   }
 
   const pieces = Object.entries(pieceMap)

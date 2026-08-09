@@ -2305,8 +2305,12 @@ export function PlanEditorPane({
 
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
+    try {
+      (document.activeElement as HTMLElement)?.blur();
+      window.getSelection()?.removeAllRanges();
+    } catch {}
     const prev = undoStack[undoStack.length - 1];
-    setUndoStack(s => s.slice(0, -1));
+    setUndoStack((s) => s.slice(0, -1));
     setItems(prev);
     planApi.save(prev);
   }, [undoStack, planApi]);
@@ -2551,16 +2555,7 @@ export function PlanEditorPane({
     } catch {}
     setSelectedIds([]);
     setLastSelectedId(null);
-
-    toast({
-      title: `Deleted ${topLevelIds.length} block${topLevelIds.length > 1 ? "s" : ""}`,
-      action: (
-        <ToastAction altText="Undo deletion" onClick={handleUndo}>
-          Undo
-        </ToastAction>
-      ),
-    });
-  }, [flatList, applyChange, planApi, handleUndo, toast]);
+  }, [flatList, applyChange, planApi]);
 
   const handleSelectAllBlocks = useCallback(() => {
     const allIds = flatList.map((f) => f.id);
@@ -2618,14 +2613,8 @@ export function PlanEditorPane({
       } catch (e) {
         console.warn("[clipboard] Failed to save to localStorage", e);
       }
-      const totalCount = countTotalNodesInForest(copies);
-      toast({
-        title: "Copied to clipboard",
-        description: `Copied ${totalCount} item${totalCount > 1 ? "s" : ""}.`,
-        duration: 2000,
-      });
     }
-  }, [selectedIds, flatList, toast]);
+  }, [selectedIds, flatList]);
 
   const handleCutSelectionIds = useCallback((targetIds?: string[] | PracticePlanItem, clipboardEvent?: ClipboardEvent) => {
     let idsToCut: string[] = [];
@@ -2664,12 +2653,7 @@ export function PlanEditorPane({
     } catch {}
     setSelectedIds([]);
     setLastSelectedId(null);
-    toast({
-      title: "Cut to clipboard",
-      description: `Cut ${idsToCut.length} block${idsToCut.length > 1 ? "s" : ""} (including sub-items).`,
-      duration: 2000,
-    });
-  }, [selectedIds, flatList, handleCopySelectionIds, applyChange, planApi, toast]);
+  }, [selectedIds, flatList, handleCopySelectionIds, applyChange, planApi]);
 
   const handleCopySelection = useCallback((targetItem?: PracticePlanItem) => {
     handleCopySelectionIds(targetItem);
@@ -2864,8 +2848,12 @@ export function PlanEditorPane({
   }, [applyChange, planApi]);
 
   const handleUpdateText = useCallback((id: string, text: string) => {
+    if (text.includes("\n") || text.includes("\r")) {
+      handlePasteMultiLineText(id, text);
+      return;
+    }
     applyChange((prev) => planApi.updateText(prev, id, text));
-  }, [applyChange, planApi]);
+  }, [applyChange, planApi, handlePasteMultiLineText]);
 
   const handleUpdateType = useCallback((id: string, type: BlockType | "repertoire-piece") => {
     const actualType = type === "repertoire-piece" ? "segment" : type;
@@ -2906,16 +2894,7 @@ export function PlanEditorPane({
     if (nextFocusId) {
       setFocusRequest({ id: nextFocusId, type: "row" });
     }
-
-    toast({
-      title: `Deleted "${deletedName}"`,
-      action: (
-        <ToastAction altText="Undo deletion" onClick={handleUndo}>
-          Undo
-        </ToastAction>
-      ),
-    });
-  }, [flatList, applyChange, handleUndo, toast, planApi]);
+  }, [flatList, applyChange, planApi]);
 
   const handleInsertBlock = useCallback(
     (index: number, blockType: BlockType | "repertoire-piece", initialText?: string) => {
