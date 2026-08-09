@@ -32,7 +32,7 @@ interface ShareContextType {
 const ShareContext = createContext<ShareContextType | undefined>(undefined);
 
 export function ShareProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const { toast } = useToast();
 
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -46,10 +46,17 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
     return existingId ? getShortShareUrl(existingId) : "";
   });
 
-  const { data: repertoirePieces } = useQuery({
-    queryKey: ["repertoire", user?.id],
-    queryFn: () => (user?.id ? repertoireService.getPieces(user.id) : Promise.resolve([])),
-    enabled: !!user?.id,
+  const { data: repertoirePieces = [] } = useQuery({
+    queryKey: ["repertoire"],
+    queryFn: async () => {
+      try {
+        return await repertoireService.getAll();
+      } catch (e) {
+        console.warn("[ShareContext] Failed to fetch repertoire pieces:", e);
+        return [];
+      }
+    },
+    enabled: isLoggedIn,
   });
 
   useEffect(() => {

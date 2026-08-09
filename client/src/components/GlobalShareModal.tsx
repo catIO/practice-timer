@@ -49,9 +49,6 @@ export function GlobalShareModal() {
                 <span className="material-icons text-base text-primary">link</span>
                 Permanent Link
               </h4>
-              <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded font-bold">
-                Auto-updating
-              </span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="grid flex-1 gap-2">
