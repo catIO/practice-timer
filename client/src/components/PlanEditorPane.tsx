@@ -2271,15 +2271,9 @@ export function PlanEditorPane({
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<PracticePlanItem[] | null>(null);
 
-  // Share dialog state
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; name: string; isSegment?: boolean; hasChildren?: boolean } | null>(null);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const [permalinkId, setPermalinkId] = useState<string | null>(() => planApi.getPermalinkId());
-  const [lastPublishedDate, setLastPublishedDate] = useState<string | null>(() => planApi.getLastPublishedDate());
-  const [isPublishing, setIsPublishing] = useState(false);
 
   // 20-level undo stack: each applyChange pushes the current state before mutating.
   const MAX_UNDO = 20;
@@ -2964,19 +2958,18 @@ export function PlanEditorPane({
     applyChange((prev) => planApi.resetChecks(prev));
   }, [applyChange, planApi]);
 
-  const [isSharing, setIsSharing] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importText, setImportText] = useState("");
 
   const handleExportPlan = useCallback(() => {
     navigator.clipboard.writeText(JSON.stringify(items, null, 2)).then(() => {
       toast({
-        title: "Exported",
-        description: "Plan copied to clipboard. Paste into Import on another tab/port.",
+        title: `${planTitle} Exported`,
+        description: `${planTitle} copied to clipboard. Paste into Import on another tab or device.`,
         duration: 3000,
       });
     });
-  }, [items, toast]);
+  }, [items, toast, planTitle]);
 
   const normalizeImportedItem = useCallback((item: PracticePlanItem): PracticePlanItem => ({
     ...item,
@@ -3000,7 +2993,7 @@ export function PlanEditorPane({
       planApi.save(normalized);
       setImportDialogOpen(false);
       setImportText("");
-      toast({ title: "Imported", description: "Plan loaded successfully." });
+      toast({ title: `${planTitle} Imported`, description: `${planTitle} loaded successfully.` });
     } catch (e) {
       toast({
         title: "Invalid JSON",
@@ -3008,99 +3001,9 @@ export function PlanEditorPane({
         variant: "destructive",
       });
     }
-  }, [importText, normalizeImportedItem, toast]);
+  }, [importText, normalizeImportedItem, toast, planApi, planTitle]);
 
-  const handleShareClick = useCallback(() => {
-    setShareDialogOpen(true);
-  }, []);
 
-  const formatLastPublishedDate = useCallback((isoStr: string | null) => {
-    if (!isoStr) return "";
-    try {
-      const d = new Date(isoStr);
-      return d.toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
-    } catch {
-      return isoStr;
-    }
-  }, []);
-
-  const handlePublishUpdate = useCallback(async () => {
-    setIsPublishing(true);
-    try {
-      const creatorName = user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorName);
-      // If we already have a permalinkId, update it. Otherwise create a new one.
-      const url = await shareReport(snapshot, permalinkId || undefined);
-
-      const nowStr = new Date().toISOString();
-      planApi.saveLastPublishedDate(nowStr);
-      setLastPublishedDate(nowStr);
-
-      // If it was a new ID, save it
-      if (!permalinkId) {
-        const newId = url.split('/').pop() || "";
-        setPermalinkId(newId);
-        planApi.savePermalinkId(newId);
-        setShareUrl(url);
-      } else {
-        setShareUrl(url);
-      }
-
-      toast({
-        title: "Link Updated",
-        description: `Your ${planTitle.toLowerCase()} has been published to the permalink.`,
-      });
-    } catch (e) {
-      toast({
-        title: "Error",
-        description: "Failed to publish update. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPublishing(false);
-    }
-  }, [items, permalinkId, toast, repertoirePieces, user, planApi, planTitle]);
-
-  const handleCreateVersion = useCallback(async () => {
-    setIsSharing(true);
-    try {
-      const creatorName = user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
-      const snapshot = createReportSnapshot(items, undefined, getLast7DaysSummary(items), repertoirePieces, creatorName);
-      // Create a new unique version by not passing an ID
-      const url = await shareReport(snapshot);
-      setShareUrl(url);
-      toast({
-        title: "Version Created",
-        description: "A new snapshot link has been generated.",
-      });
-    } catch (e) {
-      toast({
-        title: "Error",
-        description: "Failed to create version. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSharing(false);
-    }
-  }, [items, toast, repertoirePieces, user]);
-
-  const handleCopyLink = useCallback(() => {
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      toast({
-        title: "Copied!",
-        description: "Link copied to clipboard.",
-        duration: 2000,
-      });
-    });
-  }, [shareUrl, toast]);
-
-  const handleOpenLink = useCallback(() => {
-    window.open(shareUrl, "_blank", "noopener");
-    setShareDialogOpen(false);
-  }, [shareUrl]);
 
   // Navigation Logic
   const handleNavigate = useCallback(
@@ -3208,28 +3111,6 @@ export function PlanEditorPane({
               <TooltipContent>Reset Progress</TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"
-                  onClick={handleShareClick}
-                  disabled={isSharing}
-                  aria-label="Share report"
-                >
-                  <span className={cn(
-                    "material-icons text-lg",
-                    isSharing && "animate-spin"
-                  )}>
-                    {isSharing ? 'sync' : 'share'}
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isSharing ? "Generating Link..." : "Share Report"}
-              </TooltipContent>
-            </Tooltip>
 
             <DropdownMenu>
               <Tooltip>
@@ -3250,11 +3131,11 @@ export function PlanEditorPane({
               <DropdownMenuContent align="end" className="bg-slate-900 border border-white/10 text-foreground">
                 <DropdownMenuItem onClick={() => setImportDialogOpen(true)} className="focus:bg-white/5 cursor-pointer flex items-center gap-2">
                   <span className="material-icons text-sm">content_paste</span>
-                  Import Plan
+                  Import {planTitle}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportPlan} className="focus:bg-white/5 cursor-pointer flex items-center gap-2">
                   <span className="material-icons text-sm">content_copy</span>
-                  Export Plan
+                  Export {planTitle}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -3278,7 +3159,7 @@ export function PlanEditorPane({
                 <div className="space-y-1 pb-20 pl-8 sm:pl-14">
                   {items.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
-                      <p className="mb-4">Your practice plan is empty.</p>
+                      <p className="mb-4">Your {planTitle.toLowerCase()} is empty.</p>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="gap-2">
@@ -3362,107 +3243,12 @@ export function PlanEditorPane({
           {/* Link Popover Portal Target */}
           <div id="practice-sheet-content" className="relative" />
 
-          <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Share Practice Plan</DialogTitle>
-                <DialogDescription>
-                  Anyone with this link can view your progress.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-6 py-4">
-                {/* Permalink Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">Permalink</h4>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Always latest</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="grid flex-1 gap-2">
-                      <Input
-                        id="permalink"
-                        value={permalinkId ? window.location.origin + "/r/" + permalinkId : "Not published yet"}
-                        readOnly
-                        className="w-full h-9 bg-muted/50 text-xs"
-                      />
-                    </div>
-                    {permalinkId && (
-                      <>
-                        <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => {
-                          navigator.clipboard.writeText(window.location.origin + "/r/" + permalinkId);
-                          toast({ title: "Copied!", duration: 1000 });
-                        }} title="Copy permalink">
-                          <span className="material-icons text-base">content_copy</span>
-                        </Button>
-                        <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => window.open(window.location.origin + "/r/" + permalinkId, "_blank")} title="Open link">
-                          <span className="material-icons text-base">open_in_new</span>
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  {lastPublishedDate && permalinkId && (
-                    <p className="text-[11px] text-muted-foreground italic pl-1 flex items-center gap-1.5">
-                      <span className="material-icons text-xs text-primary">schedule</span>
-                      <span>Last published: {formatLastPublishedDate(lastPublishedDate)}</span>
-                    </p>
-                  )}
-                  <Button
-                    className="w-full gap-2 h-9"
-                    onClick={handlePublishUpdate}
-                    disabled={isPublishing}
-                  >
-                    <span className={cn("material-icons text-sm", isPublishing && "animate-spin")}>
-                      {isPublishing ? "sync" : "cloud_upload"}
-                    </span>
-                    {permalinkId ? "Publish Update" : "Create Permalink"}
-                  </Button>
-                </div>
-
-                <div className="relative h-px bg-border">
-                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover px-2 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">or</span>
-                </div>
-
-                {/* Snapshot Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">Snapshot version</h4>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Static backup</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 h-9 border-dashed"
-                    onClick={handleCreateVersion}
-                    disabled={isSharing}
-                  >
-                    <span className={cn("material-icons text-sm", isSharing && "animate-spin")}>
-                      {isSharing ? "sync" : "history"}
-                    </span>
-                    Create Snapshot Version
-                  </Button>
-                  {shareUrl && !shareUrl.includes(permalinkId || "___") && (
-                    <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Input
-                        value={shareUrl}
-                        readOnly
-                        className="flex-1 h-8 bg-muted/30 text-[11px] font-mono"
-                      />
-                      <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleCopyLink}>
-                        <span className="material-icons text-sm">content_copy</span>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
           <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>Import Plan</DialogTitle>
+                <DialogTitle>Import {planTitle}</DialogTitle>
                 <DialogDescription>
-                  Paste exported plan JSON below. Use Export Plan on another tab/port to copy it.
+                  Paste exported {planTitle.toLowerCase()} JSON below. Use Export {planTitle} on another tab or device to copy it.
                 </DialogDescription>
               </DialogHeader>
               <textarea

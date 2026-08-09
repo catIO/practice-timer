@@ -13,8 +13,8 @@ import {
 } from "./planStoreHelpers";
 
 const LESSON_PLAN_KEY = "practice-timer-lesson-plan";
-const PERMANENT_SHARE_ID_KEY = "practice-timer-lesson-share-id";
-const LAST_PUBLISHED_DATE_KEY = "practice-timer-lesson-last-published-date";
+const PERMANENT_SHARE_ID_KEY = "practice-timer-share-id";
+const LAST_PUBLISHED_DATE_KEY = "practice-timer-last-published-date";
 const SNAPSHOT_KEY = "practice-timer-lesson-plan-history";
 
 export type { BlockType, PlanItem as LessonPlanItem, PlanSnapshot as LessonPlanSnapshot } from "./planTypes";

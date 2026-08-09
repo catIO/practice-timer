@@ -21,6 +21,7 @@ import ResetPassword from '@/pages/ResetPassword';
 import SharedPieceDetail from '@/pages/SharedPieceDetail';
 import { NavigationLayout } from '@/components/NavigationLayout';
 import { SharedReportProvider } from '@/contexts/SharedReportContext';
+import { ShareProvider } from '@/contexts/ShareContext';
 
 import { useTimerStore } from '@/stores/timerStore';
 import { ToastProvider, useToast } from '@/hooks/use-toast';
@@ -170,9 +171,11 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SharedReportProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
+            <ShareProvider>
+              <ToastProvider>
+                <AppContent />
+              </ToastProvider>
+            </ShareProvider>
           </SharedReportProvider>
         </AuthProvider>
       </QueryClientProvider>

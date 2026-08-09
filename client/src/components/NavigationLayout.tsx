@@ -14,6 +14,8 @@ import {
 import { AuthModal } from '@/components/AuthModal';
 import { cn } from '@/lib/utils';
 import { useSharedReport } from '@/contexts/SharedReportContext';
+import { useShareModal } from '@/contexts/ShareContext';
+import { GlobalShareModal } from '@/components/GlobalShareModal';
 import { stripMarkdownLinks } from '@/lib/richText';
 
 interface NavigationLayoutProps {
@@ -22,6 +24,7 @@ interface NavigationLayoutProps {
 
 export function NavigationLayout({ children }: NavigationLayoutProps) {
   const { creatorName } = useSharedReport();
+  const { openShareModal } = useShareModal();
   const location = useLocation();
   const pathname = location.pathname;
   const navigate = useNavigate();
@@ -430,6 +433,20 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               </Button>
             )}
 
+            {/* Share Report */}
+            {!isReportPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                onClick={openShareModal}
+                aria-label="Share Report"
+                title="Share Practice Report"
+              >
+                <span className="material-icons text-xl">share</span>
+              </Button>
+            )}
+
             {/* Settings */}
             <Button
               variant="ghost"
@@ -490,6 +507,9 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         onClose={() => setAuthModalOpen(false)}
         initialMode={authInitialMode}
       />
+
+      {/* Global Share Modal Container */}
+      <GlobalShareModal />
     </div>
   );
 }

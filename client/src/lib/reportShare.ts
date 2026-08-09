@@ -109,6 +109,58 @@ export function createReportSnapshot(
   return snapshot;
 }
 
+import { getPracticePlan } from "./practicePlan";
+import { getLast7DaysSummary } from "./practiceLog";
+
+export const GLOBAL_PERMANENT_SHARE_ID_KEY = "practice-timer-share-id";
+export const GLOBAL_LAST_PUBLISHED_DATE_KEY = "practice-timer-last-published-date";
+
+export function getGlobalPermalinkId(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem(GLOBAL_PERMANENT_SHARE_ID_KEY) ||
+    localStorage.getItem("practice-timer-lesson-share-id") ||
+    null
+  );
+}
+
+export function saveGlobalPermalinkId(id: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(GLOBAL_PERMANENT_SHARE_ID_KEY, id);
+}
+
+export function getGlobalLastPublishedDate(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem(GLOBAL_LAST_PUBLISHED_DATE_KEY) ||
+    localStorage.getItem("practice-timer-lesson-last-published-date") ||
+    null
+  );
+}
+
+export function saveGlobalLastPublishedDate(dateIso: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(GLOBAL_LAST_PUBLISHED_DATE_KEY, dateIso);
+}
+
+export function createGlobalReportSnapshot(
+  repertoirePieces?: RepertoirePiece[],
+  creatorName?: string
+): ReportSnapshot {
+  const practiceItems = getPracticePlan();
+  const lessonItems = getLessonPlan();
+  const logSummary = getLast7DaysSummary(practiceItems);
+
+  return createReportSnapshot(
+    practiceItems,
+    "Practice Plan & Progress Report",
+    logSummary,
+    repertoirePieces,
+    creatorName,
+    lessonItems
+  );
+}
+
 function base64UrlEncode(str: string): string {
   return btoa(unescape(encodeURIComponent(str)))
     .replace(/\+/g, "-")
