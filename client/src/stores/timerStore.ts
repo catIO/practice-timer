@@ -4,6 +4,7 @@ import { getSettings, getTimerProgress, saveTimerProgress, clearTimerProgress } 
 import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds } from '@/lib/practiceLog';
 import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
+import { playSound, resumeAudioContext } from '@/lib/soundEffects';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
 if (typeof window !== 'undefined') {
@@ -596,33 +597,39 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               break;
 
             case 'PLAY_SOUND':
-              // Handle sound playback - dispatch event for hook to handle
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('play-sound', {
                   detail: payload
                 }));
               }
+              // Always trigger audio playback from store to guarantee audio on all pages
+              (async () => {
+                try {
+                  await resumeAudioContext();
+                  const storeSettings = get().settings;
+                  if (storeSettings.soundEnabled) {
+                    let vol = payload?.volume ?? storeSettings.volume;
+                    if (vol <= 1) vol = vol * 100;
+                    vol = Math.min(100, Math.max(0, vol));
+                    const beeps = payload?.numberOfBeeps ?? storeSettings.numberOfBeeps;
+                    const soundType = payload?.soundType ?? storeSettings.soundType;
+                    if (vol > 0) {
+                      await playSound('end', beeps, vol, soundType as any);
+                    }
+                  }
+                } catch (e) {
+                  console.error('[timerStore] Error playing PLAY_SOUND audio:', e);
+                }
+              })();
               break;
 
             case 'PRACTICE_COMPLETE':
-              // PRACTICE_COMPLETE is a unique terminal event — do NOT gate it on sequence
-              // validation. pauseTimer() is called inside completeTimer() and emits PAUSED
-              // (which bumps lastMessageSequence) just before PRACTICE_COMPLETE is sent,
-              // creating a race where the sequence check can silently drop this message.
-              // Since there is exactly one PRACTICE_COMPLETE per practice cycle it is safe
-              // to always process it.
               if (sequence !== undefined) {
-                // Still update lastMessageSequence so later messages validate correctly,
-                // but never drop this event even if sequence looks stale.
                 const lastSeq = get().lastMessageSequence;
                 if (sequence > lastSeq) {
                   set({ lastMessageSequence: sequence });
                 }
               }
-              // Practice time is now logged incrementally during TICK events
-              // Don't set isPracticeComplete immediately - wait for sound to finish
-              // The practice-complete event handler will play sound first, then set isPracticeComplete
-              // Trigger completion callback via custom event (will handle sound first)
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('practice-complete', {
                   detail: {
@@ -631,6 +638,32 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   }
                 }));
               }
+              // Always play practice completion sound directly from store
+              (async () => {
+                try {
+                  await resumeAudioContext();
+                  const storeSettings = get().settings;
+                  if (storeSettings.soundEnabled) {
+                    let vol = storeSettings.volume;
+                    if (vol <= 1) vol = vol * 100;
+                    vol = Math.min(100, Math.max(0, vol));
+                    if (vol > 0) {
+                      await playSound('end', storeSettings.numberOfBeeps, vol, storeSettings.soundType as any);
+                    }
+                  }
+                } catch (e) {
+                  console.error('[timerStore] Error playing PRACTICE_COMPLETE sound:', e);
+                }
+              })();
+              set({ isPracticeComplete: true, isRunning: false });
+              saveTimerProgress({
+                timeRemaining: get().timeRemaining,
+                totalTime: get().totalTime,
+                mode: get().mode,
+                currentIteration: get().currentIteration,
+                totalIterations: get().totalIterations,
+                isPracticeComplete: true,
+              });
               break;
           }
         };
@@ -761,6 +794,11 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     startTimer: async () => {
       // Piece overtime runs concurrently with the break timer — don't stop it here.
       // (It will stop naturally when the piece finishes or when overtime state is cleared.)
+
+      // Unlock AudioContext on user interaction gesture
+      await resumeAudioContext().catch((e) =>
+        console.warn('[timerStore] AudioContext unlock failed on startTimer:', e)
+      );
 
       const state = get();
 

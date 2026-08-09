@@ -23,6 +23,7 @@ let audioContextInitialized = false;
 let audioContextResumed = false;
 let audioUnlockListenerAdded = false;
 let userGestureDetected = false;
+let lastPlaySoundTime = 0;
 
 // Initialize audio context
 const getAudioContext = () => {
@@ -635,6 +636,13 @@ const createWAV = (audioData: Float32Array, sampleRate: number): ArrayBuffer => 
 // Play a sound effect (main entry point)
 export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
   try {
+    const now = Date.now();
+    if (now - lastPlaySoundTime < 300) {
+      console.log(`playSound called too recently (${now - lastPlaySoundTime}ms ago), ignoring duplicate request`);
+      return;
+    }
+    lastPlaySoundTime = now;
+
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isIPad = detectIPad();
     
