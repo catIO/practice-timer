@@ -409,6 +409,47 @@ export default function Report() {
       document.title = docTitle;
       setCreatorName(snapshot.creatorName || null);
     }
+  }, [snapshot, setCreatorName]);
+
+  const [fetchedPieces, setFetchedPieces] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (!snapshot) return;
+    const missingIds = new Set<string>();
+    const collectPieceIds = (item: any) => {
+      if (item.repertoirePieceId && (!snapshot.embeddedPieces || !snapshot.embeddedPieces[item.repertoirePieceId])) {
+        missingIds.add(item.repertoirePieceId);
+      }
+      item.children?.forEach(collectPieceIds);
+    };
+    snapshot.items?.forEach(collectPieceIds);
+    snapshot.lessonPlanItems?.forEach(collectPieceIds);
+
+    if (missingIds.size > 0 && supabase) {
+      supabase
+        .from("repertoire")
+        .select("*")
+        .in("id", Array.from(missingIds))
+        .then(({ data, error }) => {
+          if (data && !error && data.length > 0) {
+            const pieceMap: Record<string, any> = {};
+            data.forEach((p) => {
+              pieceMap[p.id] = p;
+            });
+            setFetchedPieces((prev) => ({ ...prev, ...pieceMap }));
+          }
+        });
+    }
+  }, [snapshot]);
+
+  const effectiveEmbeddedPieces = useMemo(() => {
+    return {
+      ...(snapshot?.embeddedPieces ?? {}),
+      ...fetchedPieces,
+    };
+  }, [snapshot?.embeddedPieces, fetchedPieces]);
+
+  useEffect(() => {
     let meta = document.querySelector('meta[name="robots"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -532,7 +573,7 @@ export default function Report() {
                       item={item}
                       numberIndex={numIdx}
                       logSummary={snapshot.logSummary}
-                      embeddedPieces={snapshot.embeddedPieces}
+                      embeddedPieces={effectiveEmbeddedPieces}
                       sharedId={id}
                       sharedToken={token}
                     />
@@ -551,7 +592,7 @@ export default function Report() {
                     item={item}
                     numberIndex={numIdx}
                     logSummary={snapshot.logSummary}
-                    embeddedPieces={snapshot.embeddedPieces}
+                    embeddedPieces={effectiveEmbeddedPieces}
                     sharedId={id}
                     sharedToken={token}
                   />
@@ -570,7 +611,7 @@ export default function Report() {
                     item={item}
                     numberIndex={numIdx}
                     logSummary={snapshot.logSummary}
-                    embeddedPieces={snapshot.embeddedPieces}
+                    embeddedPieces={effectiveEmbeddedPieces}
                     sharedId={id}
                     sharedToken={token}
                   />
