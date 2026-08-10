@@ -8,6 +8,7 @@ import { RichLink } from "@/components/RichLink";
 import { supabase } from "@/lib/supabaseClient";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
+import { getSegmentCompletionsLast7Days } from "@/lib/practiceLog";
 
 /** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
 function stripMarkdown(text: string): string {
@@ -113,6 +114,7 @@ function ReportItem({
         p.itemName === item.text
     );
     const practicedSeconds = practicedEntry?.seconds ?? 0;
+    const completionsCount = practicedEntry?.completionsCount ?? (item.id ? getSegmentCompletionsLast7Days(item.id) : 0);
 
     const linkedPiece = item.repertoirePieceId && embeddedPieces
       ? embeddedPieces[item.repertoirePieceId]
@@ -125,16 +127,6 @@ function ReportItem({
           ? `/report/${sharedToken}/piece/${item.repertoirePieceId}`
           : `/report/piece/${item.repertoirePieceId}${window.location.hash}`))
       : "";
-
-    const reportDays = getReportDays(logSummary);
-    const targetSeconds = item.allocatedTime != null
-      ? (item.allocationPeriod === "week"
-          ? (item.allocatedTime * 60) * (reportDays / 7)
-          : (item.allocatedTime * 60) * reportDays)
-      : 0;
-    const progressPercent = targetSeconds > 0
-      ? Math.round((practicedSeconds / targetSeconds) * 100)
-      : 0;
 
     return (
       <div className="py-1.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
@@ -159,29 +151,17 @@ function ReportItem({
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-2 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
-              {targetSeconds > 0 && logSummary ? (
-                <div
-                  className="inline-flex items-center gap-1.5 h-[22px] bg-muted/20 border border-border/40 px-2 rounded-full text-xs font-mono"
-                  title={`${formatDuration(practicedSeconds)} of ${formatDuration(targetSeconds)} target (${progressPercent}%)`}
-                >
-                  <div className="w-12 sm:w-16 h-1.5 bg-muted/80 rounded-full overflow-hidden shrink-0 border border-border/20">
-                    <div
-                      className={`h-full transition-all rounded-full ${
-                        progressPercent >= 100 ? "bg-emerald-500" : "bg-primary"
-                      }`}
-                      style={{ width: `${Math.min(100, progressPercent)}%` }}
-                    />
-                  </div>
-                  <span className="font-semibold text-foreground tracking-tight">
-                    {formatDuration(practicedSeconds)} ({progressPercent}%)
-                  </span>
-                </div>
-              ) : practicedSeconds > 0 ? (
+            <div className="flex items-center gap-1.5 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
+              {completionsCount > 0 && (
+                <span className="inline-flex items-center h-[22px] bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 px-2 rounded-full text-xs font-semibold font-mono tracking-tight">
+                  {completionsCount}x played (last 7d)
+                </span>
+              )}
+              {practicedSeconds > 0 && (
                 <span className="inline-flex items-center h-[22px] bg-primary/10 border border-primary/25 text-primary px-2 rounded-full text-xs font-semibold font-mono tracking-tight">
                   {formatDuration(practicedSeconds)}
                 </span>
-              ) : null}
+              )}
             </div>
           </div>
           {item.segmentGoal && (

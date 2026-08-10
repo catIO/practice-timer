@@ -27,6 +27,7 @@ export interface ReportLogEntry {
   itemId: string;
   itemName: string;
   seconds: number;
+  completionsCount?: number;
 }
 
 export interface ReportLogSummary {

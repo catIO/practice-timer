@@ -357,7 +357,7 @@ export interface Last7DaysSummary {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   totalSeconds: number;
-  pieces: Array<{ itemId: string; itemName: string; seconds: number }>;
+  pieces: Array<{ itemId: string; itemName: string; seconds: number; completionsCount?: number }>;
 }
 
 export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSummary {
@@ -397,7 +397,12 @@ export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSum
   }
 
   const pieces = Object.entries(pieceMap)
-    .map(([itemId, { itemName, seconds }]) => ({ itemId, itemName, seconds }))
+    .map(([itemId, { itemName, seconds }]) => ({
+      itemId,
+      itemName,
+      seconds,
+      completionsCount: getSegmentCompletionsLast7Days(itemId),
+    }))
     .sort((a, b) => b.seconds - a.seconds);
 
   return { startDate, endDate, totalSeconds, pieces };
