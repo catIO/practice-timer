@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { getPracticePlan, practicePlanApi } from './practicePlan';
+import { getLessonPlan, lessonPlanApi } from './lessonPlan';
 import {
   getPracticeLogStateForSync,
   restorePracticeLogStateFromSync,
@@ -10,7 +11,7 @@ let pushTimeout: ReturnType<typeof setTimeout> | null = null;
 let isSyncing = false;
 
 /**
- * Pull practice plan, logs, and completion history from Supabase for the logged in user
+ * Pull practice plan, lesson plan, logs, and completion history from Supabase for the logged in user
  */
 export async function pullUserDataFromCloud(): Promise<boolean> {
   if (!supabase) return false;
@@ -23,7 +24,7 @@ export async function pullUserDataFromCloud(): Promise<boolean> {
     isSyncing = true;
     const { data, error } = await supabase
       .from('user_practice_data')
-      .select('plan_data, logs_data, completions_data, updated_at')
+      .select('plan_data, lesson_plan_data, logs_data, completions_data, updated_at')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -36,6 +37,9 @@ export async function pullUserDataFromCloud(): Promise<boolean> {
     if (data) {
       if (data.plan_data && Array.isArray(data.plan_data) && data.plan_data.length > 0) {
         practicePlanApi.save(data.plan_data);
+      }
+      if (data.lesson_plan_data && Array.isArray(data.lesson_plan_data) && data.lesson_plan_data.length > 0) {
+        lessonPlanApi.save(data.lesson_plan_data);
       }
       restorePracticeLogStateFromSync({
         log: data.logs_data?.overallLog,
@@ -57,7 +61,7 @@ export async function pullUserDataFromCloud(): Promise<boolean> {
 }
 
 /**
- * Push practice plan, logs, and completion history from local storage to Supabase
+ * Push practice plan, lesson plan, logs, and completion history from local storage to Supabase
  */
 export async function pushUserDataToCloud(): Promise<boolean> {
   if (!supabase || isSyncing) return false;
@@ -68,11 +72,13 @@ export async function pushUserDataToCloud(): Promise<boolean> {
     if (!userId) return false;
 
     const planData = getPracticePlan();
+    const lessonPlanData = getLessonPlan();
     const { log, detailedLog, completions } = getPracticeLogStateForSync();
 
     const payload = {
       user_id: userId,
       plan_data: planData,
+      lesson_plan_data: lessonPlanData,
       logs_data: { overallLog: log, detailedLog },
       completions_data: completions,
       updated_at: new Date().toISOString(),
