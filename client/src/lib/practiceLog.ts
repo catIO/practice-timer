@@ -403,3 +403,127 @@ export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSum
   return { startDate, endDate, totalSeconds, pieces };
 }
 
+const PRACTICE_COMPLETIONS_KEY = 'practice-timer-completions';
+
+export type SegmentCompletionLog = Record<string, number[]>;
+
+export function getSegmentCompletions(): SegmentCompletionLog {
+  try {
+    const stored = localStorage.getItem(PRACTICE_COMPLETIONS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveSegmentCompletions(log: SegmentCompletionLog): void {
+  try {
+    localStorage.setItem(PRACTICE_COMPLETIONS_KEY, JSON.stringify(log));
+  } catch (e) {
+    console.error('Failed to save segment completions:', e);
+  }
+}
+
+export function logSegmentCompletion(itemId: string, timestamp: number = Date.now()): void {
+  if (!itemId) return;
+  const completions = getSegmentCompletions();
+  if (!completions[itemId]) {
+    completions[itemId] = [];
+  }
+  completions[itemId].push(timestamp);
+  saveSegmentCompletions(completions);
+}
+
+export function getSegmentCompletionsForThisWeek(
+  itemId: string,
+  weekStartsOn: WeekStartsOn = 'monday',
+  now: number = Date.now()
+): number {
+  const completions = getSegmentCompletions();
+  const itemTimestamps = completions[itemId] || [];
+
+  const dateObj = new Date(now);
+  const dateStr = getLocalYMD(dateObj);
+  const weekStart = getWeekStart(dateStr, weekStartsOn);
+  const startMs = new Date(weekStart + 'T00:00:00').getTime();
+  const endMs = startMs + 7 * 24 * 60 * 60 * 1000;
+
+  const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts < endMs).length;
+  if (explicitCount > 0) return explicitCount;
+
+  // Fallback for legacy practice logs (e.g. items practiced earlier today before migration):
+  // Count unique days in current week where detailed practice time was logged for this item.
+  const detailedLog = getDetailedPracticeLog();
+  let legacyCount = 0;
+  const startD = new Date(weekStart + 'T00:00:00');
+  const endD = new Date(startD);
+  endD.setDate(endD.getDate() + 6);
+  endD.setHours(23, 59, 59, 999);
+
+  for (const [dStr, pieces] of Object.entries(detailedLog)) {
+    const d = new Date(dStr + 'T12:00:00');
+    if (d >= startD && d <= endD && (pieces[itemId]?.seconds ?? 0) > 0) {
+      legacyCount++;
+    }
+  }
+
+  return legacyCount;
+}
+
+export function getSegmentCompletionsLast7Days(
+  itemId: string,
+  now: number = Date.now()
+): number {
+  const completions = getSegmentCompletions();
+  const itemTimestamps = completions[itemId];
+  if (!itemTimestamps || itemTimestamps.length === 0) return 0;
+
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  return itemTimestamps.filter((ts) => ts >= sevenDaysAgo && ts <= now).length;
+}
+
+export function getAllSegmentCompletionsForThisWeek(
+  weekStartsOn: WeekStartsOn = 'monday',
+  now: number = Date.now()
+): Record<string, number> {
+  const completions = getSegmentCompletions();
+  const result: Record<string, number> = {};
+  for (const itemId of Object.keys(completions)) {
+    result[itemId] = getSegmentCompletionsForThisWeek(itemId, weekStartsOn, now);
+  }
+  return result;
+}
+
+export function getPracticeLogStateForSync(): {
+  log: Record<string, number>;
+  detailedLog: DetailedPracticeLog;
+  completions: SegmentCompletionLog;
+} {
+  return {
+    log: getPracticeLog(),
+    detailedLog: getDetailedPracticeLog(),
+    completions: getSegmentCompletions(),
+  };
+}
+
+export function restorePracticeLogStateFromSync(data: {
+  log?: Record<string, number>;
+  detailedLog?: DetailedPracticeLog;
+  completions?: SegmentCompletionLog;
+}): void {
+  if (data.log) {
+    try {
+      localStorage.setItem(PRACTICE_LOG_KEY, JSON.stringify(data.log));
+    } catch (e) {
+      console.error('Failed to restore practice log:', e);
+    }
+  }
+  if (data.detailedLog) {
+    saveDetailedPracticeLog(data.detailedLog);
+  }
+  if (data.completions) {
+    saveSegmentCompletions(data.completions);
+  }
+}
+
+

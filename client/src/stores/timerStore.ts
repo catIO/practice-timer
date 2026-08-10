@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { SettingsType, DEFAULT_SETTINGS } from '@/lib/timerService';
 import { getSettings, getTimerProgress, saveTimerProgress, clearTimerProgress } from '@/lib/localStorage';
-import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds } from '@/lib/practiceLog';
+import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds, logSegmentCompletion } from '@/lib/practiceLog';
 import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
+import { scheduleUserDataPush } from '@/lib/userDataSync';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
 import { playSound, resumeAudioContext } from '@/lib/soundEffects';
 
@@ -315,7 +316,9 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                       if (nextPieceTime === 0) {
                         // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
                         if (oldState.activePieceId) {
+                          logSegmentCompletion(oldState.activePieceId);
                           practicePlanApi.checkItem(getPracticePlan(), oldState.activePieceId);
+                          scheduleUserDataPush();
                         }
                         if (typeof window !== 'undefined') {
                           window.dispatchEvent(new CustomEvent('piece-timer-complete', {
@@ -743,7 +746,9 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               if (nextPieceTime === 0) {
                 // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
                 if (state.activePieceId) {
+                  logSegmentCompletion(state.activePieceId);
                   practicePlanApi.checkItem(getPracticePlan(), state.activePieceId);
+                  scheduleUserDataPush();
                 }
                 if (typeof window !== 'undefined') {
                   window.dispatchEvent(new CustomEvent('piece-timer-complete', {
@@ -1128,7 +1133,9 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
           // Auto-check the piece in the practice plan
           if (s.activePieceId) {
+            logSegmentCompletion(s.activePieceId);
             practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
+            scheduleUserDataPush();
           }
 
           // Notify listeners

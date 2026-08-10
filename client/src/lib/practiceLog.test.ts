@@ -9,6 +9,12 @@ import {
     formatDate,
     addDetailedPracticeTime,
     getDetailedPracticeLog,
+    logSegmentCompletion,
+    getSegmentCompletions,
+    getSegmentCompletionsForThisWeek,
+    getSegmentCompletionsLast7Days,
+    getPracticeLogStateForSync,
+    restorePracticeLogStateFromSync,
 } from './practiceLog';
 
 // Mock localStorage
@@ -143,6 +149,46 @@ describe('practiceLog', () => {
             const today = Object.keys(log)[0];
             expect(log[today]['piece-1'].seconds).toBe(300);
             expect(log[today]['piece-2'].seconds).toBe(600);
+        });
+    });
+
+    describe('segmentCompletions', () => {
+        it('logs segment completions with timestamps', () => {
+            const now = Date.now();
+            logSegmentCompletion('seg-1', now);
+            logSegmentCompletion('seg-1', now + 1000);
+            logSegmentCompletion('seg-2', now);
+
+            const completions = getSegmentCompletions();
+            expect(completions['seg-1']).toEqual([now, now + 1000]);
+            expect(completions['seg-2']).toEqual([now]);
+        });
+
+        it('counts completions for current week and last 7 days', () => {
+            const now = new Date('2026-08-10T12:00:00Z').getTime(); // Monday
+            const threeDaysAgo = now - 3 * 86400 * 1000;
+            const tenDaysAgo = now - 10 * 86400 * 1000;
+
+            logSegmentCompletion('seg-1', now);
+            logSegmentCompletion('seg-1', threeDaysAgo);
+            logSegmentCompletion('seg-1', tenDaysAgo);
+
+            expect(getSegmentCompletionsLast7Days('seg-1', now)).toBe(2);
+            expect(getSegmentCompletionsForThisWeek('seg-1', 'monday', now)).toBe(2);
+        });
+
+        it('supports state sync export and restore', () => {
+            logSegmentCompletion('seg-1', 1234567);
+            addPracticeTime(600);
+
+            const snapshot = getPracticeLogStateForSync();
+            expect(snapshot.completions['seg-1']).toEqual([1234567]);
+
+            localStorageMock.clear();
+            expect(getSegmentCompletions()).toEqual({});
+
+            restorePracticeLogStateFromSync(snapshot);
+            expect(getSegmentCompletions()['seg-1']).toEqual([1234567]);
         });
     });
 });

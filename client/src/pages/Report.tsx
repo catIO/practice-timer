@@ -154,7 +154,7 @@ function ReportItem({
                 )}
                 {item.allocatedTime != null && (
                   <span className="inline-flex items-center h-[22px] px-2 text-xs font-mono font-medium rounded-full bg-muted/60 border border-muted-foreground/20 text-muted-foreground shrink-0 select-none">
-                    Goal: {item.allocatedTime}m/{item.allocationPeriod === "week" ? "wk" : "day"}
+                    Time Box: {item.allocatedTime}m
                   </span>
                 )}
               </span>

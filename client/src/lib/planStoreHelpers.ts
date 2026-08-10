@@ -1,4 +1,6 @@
 import { BlockType, PlanItem, PlanSnapshot, generateId } from "./planTypes";
+import { logSegmentCompletion } from "./practiceLog";
+import { scheduleUserDataPush } from "./userDataSync";
 
 const MAX_SNAPSHOTS = 5;
 
@@ -357,7 +359,10 @@ export function createPlanStoreApi(
   defaultGenerator: () => PlanItem[]
 ): PlanStoreApi {
   const get = () => getPlanFromStorage(storageKey, defaultGenerator);
-  const save = (items: PlanItem[]) => savePlanToStorage(storageKey, items);
+  const save = (items: PlanItem[]) => {
+    savePlanToStorage(storageKey, items);
+    scheduleUserDataPush();
+  };
 
   return {
     get,
@@ -372,16 +377,25 @@ export function createPlanStoreApi(
       return next;
     },
     toggleCheck: (items: PlanItem[], id: string) => {
-      const next = updateItemInTree(items, id, (item) =>
-        item.isHeader ? item : { ...item, checked: !item.checked }
-      );
+      const next = updateItemInTree(items, id, (item) => {
+        if (item.isHeader) return item;
+        const newChecked = !item.checked;
+        if (newChecked && item.blockType === "segment") {
+          logSegmentCompletion(item.id);
+        }
+        return { ...item, checked: newChecked };
+      });
       save(next);
       return next;
     },
     checkItem: (items: PlanItem[], id: string) => {
-      const next = updateItemInTree(items, id, (item) =>
-        item.isHeader ? item : { ...item, checked: true }
-      );
+      const next = updateItemInTree(items, id, (item) => {
+        if (item.isHeader) return item;
+        if (!item.checked && item.blockType === "segment") {
+          logSegmentCompletion(item.id);
+        }
+        return { ...item, checked: true };
+      });
       save(next);
       return next;
     },

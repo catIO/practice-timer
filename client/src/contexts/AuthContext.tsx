@@ -9,6 +9,7 @@ import {
     getCurrentUser,
     onAuthStateChange,
 } from '../lib/authService';
+import { pullUserDataFromCloud, initUserDataSync } from '../lib/userDataSync';
 
 interface AuthContextType {
     user: User | null;
@@ -85,6 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     setUser(currentSession?.user ?? null);
                     if (currentSession?.user) {
                         migrateLocalReports(currentSession.user.id);
+                        pullUserDataFromCloud();
                     }
                 }
             } catch (error) {
@@ -97,6 +99,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         initializeAuth();
+        initUserDataSync();
 
         const { data: { subscription } } = onAuthStateChange((_event, session) => {
             if (mounted) {
@@ -104,6 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setUser(session?.user ?? null);
                 if (session?.user) {
                     migrateLocalReports(session.user.id);
+                    pullUserDataFromCloud();
                 }
                 if (_event === 'PASSWORD_RECOVERY') {
                     setIsPasswordRecovery(true);

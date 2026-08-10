@@ -20,6 +20,7 @@ import {
   getPieceTimeForRange,
   getThisWeekRange,
   getLastWeekRange,
+  getSegmentCompletionsForThisWeek,
   PieceTimeSummary
 } from "@/lib/practiceLog";
 import { getPracticePlan } from "@/lib/practicePlan";
@@ -48,31 +49,11 @@ export default function PracticeLog() {
     const summaries = getPieceTimeForRange(range.start, range.end, planItems);
     
     summaries.sort((a, b) => {
-      const getPercent = (item: PieceTimeSummary) => {
-        if (!item.allocatedTime) return null;
-        const isWeekly = item.allocationPeriod === 'week';
-        const targetMins = isWeekly ? item.allocatedTime : item.allocatedTime * 7;
-        if (targetMins <= 0) return null;
-        const practicedMins = Math.round(item.seconds / 60);
-        return (practicedMins / targetMins) * 100;
-      };
-
-      const percentA = getPercent(a);
-      const percentB = getPercent(b);
-
-      if (percentA !== null && percentB !== null) {
-        if (percentA !== percentB) {
-          return percentA - percentB; // Lowest completion % first (needs practice most)
-        }
-        // Secondary tiebreaker: larger target mins first
-        const targetA = a.allocationPeriod === 'week' ? a.allocatedTime! : a.allocatedTime! * 7;
-        const targetB = b.allocationPeriod === 'week' ? b.allocatedTime! : b.allocatedTime! * 7;
-        return targetB - targetA;
+      const compA = getSegmentCompletionsForThisWeek(a.itemId, weekStartsOn);
+      const compB = getSegmentCompletionsForThisWeek(b.itemId, weekStartsOn);
+      if (compA !== compB) {
+        return compA - compB; // Lowest completion count first (needs practice most)
       }
-
-      if (percentA !== null) return -1;
-      if (percentB !== null) return 1;
-
       return b.seconds - a.seconds;
     });
 
@@ -156,20 +137,7 @@ export default function PracticeLog() {
           <div className="space-y-2">
             {pieceSummaries.map((summary) => {
               const practicedMins = Math.round(summary.seconds / 60);
-              const isWeekly = summary.allocationPeriod === 'week';
-              
-              let targetMins = 0;
-              if (summary.allocatedTime) {
-                targetMins = isWeekly ? summary.allocatedTime : summary.allocatedTime * 7;
-              }
-              
-              const percent = targetMins > 0 ? (practicedMins / targetMins) * 100 : 0;
-              const roundedPercent = Math.round(percent);
-              const exceeded = targetMins > 0 && practicedMins > targetMins;
-              
-              const progressText = targetMins > 0 
-                ? `${practicedMins} / ${targetMins} min (${roundedPercent}%)` 
-                : `${practicedMins} min (No limit)`;
+              const completions = getSegmentCompletionsForThisWeek(summary.itemId, weekStartsOn);
               
               return (
                 <div
@@ -180,25 +148,22 @@ export default function PracticeLog() {
                     <span className="truncate text-foreground max-w-[200px] sm:max-w-md">
                       <TextWithLinks text={summary.itemName} />
                     </span>
-                    <span className={cn(
-                      "font-mono text-xs",
-                      exceeded ? "text-amber-500 font-bold" : "text-muted-foreground font-medium"
-                    )}>
-                      {progressText} {exceeded && "(limit exceeded)"}
-                    </span>
-                  </div>
-                  
-                  {targetMins > 0 && (
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden relative">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-500",
-                          exceeded ? "bg-amber-500" : "bg-primary"
-                        )}
-                        style={{ width: `${Math.min(100, percent)}%` }}
-                      />
+                    <div className="flex items-center gap-2">
+                      {summary.allocatedTime && (
+                        <span className="font-mono text-xs text-muted-foreground bg-muted/50 border border-border/40 px-2 py-0.5 rounded-full">
+                          {summary.allocatedTime}m time box
+                        </span>
+                      )}
+                      <span className={cn(
+                        "font-mono text-xs px-2 py-0.5 rounded-full border",
+                        completions > 0
+                          ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 font-semibold"
+                          : "bg-muted/40 border-border/40 text-muted-foreground"
+                      )}>
+                        {completions}x completed this week ({practicedMins} min total)
+                      </span>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
