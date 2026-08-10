@@ -1505,15 +1505,7 @@ function PlanItem({
                       placeholder="Min"
                       className="w-20 h-7 text-sm"
                     />
-                    <span className="text-sm text-muted-foreground">min /</span>
-                    <select
-                      value={segmentPeriodValue}
-                      onChange={(e) => setSegmentPeriodValue(e.target.value as 'day' | 'week')}
-                      className="h-7 text-sm bg-background border border-input rounded px-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="day">day</option>
-                      <option value="week">week</option>
-                    </select>
+                    <span className="text-sm text-muted-foreground">min time box</span>
                     {repertoirePieces && repertoirePieces.length > 0 && (
                       <select
                         value={segmentPieceId}
