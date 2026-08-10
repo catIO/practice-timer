@@ -8,7 +8,10 @@ import { RichLink } from "@/components/RichLink";
 import { supabase } from "@/lib/supabaseClient";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
-import { getSegmentCompletionsLast7Days } from "@/lib/practiceLog";
+import { getSegmentCompletionsLast7Days, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
+import { getPracticePlan } from "@/lib/practicePlan";
+import { getSettings } from "@/lib/localStorage";
+import { cn } from "@/lib/utils";
 
 /** Strip markdown link syntax [text](url) → text. Also strips **bold** and *italic* markers. */
 function stripMarkdown(text: string): string {
@@ -443,6 +446,23 @@ export default function Report() {
     };
   }, [snapshot, setCreatorName]);
 
+  const settings = getSettings();
+  const weekStartsOn = settings?.weekStartsOn ?? 'monday';
+
+  const activeLogSummary = useMemo(() => {
+    if (id || token) {
+      return snapshot?.logSummary;
+    }
+    const planItems = getPracticePlan();
+    return getThisWeekSummary(planItems, weekStartsOn);
+  }, [id, token, snapshot, weekStartsOn]);
+
+  const lastWeekSummary = useMemo(() => {
+    if (id || token) return null;
+    const planItems = getPracticePlan();
+    return getLastWeekSummary(planItems, weekStartsOn);
+  }, [id, token, weekStartsOn]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-foreground">
@@ -486,18 +506,22 @@ export default function Report() {
 
   const dateLabel = (() => {
     try {
-      if (snapshot.logSummary?.startDate && snapshot.logSummary?.endDate) {
-        const start = new Date(snapshot.logSummary.startDate + 'T12:00:00');
-        const end = new Date(snapshot.logSummary.endDate + 'T12:00:00');
+      const summary = activeLogSummary ?? snapshot?.logSummary;
+      if (summary?.startDate && summary?.endDate) {
+        const start = new Date(summary.startDate + 'T12:00:00');
+        const end = new Date(summary.endDate + 'T12:00:00');
         const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
         const startStr = start.toLocaleDateString(undefined, opts);
         const endStr = end.toLocaleDateString(undefined, { ...opts, year: "numeric" });
         return `${startStr} – ${endStr}`;
       }
-      const d = new Date(snapshot.date);
-      return d.toLocaleDateString(undefined, { dateStyle: "medium" });
+      if (snapshot?.date) {
+        const d = new Date(snapshot.date);
+        return d.toLocaleDateString(undefined, { dateStyle: "medium" });
+      }
+      return "";
     } catch {
-      return snapshot.date;
+      return snapshot?.date ?? "";
     }
   })();
 
@@ -515,15 +539,27 @@ export default function Report() {
           </h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1.5">
             <span>{dateLabel}</span>
-            {snapshot.logSummary && (
+            {activeLogSummary && (
               <>
                 <span className="text-muted-foreground/40 hidden sm:inline">•</span>
                 <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
                   <span className="material-icons text-base text-primary select-none">timer</span>
                   <span className="font-bold text-primary tabular-nums">
-                    {formatDuration(snapshot.logSummary.totalSeconds ?? 0)}
+                    {formatDuration(activeLogSummary.totalSeconds ?? 0)}
                   </span>
-                  <span className="text-muted-foreground">total practice time in last 7 days</span>
+                  <span className="text-muted-foreground">this week so far</span>
+                </span>
+              </>
+            )}
+            {lastWeekSummary && lastWeekSummary.totalSeconds > 0 && (
+              <>
+                <span className="text-muted-foreground/40 hidden sm:inline">•</span>
+                <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
+                  <span className="material-icons text-base text-muted-foreground select-none">history</span>
+                  <span className="font-bold text-muted-foreground tabular-nums">
+                    {formatDuration(lastWeekSummary.totalSeconds)}
+                  </span>
+                  <span className="text-muted-foreground">last week</span>
                 </span>
               </>
             )}
@@ -552,7 +588,7 @@ export default function Report() {
                       key={i}
                       item={item}
                       numberIndex={numIdx}
-                      logSummary={snapshot.logSummary}
+                      logSummary={activeLogSummary}
                       embeddedPieces={effectiveEmbeddedPieces}
                       sharedId={id}
                       sharedToken={token}
@@ -571,7 +607,7 @@ export default function Report() {
                     key={i}
                     item={item}
                     numberIndex={numIdx}
-                    logSummary={snapshot.logSummary}
+                    logSummary={activeLogSummary}
                     embeddedPieces={effectiveEmbeddedPieces}
                     sharedId={id}
                     sharedToken={token}

@@ -111,7 +111,8 @@ export function createReportSnapshot(
 }
 
 import { getPracticePlan } from "./practicePlan";
-import { getLast7DaysSummary } from "./practiceLog";
+import { getThisWeekSummary } from "./practiceLog";
+import { getSettings } from "./localStorage";
 
 export const GLOBAL_PERMANENT_SHARE_ID_KEY = "practice-timer-share-id";
 export const GLOBAL_LAST_PUBLISHED_DATE_KEY = "practice-timer-last-published-date";
@@ -150,7 +151,8 @@ export function createGlobalReportSnapshot(
 ): ReportSnapshot {
   const practiceItems = getPracticePlan();
   const lessonItems = getLessonPlan();
-  const logSummary = getLast7DaysSummary(practiceItems);
+  const weekStartsOn = getSettings()?.weekStartsOn ?? 'monday';
+  const logSummary = getThisWeekSummary(practiceItems, weekStartsOn);
 
   return createReportSnapshot(
     practiceItems,

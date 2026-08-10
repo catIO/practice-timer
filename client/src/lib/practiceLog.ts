@@ -360,14 +360,11 @@ export interface Last7DaysSummary {
   pieces: Array<{ itemId: string; itemName: string; seconds: number; completionsCount?: number }>;
 }
 
-export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSummary {
-  // Use the 7 most recent days including today
-  const endDate = getLocalYMD();
-  const endD = new Date(endDate + 'T12:00:00');
-  const startD = new Date(endD);
-  startD.setDate(startD.getDate() - 6);
-  const startDate = getLocalYMD(startD);
-
+export function getReportSummaryForRange(
+  startDate: string,
+  endDate: string,
+  planItems: PracticePlanItem[]
+): Last7DaysSummary {
   const pieceMap: Record<string, { itemName: string; seconds: number }> = {};
   const log = getDetailedPracticeLog();
   const overallLog = getPracticeLog();
@@ -396,16 +393,50 @@ export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSum
     totalSeconds = detailedTotalSeconds;
   }
 
+  const completions = getSegmentCompletions();
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+
   const pieces = Object.entries(pieceMap)
-    .map(([itemId, { itemName, seconds }]) => ({
-      itemId,
-      itemName,
-      seconds,
-      completionsCount: getSegmentCompletionsLast7Days(itemId),
-    }))
+    .map(([itemId, { itemName, seconds }]) => {
+      const rawTimestamps = completions[itemId] || [];
+      const itemTimestamps = deduplicateTimestamps(rawTimestamps);
+      const completionsCount = itemTimestamps.filter((ts) => ts >= startMs && ts <= endMs).length;
+      return {
+        itemId,
+        itemName,
+        seconds,
+        completionsCount,
+      };
+    })
     .sort((a, b) => b.seconds - a.seconds);
 
   return { startDate, endDate, totalSeconds, pieces };
+}
+
+export function getThisWeekSummary(
+  planItems: PracticePlanItem[],
+  weekStartsOn: WeekStartsOn = 'monday'
+): Last7DaysSummary {
+  const { start, end } = getThisWeekRange(weekStartsOn);
+  return getReportSummaryForRange(start, end, planItems);
+}
+
+export function getLastWeekSummary(
+  planItems: PracticePlanItem[],
+  weekStartsOn: WeekStartsOn = 'monday'
+): Last7DaysSummary {
+  const { start, end } = getLastWeekRange(weekStartsOn);
+  return getReportSummaryForRange(start, end, planItems);
+}
+
+export function getLast7DaysSummary(planItems: PracticePlanItem[]): Last7DaysSummary {
+  const endDate = getLocalYMD();
+  const endD = new Date(endDate + 'T12:00:00');
+  const startD = new Date(endD);
+  startD.setDate(startD.getDate() - 6);
+  const startDate = getLocalYMD(startD);
+  return getReportSummaryForRange(startDate, endDate, planItems);
 }
 
 const PRACTICE_COMPLETIONS_KEY = 'practice-timer-completions';
