@@ -397,6 +397,16 @@ export function getReportSummaryForRange(
   const startMs = start.getTime();
   const endMs = end.getTime();
 
+  for (const [itemId, rawTimestamps] of Object.entries(completions)) {
+    const itemTimestamps = deduplicateTimestamps(rawTimestamps);
+    const count = itemTimestamps.filter((ts) => ts >= startMs && ts <= endMs).length;
+    if (count > 0 && !pieceMap[itemId]) {
+      const flat = flattenPlan(planItems);
+      const planItem = flat.find((p) => p.id === itemId);
+      pieceMap[itemId] = { itemName: planItem?.text || 'Segment', seconds: 0 };
+    }
+  }
+
   const pieces = Object.entries(pieceMap)
     .map(([itemId, { itemName, seconds }]) => {
       const rawTimestamps = completions[itemId] || [];

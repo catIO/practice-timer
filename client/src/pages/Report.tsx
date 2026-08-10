@@ -45,7 +45,7 @@ function ReportItem({
   item: ReportSnapshotItem;
   depth?: number;
   numberIndex?: number;
-  logSummary?: ReportLogSummary;
+  logSummary?: ReportLogSummary | null;
   embeddedPieces?: Record<string, any>;
   sharedId?: string;
   sharedToken?: string | null;
@@ -452,18 +452,26 @@ export default function Report() {
   const weekStartsOn = settings?.weekStartsOn ?? 'monday';
 
   const activeLogSummary = useMemo(() => {
+    if (snapshot?.logSummary) {
+      return snapshot.logSummary;
+    }
     if (id) {
-      return snapshot?.logSummary;
+      return undefined;
     }
     const planItems = getPracticePlan();
     return getThisWeekSummary(planItems, weekStartsOn);
-  }, [id, weekStartsOn]);
+  }, [id, snapshot, weekStartsOn]);
 
   const lastWeekSummary = useMemo(() => {
-    if (id) return null;
+    if (snapshot?.lastWeekLogSummary) {
+      return snapshot.lastWeekLogSummary;
+    }
+    if (id || snapshot) {
+      return undefined;
+    }
     const planItems = getPracticePlan();
     return getLastWeekSummary(planItems, weekStartsOn);
-  }, [id, weekStartsOn]);
+  }, [id, snapshot, weekStartsOn]);
 
   if (loading) {
     return (

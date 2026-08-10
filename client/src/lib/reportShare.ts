@@ -44,6 +44,7 @@ export interface ReportSnapshot {
   items: ReportSnapshotItem[];
   lessonPlanItems?: ReportSnapshotItem[];
   logSummary?: ReportLogSummary;
+  lastWeekLogSummary?: ReportLogSummary;
   embeddedPieces?: Record<string, RepertoirePiece>;
   creatorName?: string;
 }
@@ -71,7 +72,8 @@ export function createReportSnapshot(
   logSummary?: ReportLogSummary,
   repertoirePieces?: RepertoirePiece[],
   creatorName?: string,
-  lessonItems?: PlanItem[]
+  lessonItems?: PlanItem[],
+  lastWeekLogSummary?: ReportLogSummary
 ): ReportSnapshot {
   const effectiveLessonItems = lessonItems ?? getLessonPlan();
   const snapshot: ReportSnapshot = {
@@ -81,6 +83,7 @@ export function createReportSnapshot(
     items: items.map(itemToSnapshot),
     lessonPlanItems: effectiveLessonItems.map(itemToSnapshot),
     logSummary,
+    lastWeekLogSummary,
     creatorName,
   };
 
@@ -111,7 +114,7 @@ export function createReportSnapshot(
 }
 
 import { getPracticePlan } from "./practicePlan";
-import { getThisWeekSummary } from "./practiceLog";
+import { getThisWeekSummary, getLastWeekSummary } from "./practiceLog";
 import { getSettings } from "./localStorage";
 
 export const GLOBAL_PERMANENT_SHARE_ID_KEY = "practice-timer-share-id";
@@ -153,6 +156,7 @@ export function createGlobalReportSnapshot(
   const lessonItems = getLessonPlan();
   const weekStartsOn = getSettings()?.weekStartsOn ?? 'monday';
   const logSummary = getThisWeekSummary(practiceItems, weekStartsOn);
+  const lastWeekLogSummary = getLastWeekSummary(practiceItems, weekStartsOn);
 
   return createReportSnapshot(
     practiceItems,
@@ -160,7 +164,8 @@ export function createGlobalReportSnapshot(
     logSummary,
     repertoirePieces,
     creatorName,
-    lessonItems
+    lessonItems,
+    lastWeekLogSummary
   );
 }
 

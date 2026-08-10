@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { generateId, getPracticePlan, savePracticePlan, practicePlanApi, type PracticePlanItem } from './practicePlan';
-import { createReportSnapshot, restorePlanFromSnapshot } from './reportShare';
+import { createReportSnapshot, createGlobalReportSnapshot, restorePlanFromSnapshot } from './reportShare';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -112,7 +112,7 @@ describe('practicePlan', () => {
         });
     });
 
-    describe('reportShare with videoUrl', () => {
+    describe('reportShare with videoUrl and lastWeekLogSummary', () => {
         it('serializes videoUrl into report snapshot and restores it', () => {
             const items: PracticePlanItem[] = [
                 {
@@ -130,6 +130,14 @@ describe('practicePlan', () => {
 
             const restored = restorePlanFromSnapshot(snapshot);
             expect(restored[0].videoUrl).toBe('https://www.youtube.com/watch?v=12345');
+        });
+
+        it('includes logSummary and lastWeekLogSummary in global snapshot', () => {
+            const snapshot = createGlobalReportSnapshot();
+            expect(snapshot.logSummary).toBeDefined();
+            expect(snapshot.lastWeekLogSummary).toBeDefined();
+            expect(snapshot.logSummary?.startDate).toBeDefined();
+            expect(snapshot.lastWeekLogSummary?.startDate).toBeDefined();
         });
     });
 });
