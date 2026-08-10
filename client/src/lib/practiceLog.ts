@@ -424,11 +424,27 @@ export function saveSegmentCompletions(log: SegmentCompletionLog): void {
   }
 }
 
+function deduplicateTimestamps(timestamps: number[]): number[] {
+  if (!timestamps || timestamps.length === 0) return [];
+  const sorted = [...timestamps].sort((a, b) => a - b);
+  const result: number[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - result[result.length - 1] >= 60000) {
+      result.push(sorted[i]);
+    }
+  }
+  return result;
+}
+
 export function logSegmentCompletion(itemId: string, timestamp: number = Date.now()): void {
   if (!itemId) return;
   const completions = getSegmentCompletions();
   if (!completions[itemId]) {
     completions[itemId] = [];
+  }
+  const lastTs = completions[itemId][completions[itemId].length - 1];
+  if (lastTs && Math.abs(timestamp - lastTs) < 60000) {
+    return;
   }
   completions[itemId].push(timestamp);
   saveSegmentCompletions(completions);
@@ -440,7 +456,8 @@ export function getSegmentCompletionsForThisWeek(
   now: number = Date.now()
 ): number {
   const completions = getSegmentCompletions();
-  const itemTimestamps = completions[itemId] || [];
+  const rawTimestamps = completions[itemId] || [];
+  const itemTimestamps = deduplicateTimestamps(rawTimestamps);
 
   const dateObj = new Date(now);
   const dateStr = getLocalYMD(dateObj);
@@ -457,7 +474,7 @@ export function getSegmentCompletionsForThisWeek(
   let legacyCount = 0;
   const startD = new Date(weekStart + 'T00:00:00');
   const endD = new Date(startD);
-  endD.setDate(endD.getDate() + 6);
+  endD.setDate(startD.getDate() + 6);
   endD.setHours(23, 59, 59, 999);
 
   for (const [dStr, pieces] of Object.entries(detailedLog)) {
@@ -475,8 +492,8 @@ export function getSegmentCompletionsLast7Days(
   now: number = Date.now()
 ): number {
   const completions = getSegmentCompletions();
-  const itemTimestamps = completions[itemId];
-  if (!itemTimestamps || itemTimestamps.length === 0) return 0;
+  const rawTimestamps = completions[itemId] || [];
+  const itemTimestamps = deduplicateTimestamps(rawTimestamps);
 
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
   return itemTimestamps.filter((ts) => ts >= sevenDaysAgo && ts <= now).length;
