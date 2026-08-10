@@ -8,7 +8,7 @@ import { RichLink } from "@/components/RichLink";
 import { supabase } from "@/lib/supabaseClient";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
-import { getSegmentCompletionsLast7Days, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
+import { getSegmentCompletionsLast7Days, getSegmentCompletionsForThisWeek, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
 import { getPracticePlan } from "@/lib/practicePlan";
 import { getSettings } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
@@ -117,7 +117,9 @@ function ReportItem({
         p.itemName === item.text
     );
     const practicedSeconds = practicedEntry?.seconds ?? 0;
-    const completionsCount = practicedEntry?.completionsCount ?? (item.id ? getSegmentCompletionsLast7Days(item.id) : 0);
+    const settings = getSettings();
+    const weekStartsOn = settings?.weekStartsOn ?? 'monday';
+    const completionsCount = practicedEntry?.completionsCount ?? (item.id ? getSegmentCompletionsForThisWeek(item.id, weekStartsOn) : 0);
 
     const linkedPiece = item.repertoirePieceId && embeddedPieces
       ? embeddedPieces[item.repertoirePieceId]
@@ -157,7 +159,7 @@ function ReportItem({
             <div className="flex items-center gap-1.5 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
               {completionsCount > 0 && (
                 <span className="inline-flex items-center h-[22px] bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 px-2 rounded-full text-xs font-semibold font-mono tracking-tight">
-                  {completionsCount}x played (last 7d)
+                  {completionsCount}x played
                 </span>
               )}
               {practicedSeconds > 0 && (
@@ -513,11 +515,11 @@ export default function Report() {
         const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
         const startStr = start.toLocaleDateString(undefined, opts);
         const endStr = end.toLocaleDateString(undefined, { ...opts, year: "numeric" });
-        return `${startStr} – ${endStr}`;
+        return `Week ${startStr} – ${endStr}`;
       }
       if (snapshot?.date) {
         const d = new Date(snapshot.date);
-        return d.toLocaleDateString(undefined, { dateStyle: "medium" });
+        return `Week ${d.toLocaleDateString(undefined, { dateStyle: "medium" })}`;
       }
       return "";
     } catch {
@@ -547,11 +549,11 @@ export default function Report() {
                   <span className="font-bold text-primary tabular-nums">
                     {formatDuration(activeLogSummary.totalSeconds ?? 0)}
                   </span>
-                  <span className="text-muted-foreground">this week so far</span>
+                  <span className="text-muted-foreground">time this week</span>
                 </span>
               </>
             )}
-            {lastWeekSummary && lastWeekSummary.totalSeconds > 0 && (
+            {lastWeekSummary && (
               <>
                 <span className="text-muted-foreground/40 hidden sm:inline">•</span>
                 <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
