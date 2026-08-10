@@ -407,15 +407,6 @@ const PRACTICE_COMPLETIONS_KEY = 'practice-timer-completions';
 
 export type SegmentCompletionLog = Record<string, number[]>;
 
-export function getSegmentCompletions(): SegmentCompletionLog {
-  try {
-    const stored = localStorage.getItem(PRACTICE_COMPLETIONS_KEY);
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-}
-
 export function saveSegmentCompletions(log: SegmentCompletionLog): void {
   try {
     localStorage.setItem(PRACTICE_COMPLETIONS_KEY, JSON.stringify(log));
@@ -429,11 +420,40 @@ function deduplicateTimestamps(timestamps: number[]): number[] {
   const sorted = [...timestamps].sort((a, b) => a - b);
   const result: number[] = [sorted[0]];
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] - result[result.length - 1] >= 60000) {
+    if (sorted[i] - result[result.length - 1] >= 15000) {
       result.push(sorted[i]);
     }
   }
   return result;
+}
+
+export function getSegmentCompletions(): SegmentCompletionLog {
+  try {
+    const stored = localStorage.getItem(PRACTICE_COMPLETIONS_KEY);
+    if (!stored) return {};
+    const parsed: SegmentCompletionLog = JSON.parse(stored);
+    let needsSave = false;
+    const cleaned: SegmentCompletionLog = {};
+    for (const [id, timestamps] of Object.entries(parsed)) {
+      if (Array.isArray(timestamps)) {
+        const deduped = deduplicateTimestamps(timestamps);
+        cleaned[id] = deduped;
+        if (deduped.length !== timestamps.length) {
+          needsSave = true;
+        }
+      }
+    }
+    if (needsSave) {
+      try {
+        localStorage.setItem(PRACTICE_COMPLETIONS_KEY, JSON.stringify(cleaned));
+      } catch (e) {
+        console.error('Failed to clean stored completion timestamps:', e);
+      }
+    }
+    return cleaned;
+  } catch {
+    return {};
+  }
 }
 
 export function logSegmentCompletion(itemId: string, timestamp: number = Date.now()): void {
@@ -443,7 +463,7 @@ export function logSegmentCompletion(itemId: string, timestamp: number = Date.no
     completions[itemId] = [];
   }
   const lastTs = completions[itemId][completions[itemId].length - 1];
-  if (lastTs && Math.abs(timestamp - lastTs) < 60000) {
+  if (lastTs && Math.abs(timestamp - lastTs) < 15000) {
     return;
   }
   completions[itemId].push(timestamp);
