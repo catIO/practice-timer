@@ -452,18 +452,18 @@ export default function Report() {
   const weekStartsOn = settings?.weekStartsOn ?? 'monday';
 
   const activeLogSummary = useMemo(() => {
-    if (id || token) {
+    if (id) {
       return snapshot?.logSummary;
     }
     const planItems = getPracticePlan();
     return getThisWeekSummary(planItems, weekStartsOn);
-  }, [id, token, snapshot, weekStartsOn]);
+  }, [id, weekStartsOn]);
 
   const lastWeekSummary = useMemo(() => {
-    if (id || token) return null;
+    if (id) return null;
     const planItems = getPracticePlan();
     return getLastWeekSummary(planItems, weekStartsOn);
-  }, [id, token, weekStartsOn]);
+  }, [id, weekStartsOn]);
 
   if (loading) {
     return (
