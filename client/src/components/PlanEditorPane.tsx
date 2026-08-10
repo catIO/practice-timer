@@ -1632,11 +1632,22 @@ function PlanItem({
                       </>
                     ) : (
                       <>
-                        {item.allocatedTime ? (
+                        {item.allocatedTime || true ? (
                           (() => {
                             const settings = getSettings();
                             const weekStartsOn = settings?.weekStartsOn ?? 'monday';
                             const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
+                            const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
+                            const todayMins = Math.round(todaySeconds / 60);
+
+                            const hasPracticedToday = todayMins > 0;
+                            const hasPracticedThisWeek = weeklyCompletions > 0 || hasPracticedToday;
+
+                            const displayMinsText = todayMins > 0
+                              ? `${todayMins}m`
+                              : item.allocatedTime
+                                ? `${item.allocatedTime}m`
+                                : `0m`;
 
                             return (
                               <div className="flex items-center gap-1.5 shrink-0">
@@ -1645,18 +1656,20 @@ function PlanItem({
                                   onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
                                   className={cn(
                                     "flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded-full border shadow-xs transition-all duration-150 select-none hover:scale-[1.02] cursor-pointer",
-                                    weeklyCompletions > 0
+                                    hasPracticedToday
                                       ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 font-semibold"
-                                      : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70"
+                                      : hasPracticedThisWeek
+                                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600/90 dark:text-emerald-400/90"
+                                        : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70"
                                   )}
-                                  title={`Time box: ${item.allocatedTime}m duration. Completed ${weeklyCompletions}x this week. Click to edit.`}
+                                  title={`Today: ${todayMins}m. Completed ${weeklyCompletions}x this week.${item.allocatedTime ? ` Target time box: ${item.allocatedTime}m.` : ''} Click to edit.`}
                                 >
-                                  {weeklyCompletions > 0 && (
+                                  {hasPracticedToday && (
                                     <span className="material-icons text-[13px] text-emerald-600 dark:text-emerald-400 font-bold -mr-0.5" aria-hidden="true">
                                       check_circle
                                     </span>
                                   )}
-                                  <span>{item.allocatedTime}m</span>
+                                  <span>{displayMinsText}</span>
                                   <span className="text-[10px] px-1 py-0.2 rounded font-sans font-semibold uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border/40">
                                     {weeklyCompletions}x this week
                                   </span>
@@ -1665,7 +1678,7 @@ function PlanItem({
                                 <Button
                                   variant="ghost" size="icon"
                                   className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
-                                  onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime!, 'day')}
+                                  onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day')}
                                   title="Start segment time box"
                                 >
                                   <span className="material-icons text-base">play_arrow</span>
@@ -3272,27 +3285,15 @@ export function PlanEditorPane({
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="allocation-minutes">Time Box Duration (Minutes)</Label>
+                  <Label htmlFor="allocation-minutes">Session Target Duration (Minutes)</Label>
                   <Input
                     id="allocation-minutes"
                     type="number"
                     min="1"
-                    placeholder="e.g. 20"
+                    placeholder="e.g. 15"
                     value={allocationMinutes}
                     onChange={(e) => setAllocationMinutes(e.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="allocation-period">Period</Label>
-                  <select
-                    id="allocation-period"
-                    value={allocationPeriod}
-                    onChange={(e) => setAllocationPeriod(e.target.value as 'day' | 'week')}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="day">Daily</option>
-                    <option value="week">Weekly</option>
-                  </select>
                 </div>
               </div>
               <DialogFooter className="flex sm:justify-between gap-2">
