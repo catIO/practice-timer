@@ -134,8 +134,8 @@ function ReportItem({
       : "";
 
     return (
-      <div className="py-1.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
-        <div className="rounded-xl border border-border/80 bg-card/60 dark:bg-muted/15 px-3.5 py-2.5 space-y-1.5 shadow-sm transition-all hover:border-primary/50 hover:bg-accent/30 dark:hover:bg-muted/30">
+      <div className="py-2 border-b border-border/30 last:border-b-0 space-y-1.5 transition-colors hover:bg-muted/10 rounded-lg px-2" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
+        <div className="space-y-1.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -159,7 +159,10 @@ function ReportItem({
             <div className="flex items-center gap-1.5 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
               {completionsCount > 0 && (
                 <span className="inline-flex items-center h-[22px] bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 px-2 rounded-full text-xs font-semibold font-mono tracking-tight">
-                  {completionsCount}x played
+                  <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
+                    replay
+                  </span>
+                  {completionsCount} {completionsCount === 1 ? 'time' : 'times'}
                 </span>
               )}
               {practicedSeconds > 0 && (
@@ -578,20 +581,48 @@ export default function Report() {
       </header>
       <main className="w-full space-y-8">
         {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 ? (
-          <Tabs defaultValue="practice" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 max-w-xs sm:max-w-sm mb-6 bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="practice" className="flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                <span className="material-icons text-base">assignment</span>
-                Practice Plan
-              </TabsTrigger>
-              <TabsTrigger value="lesson" className="flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                <span className="material-icons text-base">school</span>
-                Lesson Plan
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="practice" className="space-y-1 mt-0 focus-visible:outline-none focus-visible:ring-0">
-              {snapshot.items && snapshot.items.length > 0 ? (
-                snapshot.items.map((item, i, arr) => {
+          <Tabs defaultValue="practice" className="w-full space-y-0">
+            <div className="flex items-center gap-2 mb-0">
+              <TabsList className="inline-flex h-11 items-center justify-start rounded-t-2xl rounded-b-none bg-slate-900/90 dark:bg-slate-900/90 border-t border-x border-white/10 border-b-0 p-1.5 gap-1.5 shadow-sm">
+                <TabsTrigger
+                  value="practice"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:shadow-xs"
+                >
+                  <span className="material-icons text-base select-none">assignment</span>
+                  Practice Plan
+                </TabsTrigger>
+                <TabsTrigger
+                  value="lesson"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:shadow-xs"
+                >
+                  <span className="material-icons text-base select-none">school</span>
+                  Lesson Plan
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <div className="relative rounded-b-2xl rounded-tr-2xl border border-border/60 bg-card/40 dark:bg-slate-900/40 p-5 sm:p-7 shadow-sm transition-all">
+              <TabsContent value="practice" className="space-y-2 mt-0 focus-visible:outline-none focus-visible:ring-0">
+                {snapshot.items && snapshot.items.length > 0 ? (
+                  snapshot.items.map((item, i, arr) => {
+                    const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
+                    return (
+                      <ReportItem
+                        key={i}
+                        item={item}
+                        numberIndex={numIdx}
+                        logSummary={activeLogSummary}
+                        embeddedPieces={effectiveEmbeddedPieces}
+                        sharedId={id}
+                        sharedToken={token}
+                      />
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground italic py-4">No practice plan items available.</p>
+                )}
+              </TabsContent>
+              <TabsContent value="lesson" className="space-y-2 mt-0 focus-visible:outline-none focus-visible:ring-0">
+                {snapshot.lessonPlanItems.map((item, i, arr) => {
                   const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
                   return (
                     <ReportItem
@@ -604,31 +635,13 @@ export default function Report() {
                       sharedToken={token}
                     />
                   );
-                })
-              ) : (
-                <p className="text-sm text-muted-foreground italic py-4">No practice plan items available.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="lesson" className="space-y-1 mt-0 focus-visible:outline-none focus-visible:ring-0">
-              {snapshot.lessonPlanItems.map((item, i, arr) => {
-                const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
-                return (
-                  <ReportItem
-                    key={i}
-                    item={item}
-                    numberIndex={numIdx}
-                    logSummary={activeLogSummary}
-                    embeddedPieces={effectiveEmbeddedPieces}
-                    sharedId={id}
-                    sharedToken={token}
-                  />
-                );
-              })}
-            </TabsContent>
+                })}
+              </TabsContent>
+            </div>
           </Tabs>
         ) : (
           snapshot.items && snapshot.items.length > 0 && (
-            <div className="space-y-1">
+            <div className="relative rounded-2xl border border-border/60 bg-card/40 dark:bg-slate-900/40 p-5 sm:p-7 shadow-sm space-y-2">
               {snapshot.items.map((item, i, arr) => {
                 const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
                 return (

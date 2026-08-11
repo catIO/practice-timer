@@ -81,7 +81,7 @@ import { formatTime } from "@/lib/formatTime";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { applyTextFormat, stripMarkdownLinks } from "@/lib/richText";
 import { useTimerStore } from "@/stores/timerStore";
-import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek } from "@/lib/practiceLog";
+import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, formatDuration } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
 import "@/assets/headerBlur.css";
 import {
@@ -1560,14 +1560,14 @@ function PlanItem({
                   "flex-1 rounded-xl border border-l-2 p-3.5 space-y-3 transition-all duration-200 shadow-xs",
                   selected
                     ? "border-primary border-l-primary/80 bg-primary/10 shadow-sm shadow-primary/5"
-                    : "border-border/80 border-l-primary/40 bg-card hover:bg-muted/30 hover:border-primary/30"
+                    : "border-border/40 border-l-primary/60 hover:bg-muted/20"
                 )}
               >
                 {/* Header Row: Title and Timer Actions */}
                 <div className="flex items-start gap-2.5">
                   {/* Title & Links */}
                   <div className="flex-1 min-w-0 pr-1">
-                    <h4 className="font-semibold text-lg leading-snug text-foreground break-words flex items-center flex-wrap gap-1.5">
+                    <h4 className="font-semibold text-lg leading-snug text-foreground break-words flex items-center flex-wrap gap-2">
                       {item.text ? (
                         <TextWithLinks
                           text={item.text}
@@ -1577,6 +1577,19 @@ function PlanItem({
                         />
                       ) : (
                         <span className="text-muted-foreground/40 italic font-normal">Untitled segment</span>
+                      )}
+                      {item.allocatedTime != null && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod);
+                          }}
+                          className="inline-flex items-center h-[22px] px-2 text-xs font-mono font-medium rounded-full bg-muted/60 border border-muted-foreground/20 text-muted-foreground hover:bg-muted/80 transition-colors shrink-0 select-none cursor-pointer"
+                          title="Click to edit target time box"
+                        >
+                          Time Box: {item.allocatedTime}m
+                        </button>
                       )}
                     </h4>
                   </div>
@@ -1623,73 +1636,39 @@ function PlanItem({
                         </Button>
                       </>
                     ) : (
-                      <>
-                        {item.allocatedTime || true ? (
-                          (() => {
-                            const settings = getSettings();
-                            const weekStartsOn = settings?.weekStartsOn ?? 'monday';
-                            const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
-                            const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
-                            const todayMins = Math.round(todaySeconds / 60);
+                      (() => {
+                        const settings = getSettings();
+                        const weekStartsOn = settings?.weekStartsOn ?? 'monday';
+                        const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
+                        const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
 
-                            const hasPracticedToday = todayMins > 0;
-                            const hasPracticedThisWeek = weeklyCompletions > 0 || hasPracticedToday;
-
-                            const displayMinsText = todayMins > 0
-                              ? `${todayMins}m`
-                              : item.allocatedTime
-                                ? `${item.allocatedTime}m`
-                                : `0m`;
-
-                            return (
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod)}
-                                  className={cn(
-                                    "flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded-full border shadow-xs transition-all duration-150 select-none hover:scale-[1.02] cursor-pointer",
-                                    hasPracticedToday
-                                      ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 font-semibold"
-                                      : hasPracticedThisWeek
-                                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600/90 dark:text-emerald-400/90"
-                                        : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted/70"
-                                  )}
-                                  title={`Today: ${todayMins}m. Completed ${weeklyCompletions}x this week.${item.allocatedTime ? ` Target time box: ${item.allocatedTime}m.` : ''} Click to edit.`}
-                                >
-                                  {hasPracticedToday && (
-                                    <span className="material-icons text-[13px] text-emerald-600 dark:text-emerald-400 font-bold -mr-0.5" aria-hidden="true">
-                                      check_circle
-                                    </span>
-                                  )}
-                                  <span>{displayMinsText}</span>
-                                  <span className="text-[10px] px-1 py-0.2 rounded font-sans font-semibold uppercase tracking-wider bg-muted/60 text-muted-foreground border border-border/40">
-                                    {weeklyCompletions}x this week
-                                  </span>
-                                </button>
-                                
-                                <Button
-                                  variant="ghost" size="icon"
-                                  className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
-                                  onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day')}
-                                  title="Start segment time box"
-                                >
-                                  <span className="material-icons text-base">play_arrow</span>
-                                </Button>
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <Button
-                            variant="ghost" size="sm"
-                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground font-sans rounded hover:bg-muted/40 transition-colors opacity-75 hover:opacity-100 flex items-center gap-0.5"
-                            onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-                            title="Set duration"
-                          >
-                            <span className="material-icons text-[12px]">schedule</span>
-                            <span>Set Goal</span>
-                          </Button>
-                        )}
-                      </>
+                        return (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {weeklyCompletions > 0 && (
+                              <span className="inline-flex items-center h-[22px] bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none">
+                                <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
+                                  replay
+                                </span>
+                                {weeklyCompletions} {weeklyCompletions === 1 ? 'time' : 'times'}
+                              </span>
+                            )}
+                            {todaySeconds > 0 && (
+                              <span className="inline-flex items-center h-[22px] bg-primary/10 border border-primary/25 text-primary px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none">
+                                {formatDuration(todaySeconds)}
+                              </span>
+                            )}
+                            
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
+                              onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day')}
+                              title="Start segment time box"
+                            >
+                              <span className="material-icons text-base">play_arrow</span>
+                            </Button>
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 </div>
