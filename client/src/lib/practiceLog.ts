@@ -411,12 +411,21 @@ export function getReportSummaryForRange(
     .map(([itemId, { itemName, seconds }]) => {
       const rawTimestamps = completions[itemId] || [];
       const itemTimestamps = deduplicateTimestamps(rawTimestamps);
-      const completionsCount = itemTimestamps.filter((ts) => ts >= startMs && ts <= endMs).length;
+      const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts <= endMs).length;
+
+      let legacyCount = 0;
+      for (const [dStr, pMap] of Object.entries(log)) {
+        const d = new Date(dStr + 'T12:00:00');
+        if (d >= start && d <= end && (pMap[itemId]?.seconds ?? 0) > 0) {
+          legacyCount++;
+        }
+      }
+
       return {
         itemId,
         itemName,
         seconds,
-        completionsCount,
+        completionsCount: Math.max(explicitCount, legacyCount),
       };
     })
     .sort((a, b) => b.seconds - a.seconds);
@@ -532,9 +541,8 @@ export function getSegmentCompletionsForThisWeek(
   const endMs = startMs + 7 * 24 * 60 * 60 * 1000;
 
   const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts < endMs).length;
-  if (explicitCount > 0) return explicitCount;
 
-  // Fallback for legacy practice logs (e.g. items practiced earlier today before migration):
+  // Fallback / historical practice log count:
   // Count unique days in current week where detailed practice time was logged for this item.
   const detailedLog = getDetailedPracticeLog();
   let legacyCount = 0;
@@ -550,7 +558,7 @@ export function getSegmentCompletionsForThisWeek(
     }
   }
 
-  return legacyCount;
+  return Math.max(explicitCount, legacyCount);
 }
 
 export function getSegmentCompletionsLast7Days(
