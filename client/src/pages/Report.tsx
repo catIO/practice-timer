@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { sanitizeHref } from "@/lib/urlSafety";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
-import { getSegmentCompletionsLast7Days, getSegmentCompletionsForThisWeek, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
+import { getSegmentCompletionsLast7Days, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
 import { getPracticePlan } from "@/lib/practicePlan";
 import { getSettings } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
@@ -134,6 +134,8 @@ function ReportItem({
           : `/report/piece/${item.repertoirePieceId}${window.location.hash}`))
       : "";
 
+    const isCompletedToday = (item.id ? hasCompletedSegmentToday(item.id) : false) || (item.checked ?? false);
+
     return (
       <div className="py-2.5 rounded-xl border border-border/50 border-l-2 border-l-primary/60 bg-white/[0.03] dark:bg-white/[0.03] space-y-1.5 transition-colors hover:bg-white/[0.05] px-3.5 mb-2" style={{ paddingLeft: depth ? `${paddingLeft + 14}px` : undefined }}>
         <div className="space-y-1.5">
@@ -159,7 +161,12 @@ function ReportItem({
             </div>
             <div className="flex items-center gap-1.5 sm:ml-auto shrink-0 select-none pl-7 sm:pl-0 flex-wrap">
               {completionsCount > 0 && (
-                <span className="inline-flex items-center h-[22px] bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 px-2 rounded-full text-xs font-semibold font-mono tracking-tight">
+                <span className={cn(
+                  "inline-flex items-center h-[22px] px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none border transition-colors",
+                  isCompletedToday
+                    ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300"
+                    : "bg-muted/60 border-muted-foreground/20 text-muted-foreground"
+                )}>
                   <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
                     replay
                   </span>

@@ -197,7 +197,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     if (diff <= 0) return;
     const s = get();
 
-    if (!(s.activePieceId && s.activePieceName)) {
+    if (!s.activePieceId) {
       addPracticeTime(diff);
       return;
     }
@@ -207,8 +207,10 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       return;
     }
 
+    const pieceName = s.activePieceName && s.activePieceName.trim() ? s.activePieceName : 'Untitled segment';
+
     // Records to piece detail AND general practice time (see addDetailedPracticeTime)
-    addDetailedPracticeTime(s.activePieceId, s.activePieceName, diff);
+    addDetailedPracticeTime(s.activePieceId, pieceName, diff);
 
     if (s.pieceTimeRemaining <= 0) return;
 
@@ -1033,10 +1035,11 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     },
 
     selectPiece: (id, name, allocatedMinutes, _period) => {
-      const targetSeconds = allocatedMinutes * 60;
+      const targetSeconds = (allocatedMinutes || 15) * 60;
+      const pieceName = name && name.trim() ? name : 'Untitled segment';
       set({
         activePieceId: id,
-        activePieceName: name,
+        activePieceName: pieceName,
         pieceTimeRemaining: targetSeconds,
         pieceTotalTime: targetSeconds,
         isPiecePaused: false
@@ -1060,13 +1063,20 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     startPieceOvertime: async () => {
       const state = get();
       if (!state.activePieceId) return;
-      if (state.pieceOvertimeRunning) return; // already running
 
       // The break timer may be running concurrently in the worker — do not pause it.
       // Ensure the piece isn't in the "paused" state (which would skip piece
       // attribution in attributePracticeTime). During overtime, the play/pause
       // UI toggles the ticker itself, not this flag.
       set({ pieceOvertimeRunning: true, isPiecePaused: false });
+
+      if (typeof window !== 'undefined') {
+        try {
+          await resumeAudioContext();
+        } catch (e) {
+          console.error('[timerStore] Error resuming AudioContext in startPieceOvertime:', e);
+        }
+      }
 
       // Ask the worker to start emitting PIECE_TICK once per second. The store's
       // message handler decrements pieceTimeRemaining on each tick via

@@ -81,7 +81,7 @@ import { formatTime } from "@/lib/formatTime";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { applyTextFormat, stripMarkdownLinks } from "@/lib/richText";
 import { useTimerStore } from "@/stores/timerStore";
-import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, formatDuration } from "@/lib/practiceLog";
+import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, formatDuration } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
 import "@/assets/headerBlur.css";
 import {
@@ -1434,22 +1434,6 @@ function PlanItem({
                   >
                     <span className="material-icons text-base">videocam</span>
                   </Button>
-                  {segmentVideoUrlValue && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      title="Remove video link"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSegmentVideoUrlValue("");
-                      }}
-                    >
-                      <span className="material-icons text-sm">close</span>
-                    </Button>
-                  )}
                 </div>
                 <div className="pl-6 space-y-1.5">
                   <textarea
@@ -1640,12 +1624,18 @@ function PlanItem({
                         const settings = getSettings();
                         const weekStartsOn = settings?.weekStartsOn ?? 'monday';
                         const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
+                        const isCompletedToday = hasCompletedSegmentToday(item.id) || (item.checked ?? false);
                         const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
 
                         return (
                           <div className="flex items-center gap-1.5 shrink-0">
                             {weeklyCompletions > 0 && (
-                              <span className="inline-flex items-center h-[22px] bg-emerald-500/15 border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none">
+                              <span className={cn(
+                                "inline-flex items-center h-[22px] px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none border transition-colors",
+                                isCompletedToday
+                                  ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-muted/60 border-muted-foreground/20 text-muted-foreground"
+                              )}>
                                 <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
                                   replay
                                 </span>
@@ -2336,12 +2326,18 @@ export function PlanEditorPane({
     setAllocationItemId(null);
   }, [allocationItemId, applyChange, planApi]);
 
-  const handlePlayPiece = useCallback((id: string, name: string, minutes: number, period: 'day' | 'week') => {
+  const handlePlayPiece = useCallback(async (id: string, name: string, minutes: number, period: 'day' | 'week') => {
+    try {
+      await resumeAudioContext();
+    } catch (e) {
+      console.error('Error resuming audio context on play segment:', e);
+    }
+
     // If piece was checked from a previous run, uncheck it so starting a new run resets item check state
     applyChange((prev) => planApi.uncheckItem(prev, id));
 
-    // Select the piece independently
-    selectPiece(id, name, minutes, period);
+    const pieceName = name && name.trim() ? name : "Untitled segment";
+    selectPiece(id, pieceName, minutes || 15, period);
 
     if (mode === 'break' || isPracticeComplete) {
       // If we are on break (work timer completed) or practice is complete, start piece overtime instead of main timer

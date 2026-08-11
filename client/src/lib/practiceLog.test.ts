@@ -12,6 +12,8 @@ import {
     logSegmentCompletion,
     getSegmentCompletions,
     getSegmentCompletionsForThisWeek,
+    getSegmentCompletionsToday,
+    hasCompletedSegmentToday,
     getSegmentCompletionsLast7Days,
     getPracticeLogStateForSync,
     restorePracticeLogStateFromSync,
@@ -175,6 +177,20 @@ describe('practiceLog', () => {
 
             expect(getSegmentCompletionsLast7Days('seg-1', now)).toBe(2);
             expect(getSegmentCompletionsForThisWeek('seg-1', 'monday', now)).toBe(2);
+        });
+
+        it('identifies completions for today', () => {
+            const now = new Date('2026-08-11T14:30:00Z').getTime();
+            const twoHoursAgo = now - 2 * 3600 * 1000; // Same day (2026-08-11)
+            const yesterday = now - 26 * 3600 * 1000;  // Previous day (2026-08-10)
+
+            logSegmentCompletion('seg-1', twoHoursAgo);
+            logSegmentCompletion('seg-1', yesterday);
+
+            expect(getSegmentCompletionsToday('seg-1', now)).toBe(1);
+            expect(hasCompletedSegmentToday('seg-1', now)).toBe(true);
+            expect(getSegmentCompletionsToday('seg-2', now)).toBe(0);
+            expect(hasCompletedSegmentToday('seg-2', now)).toBe(false);
         });
 
         it('supports state sync export and restore', () => {

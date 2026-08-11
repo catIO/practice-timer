@@ -561,6 +561,35 @@ export function getSegmentCompletionsForThisWeek(
   return Math.max(explicitCount, legacyCount);
 }
 
+export function getSegmentCompletionsToday(
+  itemId: string,
+  now: number = Date.now()
+): number {
+  const completions = getSegmentCompletions();
+  const rawTimestamps = completions[itemId] || [];
+  const itemTimestamps = deduplicateTimestamps(rawTimestamps);
+
+  const dateObj = new Date(now);
+  const dateStr = getLocalYMD(dateObj);
+  const startMs = new Date(dateStr + 'T00:00:00').getTime();
+  const endMs = startMs + 24 * 60 * 60 * 1000;
+
+  const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts < endMs).length;
+
+  const detailedLog = getDetailedPracticeLog();
+  const todaySeconds = detailedLog[dateStr]?.[itemId]?.seconds ?? 0;
+  const legacyCount = todaySeconds > 0 ? 1 : 0;
+
+  return Math.max(explicitCount, legacyCount);
+}
+
+export function hasCompletedSegmentToday(
+  itemId: string,
+  now: number = Date.now()
+): boolean {
+  return getSegmentCompletionsToday(itemId, now) > 0;
+}
+
 export function getSegmentCompletionsLast7Days(
   itemId: string,
   now: number = Date.now()
