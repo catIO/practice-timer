@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { RichLink, YouTubeIcon } from "./RichLink";
 import { cn } from "@/lib/utils";
+import { isSafeHttpUrl } from "@/lib/urlSafety";
 import {
   HoverCard,
   HoverCardContent,
@@ -116,11 +117,23 @@ export function TextWithLinks({
       parts.push({ type: "plain", text: text.slice(lastIndex, match.index) });
     }
     if (match[1] != null && match[2] != null) {
-      parts.push({ type: "mdlink", text: match[1], url: match[2], start: match.index, end: re.lastIndex });
+      // Reject URLs that aren't http(s)/mailto so `[click](javascript:...)` etc.
+      // downgrade to plain text instead of rendering as a live anchor.
+      if (isSafeHttpUrl(match[2])) {
+        parts.push({ type: "mdlink", text: match[1], url: match[2], start: match.index, end: re.lastIndex });
+      } else {
+        parts.push({ type: "plain", text: match[1] });
+      }
     } else if (match[3] != null) {
       parts.push({ type: "shortcode", code: match[3] });
     } else if (match[4] != null) {
-      parts.push({ type: "mdlink", text: match[4], url: match[4], start: match.index, end: re.lastIndex });
+      // The bare-URL branch already requires http(s):// via the regex, but we
+      // double-check with the shared sanitizer to keep the invariant in one place.
+      if (isSafeHttpUrl(match[4])) {
+        parts.push({ type: "mdlink", text: match[4], url: match[4], start: match.index, end: re.lastIndex });
+      } else {
+        parts.push({ type: "plain", text: match[4] });
+      }
     }
     lastIndex = re.lastIndex;
   }

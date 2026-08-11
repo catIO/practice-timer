@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import { decodeReportToken, type ReportSnapshot } from '@/lib/reportShare';
 import { supabase } from '@/lib/supabaseClient';
+import { sanitizeHref } from '@/lib/urlSafety';
 import { RepertoirePiece, RepertoireBlock, LEVELS, PIECE_STATUSES, PIECE_TYPES } from '@/lib/repertoire.types';
 import { YouTubeEmbed, extractYouTubeId } from '@/components/YouTubeEmbed';
 import { TextWithLinks } from '@/components/TextWithLinks';
@@ -46,11 +47,12 @@ function ReadOnlyRepertoireNotes({ blocks }: { blocks: RepertoireBlock[] }) {
                         }
                         // Fallback: render as a link if it looks like a URL, or plain text if not
                         const isUrl = text.startsWith('http://') || text.startsWith('https://');
+                        const safeUrlHref = isUrl ? sanitizeHref(text) : undefined;
                         return (
                             <div key={block.id} className="text-sm text-foreground my-2">
-                                {isUrl ? (
+                                {safeUrlHref ? (
                                     <a
-                                        href={text}
+                                        href={safeUrlHref}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
@@ -315,9 +317,9 @@ export default function SharedPieceDetail() {
                                 <div className="w-full max-w-2xl aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
                                     <YouTubeEmbed url={piece.video_url} />
                                 </div>
-                            ) : (
+                            ) : sanitizeHref(piece.video_url) ? (
                                 <a
-                                    href={piece.video_url}
+                                    href={sanitizeHref(piece.video_url)}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium"
@@ -325,6 +327,8 @@ export default function SharedPieceDetail() {
                                     <span>{piece.video_url}</span>
                                     <ExternalLink className="h-3 w-3" />
                                 </a>
+                            ) : (
+                                <span className="text-sm text-muted-foreground break-all">{piece.video_url}</span>
                             )}
                         </div>
                     </>
@@ -337,17 +341,21 @@ export default function SharedPieceDetail() {
                             <span>Score URL</span>
                         </span>
                         <div>
-                            <ScoreUrlTooltip url={piece.score_url}>
-                                <a
-                                    href={piece.score_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-colors hover:bg-primary/20"
-                                >
-                                    <span>Open Score</span>
-                                    <ExternalLink className="h-3 w-3" />
-                                </a>
-                            </ScoreUrlTooltip>
+                            {sanitizeHref(piece.score_url) ? (
+                                <ScoreUrlTooltip url={piece.score_url}>
+                                    <a
+                                        href={sanitizeHref(piece.score_url)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-sm text-primary hover:underline break-all inline-flex items-center gap-1 font-medium bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg transition-colors hover:bg-primary/20"
+                                    >
+                                        <span>Open Score</span>
+                                        <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                </ScoreUrlTooltip>
+                            ) : (
+                                <span className="text-sm text-muted-foreground break-all">{piece.score_url}</span>
+                            )}
                         </div>
                     </>
                 )}

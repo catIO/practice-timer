@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { isSafeHttpUrl } from "@/lib/urlSafety";
 import { useQuery } from "@tanstack/react-query";
 
 interface RichLinkProps {
@@ -75,6 +76,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 export function RichLink({ url, eagerPreview }: RichLinkProps) {
     const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+    const urlIsSafe = isSafeHttpUrl(url);
 
     const { data: metadata, isLoading, isError } = useQuery({
         queryKey: ['metadata', url],
@@ -85,9 +87,23 @@ export function RichLink({ url, eagerPreview }: RichLinkProps) {
         retry: eagerPreview ? 5 : 3,
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
         refetchOnMount: eagerPreview ? "always" : true,
+        // Never fetch metadata for a URL we wouldn't render as a link \u2014
+        // avoids handing an attacker a way to spend our /api/metadata quota.
+        enabled: urlIsSafe,
     });
 
     const titleText = metadata?.title || url;
+
+    // Unsafe URL (javascript:, data:, file:, relative path, garbage) \u2014 render
+    // as inert plain text so the surrounding block still makes sense.
+    if (!urlIsSafe) {
+        return (
+            <span className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium rounded-full text-muted-foreground bg-muted/40 border border-border shrink-0">
+                <span className="material-icons text-[12px] shrink-0 select-none">link_off</span>
+                <span className="max-w-[180px] sm:max-w-[220px] truncate">{url}</span>
+            </span>
+        );
+    }
 
     if (isLoading || isError || !metadata) {
         return (

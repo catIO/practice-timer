@@ -1,4 +1,5 @@
 import React from 'react';
+import { sanitizeHref } from '@/lib/urlSafety';
 
 interface YouTubeEmbedProps {
     url: string;
@@ -33,9 +34,17 @@ export const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({ url, className }) =>
     const videoId = extractYouTubeId(url);
 
     if (!videoId) {
+        // Non-YouTube URL — render as a fallback anchor only when the URL
+        // passes the shared safety check. Otherwise show plain text so a
+        // hostile `javascript:` payload authored into a piece's video_url
+        // can never execute.
+        const safeHref = sanitizeHref(url);
+        if (!safeHref) {
+            return <span className="text-blue-400 text-sm break-all">{url}</span>;
+        }
         return (
             <a
-                href={url}
+                href={safeHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:underline text-sm"

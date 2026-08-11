@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import { RichLink } from "@/components/RichLink";
 import { supabase } from "@/lib/supabaseClient";
+import { sanitizeHref } from "@/lib/urlSafety";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
 import { getSegmentCompletionsLast7Days, getSegmentCompletionsForThisWeek, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
@@ -190,10 +191,10 @@ function ReportItem({
                     <span className="material-icons text-[12px] shrink-0 select-none">music_note</span>
                     <span className="max-w-[140px] truncate">{linkedPiece.title}</span>
                   </Link>
-                  {linkedPiece.score_url && (
+                  {linkedPiece.score_url && sanitizeHref(linkedPiece.score_url) && (
                     <ScoreUrlTooltip url={linkedPiece.score_url}>
                       <a
-                        href={linkedPiece.score_url}
+                        href={sanitizeHref(linkedPiece.score_url)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 h-6 px-2.5 text-xs font-medium text-primary bg-primary/10 border border-primary/25 rounded-full shrink-0 transition-colors hover:bg-primary/20 select-none"

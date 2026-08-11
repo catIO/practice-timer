@@ -2260,6 +2260,12 @@ export function PlanEditorPane({
   const [undoStack, setUndoStack] = useState<PracticePlanItem[][]>([]);
   const itemsRef = useRef<PracticePlanItem[]>(items);
   const contentRef = useRef<HTMLDivElement>(null);
+  // True while the primary mouse button is held down. Gates the `selectionchange`
+  // handler so we only sync cross-block browser selection into `selectedIds`
+  // when the user is actually drag-selecting. Prevents phantom multi-select
+  // caused by React swapping DOM nodes (e.g. entering segment edit mode)
+  // pushing browser selection endpoints into a neighbouring row.
+  const isPointerSelectingRef = useRef(false);
   // Throttle snapshot saves to at most once per minute
   const lastSnapshotRef = useRef<number>(0);
   useEffect(() => {
@@ -2697,6 +2703,17 @@ export function PlanEditorPane({
     const handleSelectionChange = () => {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
+        // Only sync a cross-block browser selection into block-level state
+        // while the user is actively drag-selecting. Ignores phantom ranges
+        // that appear when React swaps a title `<span>` for an `<Input>`
+        // (entering segment edit mode) and the browser reassigns the range
+        // endpoints to text nodes in the next row.
+        if (!isPointerSelectingRef.current) return;
+
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) return;
+        if (sel.toString().length === 0) return;
+
         const domSelectedIds = getSelectedBlockIdsFromDOM();
         if (domSelectedIds.length > 1) {
           setSelectedIds(domSelectedIds);
@@ -2704,16 +2721,36 @@ export function PlanEditorPane({
       });
     };
 
+    const handlePointerDown = (e: PointerEvent) => {
+      // Only left / primary button starts a drag-select.
+      if (e.button === 0 || e.button === undefined) {
+        isPointerSelectingRef.current = true;
+      }
+    };
+    const handlePointerUp = () => {
+      // Release on the next frame so a `selectionchange` triggered by the
+      // final `mouseup` still runs with the flag on.
+      requestAnimationFrame(() => {
+        isPointerSelectingRef.current = false;
+      });
+    };
+
     document.addEventListener("keydown", handleGlobalKeyDown);
     document.addEventListener("copy", handleGlobalCopy);
     document.addEventListener("cut", handleGlobalCut);
     document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointercancel", handlePointerUp);
 
     return () => {
       document.removeEventListener("keydown", handleGlobalKeyDown);
       document.removeEventListener("copy", handleGlobalCopy);
       document.removeEventListener("cut", handleGlobalCut);
       document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerUp);
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, [getSelectedBlockIdsFromDOM, selectedIds, handleDeleteMultiple, handleCopySelectionIds, handleCutSelectionIds, handleSelectAllBlocks]);
@@ -3060,8 +3097,12 @@ export function PlanEditorPane({
 
   }, [flatList, handleDelete, applyChange, planApi]);
 
-  const handleInputFocus = useCallback((id: string) => {
-    setSelectedIds((prev) => (prev.length <= 1 ? [] : prev));
+  const handleInputFocus = useCallback((_id: string) => {
+    // Any focus into a specific row/input is unambiguous single-row intent,
+    // so collapse any prior block-level multi-selection. This also clears
+    // stale phantom multi-selects that survived a DOM rearrangement (e.g.
+    // React swapping a title span for an input when entering segment edit).
+    setSelectedIds((prev) => (prev.length === 0 ? prev : []));
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
