@@ -12,6 +12,7 @@ import {
   saveGlobalLastPublishedDate,
   getShortShareUrl,
 } from "@/lib/reportShare";
+import { supabase } from "@/lib/supabaseClient";
 
 interface ShareContextType {
   shareDialogOpen: boolean;
@@ -67,6 +68,43 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
     }
     setLastPublishedDate(getGlobalLastPublishedDate());
   }, [shareDialogOpen]);
+
+  // Recover an existing permalink from Supabase when a signed-in user has no
+  // local record of it (e.g. new browser, cleared localStorage). Picks the
+  // most recent owned row so subsequent "Publish update" hits the same URL
+  // instead of showing "Not published yet".
+  useEffect(() => {
+    if (!isLoggedIn || !user || !supabase) return;
+    if (getGlobalPermalinkId()) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("shared_reports")
+          .select("id, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error || !data) return;
+        saveGlobalPermalinkId(data.id);
+        setPermalinkId(data.id);
+        setShareUrl(getShortShareUrl(data.id));
+        if (data.created_at) {
+          saveGlobalLastPublishedDate(data.created_at);
+          setLastPublishedDate(data.created_at);
+        }
+      } catch (e) {
+        console.warn("[ShareContext] Failed to recover permalink from Supabase:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, user]);
 
   const openShareModal = useCallback(() => {
     setShareDialogOpen(true);
