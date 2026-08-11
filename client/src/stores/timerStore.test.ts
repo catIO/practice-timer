@@ -1,14 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+// Capture the worker mock so tests can assert on postMessage and simulate
+// worker-to-store messages (e.g. PIECE_TICK during segment overtime).
+const workerMock = {
+    postMessage: vi.fn(),
+    terminate: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+};
+// Captured by the mocked addMessageHandler so tests can drive the store as if
+// the worker were sending messages.
+let capturedMessageHandler: ((event: MessageEvent) => void) | null = null;
+
 // Mock the worker singleton before importing the store
 vi.mock('@/lib/timerWorkerSingleton', () => ({
-    getTimerWorker: vi.fn(() => ({
-        postMessage: vi.fn(),
-        terminate: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-    })),
-    addMessageHandler: vi.fn(),
+    getTimerWorker: vi.fn(() => Promise.resolve(workerMock)),
+    addMessageHandler: vi.fn((handler: (event: MessageEvent) => void) => {
+        capturedMessageHandler = handler;
+    }),
     removeMessageHandler: vi.fn(),
 }));
 
@@ -16,19 +25,41 @@ vi.mock('@/lib/practiceLog', () => ({
     addPracticeTime: vi.fn(),
     addDetailedPracticeTime: vi.fn(),
     getPiecePracticedSeconds: vi.fn(() => 0),
+    logSegmentCompletion: vi.fn(),
 }));
 
 vi.mock('@/lib/practicePlan', () => ({
     getPracticePlan: vi.fn(() => []),
-    practicePlanApi: { getSegmentItems: vi.fn(() => []) },
+    practicePlanApi: {
+        getSegmentItems: vi.fn(() => []),
+        checkItem: vi.fn((plan: unknown) => plan),
+    },
+}));
+
+vi.mock('@/lib/userDataSync', () => ({
+    scheduleUserDataPush: vi.fn(),
 }));
 
 import { useTimerStore } from './timerStore';
 import { DEFAULT_SETTINGS } from '@/lib/timerService';
 import { addDetailedPracticeTime } from '@/lib/practiceLog';
 
+// Simulate a PIECE_TICK message coming from the worker.
+function emitPieceTick() {
+    if (!capturedMessageHandler) {
+        throw new Error('Worker message handler was not captured — did you call initializeWorker() first?');
+    }
+    capturedMessageHandler({ data: { type: 'PIECE_TICK' } } as MessageEvent);
+}
+
 describe('timerStore', () => {
     beforeEach(() => {
+        // Reset worker mock between tests so postMessage assertions are isolated
+        // and the message handler capture doesn't leak.
+        workerMock.postMessage.mockClear();
+        workerMock.terminate.mockClear();
+        capturedMessageHandler = null;
+
         // Reset the store state between tests
         useTimerStore.setState({
             timeRemaining: DEFAULT_SETTINGS.workDuration * 60,
@@ -109,21 +140,36 @@ describe('timerStore', () => {
     });
 
     it('startPieceOvertime starts overtime count and logs time', async () => {
-        vi.useFakeTimers();
-        
+        // Initialize worker so the store attaches its message handler (which
+        // we intercept via the mocked addMessageHandler).
+        await useTimerStore.getState().initializeWorker();
+        expect(capturedMessageHandler).toBeTruthy();
+
         useTimerStore.setState({
+            // Mode must be 'break' (or isPracticeComplete true) for the shadow
+            // `set` in the store to keep pieceOvertimeRunning=true — the store
+            // derives isPieceOvertime from (mode==='break' || isPracticeComplete)
+            // && activePieceId, and forces pieceOvertimeRunning=false whenever
+            // isPieceOvertime is false. In real usage, overtime only starts
+            // after the main work session ends.
+            mode: 'break',
             activePieceId: 'piece-1',
             activePieceName: 'Bach Prelude',
             pieceTimeRemaining: 10,
             pieceTotalTime: 10,
-            isPieceOvertime: true
+            isPieceOvertime: true,
+            isPiecePaused: false,
         });
 
         await useTimerStore.getState().startPieceOvertime();
         expect(useTimerStore.getState().pieceOvertimeRunning).toBe(true);
+        // Store should have asked the worker to start ticking.
+        expect(workerMock.postMessage).toHaveBeenCalledWith({ type: 'PIECE_TICK_START' });
 
-        // Fast-forward by 3 ticks (3 seconds)
-        vi.advanceTimersByTime(3000);
+        // Simulate 3 worker-driven ticks (1s each).
+        emitPieceTick();
+        emitPieceTick();
+        emitPieceTick();
 
         expect(useTimerStore.getState().pieceTimeRemaining).toBe(7);
         expect(addDetailedPracticeTime).toHaveBeenCalledWith('piece-1', 'Bach Prelude', 1);
@@ -131,8 +177,7 @@ describe('timerStore', () => {
         // Stop overtime
         useTimerStore.getState().stopPieceOvertime();
         expect(useTimerStore.getState().pieceOvertimeRunning).toBe(false);
-
-        vi.useRealTimers();
+        expect(workerMock.postMessage).toHaveBeenCalledWith({ type: 'PIECE_TICK_STOP' });
     });
 
     it('skipTimer updates mode and timeRemaining atomically from work to break', async () => {

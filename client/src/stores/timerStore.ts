@@ -130,8 +130,13 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
   // Track skip timeout to clear it when UPDATE_MODE is received
   let skipTimeoutId: NodeJS.Timeout | null = null;
 
-  // Piece overtime interval (runs when main session ends but piece has time left)
-  let pieceOvertimeIntervalId: ReturnType<typeof setInterval> | null = null;
+  // Post PIECE_TICK_STOP to the worker so it stops emitting piece ticks.
+  // Guarded so it's a no-op when the worker hasn't been initialized yet.
+  const stopWorkerPieceTicks = () => {
+    if (worker) {
+      worker.postMessage({ type: 'PIECE_TICK_STOP' });
+    }
+  };
 
   // Shadow set to automatically derive isPieceOvertime and manage pieceOvertimeRunning
   const set = (
@@ -157,9 +162,10 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         : state.pieceOvertimeRunning;
 
       if (!nextIsPieceOvertime) {
-        if (pieceOvertimeIntervalId) {
-          clearInterval(pieceOvertimeIntervalId);
-          pieceOvertimeIntervalId = null;
+        // Leaving overtime — ensure the worker's piece ticker is stopped and the
+        // running flag is cleared.
+        if (state.pieceOvertimeRunning || nextPieceOvertimeRunning) {
+          stopWorkerPieceTicks();
         }
         nextPieceOvertimeRunning = false;
       }
@@ -170,6 +176,64 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         pieceOvertimeRunning: nextPieceOvertimeRunning
       } as any;
     }, replace as any);
+  };
+
+  /**
+   * Attribute `diff` seconds of practice time to whatever the user is currently
+   * doing. Shared between the main-timer TICK path (during work sessions),
+   * setTimeRemaining (iOS background timer restore path), and the worker-driven
+   * PIECE_TICK path (segment overtime).
+   *
+   * Behavior:
+   *   - No active piece → adds `diff` to general practice time.
+   *   - Active piece but paused → adds `diff` to general practice time only
+   *     (piece countdown untouched).
+   *   - Active piece, not paused → records detailed practice time on the piece
+   *     (which also adds to general), decrements pieceTimeRemaining, and on
+   *     reaching 0 records segment completion, checks the plan item, fires the
+   *     `piece-timer-complete` event, and clears the active piece.
+   */
+  const attributePracticeTime = (diff: number) => {
+    if (diff <= 0) return;
+    const s = get();
+
+    if (!(s.activePieceId && s.activePieceName)) {
+      addPracticeTime(diff);
+      return;
+    }
+
+    if (s.isPiecePaused) {
+      addPracticeTime(diff);
+      return;
+    }
+
+    // Records to piece detail AND general practice time (see addDetailedPracticeTime)
+    addDetailedPracticeTime(s.activePieceId, s.activePieceName, diff);
+
+    if (s.pieceTimeRemaining <= 0) return;
+
+    const nextPieceTime = Math.max(0, s.pieceTimeRemaining - diff);
+    set({ pieceTimeRemaining: nextPieceTime });
+
+    if (nextPieceTime === 0) {
+      logSegmentCompletion(s.activePieceId);
+      practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
+      scheduleUserDataPush();
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+          detail: { name: s.activePieceName, id: s.activePieceId }
+        }));
+      }
+
+      set({
+        activePieceId: null,
+        activePieceName: null,
+        pieceTimeRemaining: 0,
+        pieceTotalTime: 0,
+        isPiecePaused: false
+      });
+    }
   };
 
   // Send message to worker with sequence number
@@ -290,50 +354,11 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               }
 
               // Log elapsed time if we are in work mode and it's a valid tick down.
-              // Skip piece logging when isPieceOvertime — the overtime interval owns that.
+              // Skip piece logging when isPieceOvertime — the worker-driven PIECE_TICK owns that.
               const oldState = get();
               if (oldState.mode === 'work' && oldState.isRunning && !oldState.isPieceOvertime && oldState.timeRemaining > payload.timeRemaining) {
                 const diff = oldState.timeRemaining - payload.timeRemaining;
-                if (diff > 0) {
-                  if (oldState.activePieceId && oldState.activePieceName) {
-                    if (oldState.isPiecePaused) {
-                      // If the piece is paused, only log to general practice time
-                      addPracticeTime(diff);
-                    } else {
-                      // Always log to piece detailed practice time (which also adds to general practice time)
-                      addDetailedPracticeTime(oldState.activePieceId, oldState.activePieceName, diff);
-
-                      if (oldState.pieceTimeRemaining > 0) {
-                        const nextPieceTime = Math.max(0, oldState.pieceTimeRemaining - diff);
-                        set({ pieceTimeRemaining: nextPieceTime });
-
-                        if (nextPieceTime === 0) {
-                          // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
-                          if (oldState.activePieceId) {
-                            logSegmentCompletion(oldState.activePieceId);
-                            practicePlanApi.checkItem(getPracticePlan(), oldState.activePieceId);
-                            scheduleUserDataPush();
-                          }
-                          if (typeof window !== 'undefined') {
-                            window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                              detail: { name: oldState.activePieceName, id: oldState.activePieceId }
-                            }));
-                          }
-                          // Automatically clear/reset the active piece timer
-                          set({
-                            activePieceId: null,
-                            activePieceName: null,
-                            pieceTimeRemaining: 0,
-                            pieceTotalTime: 0,
-                            isPiecePaused: false
-                          });
-                        }
-                      }
-                    }
-                  } else {
-                    addPracticeTime(diff);
-                  }
-                }
+                attributePracticeTime(diff);
               }
 
               // Update state with new timeRemaining
@@ -660,6 +685,15 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                 isPracticeComplete: true,
               });
               break;
+
+            case 'PIECE_TICK':
+              // Worker-driven segment-overtime tick. Ignored if overtime has been
+              // stopped in the meantime (stopPieceOvertime already messaged the
+              // worker but a tick was already in flight).
+              if (get().pieceOvertimeRunning) {
+                attributePracticeTime(1);
+              }
+              break;
           }
         };
 
@@ -716,46 +750,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       const state = get();
       if (state.mode === 'work' && state.isRunning && state.timeRemaining > time) {
         const diff = state.timeRemaining - time;
-        if (diff > 0) {
-          if (state.activePieceId && state.activePieceName) {
-            if (state.isPiecePaused) {
-              // If the piece is paused, only log to general practice time
-              addPracticeTime(diff);
-            } else {
-              // Always log to piece detailed practice time (which also adds to general practice time)
-              addDetailedPracticeTime(state.activePieceId, state.activePieceName, diff);
-
-              if (state.pieceTimeRemaining > 0) {
-                const nextPieceTime = Math.max(0, state.pieceTimeRemaining - diff);
-                set({ pieceTimeRemaining: nextPieceTime });
-
-                if (nextPieceTime === 0) {
-                  // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
-                  if (state.activePieceId) {
-                    logSegmentCompletion(state.activePieceId);
-                    practicePlanApi.checkItem(getPracticePlan(), state.activePieceId);
-                    scheduleUserDataPush();
-                  }
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                      detail: { name: state.activePieceName, id: state.activePieceId }
-                    }));
-                  }
-                  // Automatically clear/reset the active piece timer
-                  set({
-                    activePieceId: null,
-                    activePieceName: null,
-                    pieceTimeRemaining: 0,
-                    pieceTotalTime: 0,
-                    isPiecePaused: false
-                  });
-                }
-              }
-            }
-          } else {
-            addPracticeTime(diff);
-          }
-        }
+        attributePracticeTime(diff);
       }
       set({ timeRemaining: time });
     },
@@ -881,10 +876,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       });
 
       // Stop piece overtime if active
-      if (pieceOvertimeIntervalId) {
-        clearInterval(pieceOvertimeIntervalId);
-        pieceOvertimeIntervalId = null;
-      }
+      stopWorkerPieceTicks();
 
       set({
         isRunning: false,
@@ -959,10 +951,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               skipTimeoutId = null;
             }
             // Also stop piece overtime — practice is done
-            if (pieceOvertimeIntervalId) {
-              clearInterval(pieceOvertimeIntervalId);
-              pieceOvertimeIntervalId = null;
-            }
+            stopWorkerPieceTicks();
             set({
               isPracticeComplete: true,
               isRunning: false,
@@ -1055,11 +1044,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     },
 
     clearPiece: () => {
-      // Stop overtime interval if running
-      if (pieceOvertimeIntervalId) {
-        clearInterval(pieceOvertimeIntervalId);
-        pieceOvertimeIntervalId = null;
-      }
+      // Stop overtime ticker if running
+      stopWorkerPieceTicks();
       set({
         activePieceId: null,
         activePieceName: null,
@@ -1074,61 +1060,24 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     startPieceOvertime: async () => {
       const state = get();
       if (!state.activePieceId) return;
-      if (pieceOvertimeIntervalId) return; // already running
+      if (state.pieceOvertimeRunning) return; // already running
 
-      // The break timer may be running concurrently — do not pause it.
+      // The break timer may be running concurrently in the worker — do not pause it.
+      // Ensure the piece isn't in the "paused" state (which would skip piece
+      // attribution in attributePracticeTime). During overtime, the play/pause
+      // UI toggles the ticker itself, not this flag.
+      set({ pieceOvertimeRunning: true, isPiecePaused: false });
 
-      set({ pieceOvertimeRunning: true });
-
-      pieceOvertimeIntervalId = setInterval(() => {
-        const s = get();
-        if (!s.activePieceId) {
-          // Piece was cleared — stop interval
-          clearInterval(pieceOvertimeIntervalId!);
-          pieceOvertimeIntervalId = null;
-          set({
-            pieceOvertimeRunning: false,
-            isPieceOvertime: false,
-            activePieceId: null,
-            activePieceName: null,
-            pieceTimeRemaining: 0,
-            pieceTotalTime: 0,
-            isPiecePaused: false
-          });
-          return;
-        }
-
-        // Log 1 second of piece (and overall) practice time
-        addDetailedPracticeTime(s.activePieceId!, s.activePieceName!, 1);
-
-        if (s.pieceTimeRemaining > 0) {
-          const nextPieceTime = s.pieceTimeRemaining - 1;
-          set({ pieceTimeRemaining: nextPieceTime });
-
-          if (nextPieceTime === 0) {
-            // Piece target time reached
-            if (s.activePieceId) {
-              logSegmentCompletion(s.activePieceId);
-              practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
-              scheduleUserDataPush();
-            }
-
-            // Notify listeners
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                detail: { name: s.activePieceName, id: s.activePieceId }
-              }));
-            }
-          }
-        }
-      }, 1000);
+      // Ask the worker to start emitting PIECE_TICK once per second. The store's
+      // message handler decrements pieceTimeRemaining on each tick via
+      // attributePracticeTime, which also handles piece completion.
+      if (worker) {
+        worker.postMessage({ type: 'PIECE_TICK_START' });
+      }
     },
 
     stopPieceOvertime: () => {
-      if (pieceOvertimeIntervalId) {
-        clearInterval(pieceOvertimeIntervalId);
-        pieceOvertimeIntervalId = null;
-      }
+      stopWorkerPieceTicks();
       set({ pieceOvertimeRunning: false });
     },
 

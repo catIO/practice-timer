@@ -34,6 +34,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     isPracticeComplete,
     settings,
     workerReady,
+    pieceOvertimeRunning,
     startTimer: storeStartTimer,
     pauseTimer: storePauseTimer,
     resetTimer: storeResetTimer,
@@ -466,12 +467,20 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   }, [setStoreSettings]);
 
   // Manage wake lock based on timer state and visibility (PRESERVED)
+  // Keeps the screen awake whenever the main timer is running OR the segment
+  // (piece) overtime ticker is running — that way the screen doesn't sleep while
+  // the user is still practicing after the main session has ended.
   useEffect(() => {
+    const shouldHoldWakeLock = () => {
+      const s = useTimerStore.getState();
+      return s.isRunning || s.pieceOvertimeRunning;
+    };
+
     const handleVisibilityChange = async () => {
       if (document.hidden) {
-        // Page is hidden, but keep wake lock active if timer is running
-      } else if (isRunning) {
-        // Page is visible and timer is running, ensure wake lock is active
+        // Page is hidden, but keep wake lock active if we should be holding one
+      } else if (shouldHoldWakeLock()) {
+        // Page is visible and we should have a wake lock — ensure it's active
         if ('wakeLock' in navigator && !wakeLockRef.current) {
           try {
             // Screen Wake Lock API only supports 'screen' type
@@ -506,41 +515,43 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         wakeLockFallbackRef.current = null;
       }
     };
-  }, [isRunning]);
+  }, [isRunning, pieceOvertimeRunning]);
 
   // Ensure wake lock is maintained during timer session (PRESERVED - reduced frequency)
+  // Also runs while piece overtime is active so segment-overtime after PRACTICE_COMPLETE
+  // still holds the screen awake.
   useEffect(() => {
+    const active = isRunning || pieceOvertimeRunning;
+    if (!active) return;
+
     const ensureWakeLock = async () => {
-      if (isRunning) {
-        if (!wakeLockRef.current && !wakeLockFallbackRef.current) {
-          try {
-            if ('wakeLock' in navigator) {
-              // Screen Wake Lock API only supports 'screen' type
-              wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-              document.documentElement.setAttribute('data-wake-lock', 'active');
-            } else {
-              const fallback = getWakeLockFallback();
-              wakeLockFallbackRef.current = fallback;
-              await fallback.request();
-            }
-          } catch (error) {
-            // Silently fail
-          }
+      if (wakeLockRef.current || wakeLockFallbackRef.current) return;
+      try {
+        if ('wakeLock' in navigator) {
+          // Screen Wake Lock API only supports 'screen' type
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+          document.documentElement.setAttribute('data-wake-lock', 'active');
+        } else {
+          const fallback = getWakeLockFallback();
+          wakeLockFallbackRef.current = fallback;
+          await fallback.request();
         }
+      } catch (error) {
+        // Silently fail
       }
     };
 
-    let intervalId: number | null = null;
-    if (isRunning) {
-      intervalId = window.setInterval(ensureWakeLock, 120000); // 2 minutes
-    }
+    // Acquire immediately when this effect fires with active=true. This closes
+    // the gap where the user starts piece overtime from a fully-idle state
+    // (post-PRACTICE_COMPLETE) — startTimer() isn't involved in that path so
+    // there's no other place to acquire.
+    ensureWakeLock();
+    const intervalId = window.setInterval(ensureWakeLock, 120000); // 2 minutes
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearInterval(intervalId);
     };
-  }, [isRunning]);
+  }, [isRunning, pieceOvertimeRunning]);
 
   // Cleanup on unmount (PRESERVED)
   // IMPORTANT: dep array must be [] — not [isRunning]. A non-empty dep array causes

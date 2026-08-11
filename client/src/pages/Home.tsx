@@ -303,15 +303,16 @@ export default function Home() {
     // Check initially
     checkWakeLockStatus();
 
-    // Check periodically when timer is running
-    const intervalId = isRunning ? setInterval(checkWakeLockStatus, 5000) : null;
+    // Check periodically while any timer (main or segment overtime) is active
+    const active = isRunning || pieceOvertimeRunning;
+    const intervalId = active ? setInterval(checkWakeLockStatus, 5000) : null;
 
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
       }
     };
-  }, [isRunning]);
+  }, [isRunning, pieceOvertimeRunning]);
 
 
 

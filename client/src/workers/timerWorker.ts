@@ -3,6 +3,11 @@ import { TimerState } from '../lib/timerWorkerSingleton';
 
 let workerId: string | null = null;
 let timerInterval: number | null = null;
+// Separate interval for piece-only ticks (used during break or after PRACTICE_COMPLETE
+// when the user chooses to continue running the segment/piece timer past the main
+// session). Kept independent of the main Pomodoro timerInterval so the two can
+// coexist (main clock ticks the break, piece clock ticks the segment).
+let pieceTickInterval: number | null = null;
 
 // Worker state
 // NOTE: Settings durations are stored in MINUTES, not seconds
@@ -142,6 +147,14 @@ self.addEventListener('message', (event: MessageEvent) => {
         state.totalIterations = payload.totalIterations;
         state.isRunning = payload.isRunning;
       }
+      break;
+
+    case 'PIECE_TICK_START':
+      startPieceTicks();
+      break;
+
+    case 'PIECE_TICK_STOP':
+      stopPieceTicks();
       break;
 
     default:
@@ -471,4 +484,28 @@ function updateSettings(settings: Partial<TimerState['settings']>) {
     payload: state.settings,
     sequence: messageSequence
   });
-} 
+}
+
+// Start emitting one PIECE_TICK message per second. Idempotent — if the piece
+// ticker is already running this is a no-op. The store decrements piece time
+// on each PIECE_TICK it receives.
+function startPieceTicks() {
+  if (pieceTickInterval !== null) {
+    return;
+  }
+  pieceTickInterval = self.setInterval(() => {
+    messageSequence++;
+    self.postMessage({
+      type: 'PIECE_TICK',
+      sequence: messageSequence
+    });
+  }, 1000);
+}
+
+// Stop the piece ticker. Safe to call even when it's not running.
+function stopPieceTicks() {
+  if (pieceTickInterval !== null) {
+    self.clearInterval(pieceTickInterval);
+    pieceTickInterval = null;
+  }
+}
