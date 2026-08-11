@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlanEditorPane } from "@/components/PlanEditorPane";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { useAuth } from "@/contexts/AuthContext";
 import { lessonPlanApi, getLessonSnapshots, saveLessonSnapshot } from "@/lib/lessonPlan";
 import { useTimerStore } from "@/stores/timerStore";
 import { playSound, resumeAudioContext } from "@/lib/soundEffects";
@@ -11,6 +13,7 @@ export default function LessonPlan() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { showNotification } = useNotification();
+  const { isLoggedIn } = useAuth();
 
   const timeRemaining = useTimerStore((state) => state.timeRemaining);
   const totalTime = useTimerStore((state) => state.totalTime);
@@ -85,6 +88,16 @@ export default function LessonPlan() {
       window.removeEventListener("practice-complete", handlePracticeComplete);
     };
   }, [toast, showNotification]);
+
+  if (!isLoggedIn) {
+    return (
+      <SignInPrompt
+        icon="school"
+        title="Save Your Lesson Plans"
+        description="Capture lesson notes and structured plans from your teacher so you can review and practice with intention."
+      />
+    );
+  }
 
   return (
     <PlanEditorPane

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PracticePlanPane } from "@/components/PracticePlanPane";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTimerStore } from "@/stores/timerStore";
 import { playSound, resumeAudioContext } from "@/lib/soundEffects";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +12,7 @@ export default function PracticePlan() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { showNotification } = useNotification();
+    const { isLoggedIn } = useAuth();
 
     const timeRemaining = useTimerStore((state) => state.timeRemaining);
     const totalTime = useTimerStore((state) => state.totalTime);
@@ -87,6 +90,16 @@ export default function PracticePlan() {
             window.removeEventListener('practice-complete', handlePracticeComplete);
         };
     }, [toast, showNotification]);
+
+    if (!isLoggedIn) {
+        return (
+            <SignInPrompt
+                icon="assignment"
+                title="Build Your Practice Plan"
+                description="Design structured practice sessions with tasks, timings, and notes to focus your time and track your progress."
+            />
+        );
+    }
 
     return (
         <PracticePlanPane

@@ -433,8 +433,8 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
               </Button>
             )}
 
-            {/* Share Report */}
-            {!isReportPath && (
+            {/* Share Report — only available to signed-in users */}
+            {!isReportPath && isLoggedIn && (
               <Button
                 variant="ghost"
                 size="icon"
