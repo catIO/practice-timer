@@ -27,6 +27,8 @@ vi.mock('fs', () => ({
     },
 }));
 
+const validPayload = { title: 'My Report', items: [] };
+
 describe('share-report function', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -64,7 +66,7 @@ describe('share-report function', () => {
         const event = {
             httpMethod: 'POST',
             headers: {},
-            body: JSON.stringify({ title: 'My Report', items: [] }),
+            body: JSON.stringify(validPayload),
             queryStringParameters: null,
         } as any;
 
@@ -78,7 +80,7 @@ describe('share-report function', () => {
         const event = {
             httpMethod: 'POST',
             headers: {},
-            body: JSON.stringify({ id: 'custom-id', title: 'Report' }),
+            body: JSON.stringify({ id: 'custom-id', ...validPayload }),
             queryStringParameters: null,
         } as any;
 
@@ -105,7 +107,7 @@ describe('share-report function', () => {
             httpMethod: 'GET',
             headers: {},
             body: null,
-            queryStringParameters: { id: 'nonexistent' },
+            queryStringParameters: { id: 'nonexistnt' },
         } as any;
 
         const result = await handler(event, {} as any);
@@ -148,5 +150,108 @@ describe('share-report function', () => {
         expect(body.items).toEqual([{ text: 'item1' }]);
         // ID should not be stored in the data
         expect(body.id).toBeUndefined();
+    });
+
+    // --- Hardening -----------------------------------------------------------
+
+    it('rejects invalid JSON bodies', async () => {
+        const event = {
+            httpMethod: 'POST',
+            headers: {},
+            body: 'not-json',
+            queryStringParameters: null,
+        } as any;
+
+        const result = await handler(event, {} as any);
+        expect(result!.statusCode).toBe(400);
+    });
+
+    it('rejects bodies that are not an object with items array', async () => {
+        for (const bad of [
+            JSON.stringify('a string'),
+            JSON.stringify([1, 2, 3]),
+            JSON.stringify({ title: 'no items' }),
+            JSON.stringify({ items: 'not-an-array' }),
+        ]) {
+            const event = {
+                httpMethod: 'POST',
+                headers: {},
+                body: bad,
+                queryStringParameters: null,
+            } as any;
+            const result = await handler(event, {} as any);
+            expect(result!.statusCode, `expected ${bad} to be rejected`).toBe(400);
+        }
+    });
+
+    it('rejects an id with invalid characters', async () => {
+        const event = {
+            httpMethod: 'POST',
+            headers: {},
+            body: JSON.stringify({ id: '../../etc/passwd', items: [] }),
+            queryStringParameters: null,
+        } as any;
+
+        const result = await handler(event, {} as any);
+        expect(result!.statusCode).toBe(400);
+    });
+
+    it('rejects overwriting an existing id (409)', async () => {
+        // First POST creates the report.
+        const first = {
+            httpMethod: 'POST',
+            headers: {},
+            body: JSON.stringify({ id: 'exists', title: 'orig', items: [] }),
+            queryStringParameters: null,
+        } as any;
+        const firstResult = await handler(first, {} as any);
+        expect(firstResult!.statusCode).toBe(200);
+
+        // Second POST with the same id must not overwrite.
+        const second = {
+            httpMethod: 'POST',
+            headers: {},
+            body: JSON.stringify({ id: 'exists', title: 'tampered', items: [] }),
+            queryStringParameters: null,
+        } as any;
+        const secondResult = await handler(second, {} as any);
+        expect(secondResult!.statusCode).toBe(409);
+
+        // Confirm the stored data was NOT overwritten.
+        const getResult = await handler({
+            httpMethod: 'GET',
+            headers: {},
+            body: null,
+            queryStringParameters: { id: 'exists' },
+        } as any, {} as any);
+        const body = JSON.parse(getResult!.body!);
+        expect(body.title).toBe('orig');
+    });
+
+    it('rejects bodies larger than the size cap', async () => {
+        // 300 KB > 256 KB cap. Use a valid outer shape so we're testing the
+        // size check, not the schema check.
+        const bigString = 'x'.repeat(300 * 1024);
+        const event = {
+            httpMethod: 'POST',
+            headers: {},
+            body: JSON.stringify({ items: [], filler: bigString }),
+            queryStringParameters: null,
+        } as any;
+
+        const result = await handler(event, {} as any);
+        expect(result!.statusCode).toBe(413);
+    });
+
+    it('rejects GET with an invalid id format', async () => {
+        const event = {
+            httpMethod: 'GET',
+            headers: {},
+            body: null,
+            queryStringParameters: { id: '../secrets' },
+        } as any;
+
+        const result = await handler(event, {} as any);
+        expect(result!.statusCode).toBe(400);
     });
 });
