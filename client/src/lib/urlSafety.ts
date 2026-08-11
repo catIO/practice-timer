@@ -20,20 +20,20 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
  * by pre-stripping all ASCII control characters before parsing.
  */
 export function isSafeHttpUrl(url: unknown): url is string {
-  if (typeof url !== "string" || url.length === 0) return false;
+    if (typeof url !== "string" || url.length === 0) return false;
 
-  // The WHATWG URL parser strips tabs/newlines, but we strip them ourselves
-  // too so we can also reject strings that are *only* whitespace/controls
-  // and so we don't rely on parser quirks.
-  const stripped = url.replace(/[\u0000-\u001F\u007F]/g, "").trim();
-  if (stripped.length === 0) return false;
+    // The WHATWG URL parser strips tabs/newlines, but we strip them ourselves
+    // too so we can also reject strings that are *only* whitespace/controls
+    // and so we don't rely on parser quirks.
+    const stripped = url.replace(/[\u0000-\u001F\u007F]/g, "").trim();
+    if (stripped.length === 0) return false;
 
-  try {
-    const parsed = new URL(stripped);
-    return ALLOWED_PROTOCOLS.has(parsed.protocol.toLowerCase());
-  } catch {
-    return false;
-  }
+    try {
+        const parsed = new URL(stripped);
+        return ALLOWED_PROTOCOLS.has(parsed.protocol.toLowerCase());
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -42,5 +42,5 @@ export function isSafeHttpUrl(url: unknown): url is string {
  * a "dead" `href="#"` link, since a click still runs any surrounding JS.
  */
 export function sanitizeHref(url: unknown): string | undefined {
-  return isSafeHttpUrl(url) ? url : undefined;
+    return isSafeHttpUrl(url) ? url : undefined;
 }

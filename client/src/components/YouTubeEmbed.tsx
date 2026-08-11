@@ -13,11 +13,11 @@ function extractYouTubeId(url: string): string | null {
     // 1. Check for youtu.be/<id>
     const shortMatch = cleanUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
     if (shortMatch) return shortMatch[1];
-    
+
     // 2. Check for path patterns: /embed/<id>, /shorts/<id>, /live/<id>
     const pathMatch = cleanUrl.match(/youtube(?:-nocookie)?\.com\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/i);
     if (pathMatch) return pathMatch[1];
-    
+
     // 3. Check for watch?v=<id> or watch?anything&v=<id>
     const watchMatch = cleanUrl.match(/youtube(?:-nocookie)?\.com\/watch\?(?:[^&]*&)*v=([a-zA-Z0-9_-]{11})/i);
     if (watchMatch) return watchMatch[1];

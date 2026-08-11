@@ -1600,8 +1600,8 @@ function PlanItem({
                       <>
                         <span className={cn(
                           "font-mono text-xs tabular-nums px-2 py-0.5 rounded-full border shadow-sm",
-                          pieceTimeRemaining < 60 
-                            ? "bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400" 
+                          pieceTimeRemaining < 60
+                            ? "bg-red-500/10 border-red-500/30 text-red-500 dark:text-red-400"
                             : "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
                         )}>
                           {formatTime(pieceTimeRemaining)}
@@ -1657,7 +1657,7 @@ function PlanItem({
                                 {formatDuration(todaySeconds)}
                               </span>
                             )}
-                            
+
                             <Button
                               variant="ghost" size="icon"
                               className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
@@ -1719,7 +1719,7 @@ function PlanItem({
                     {item.videoUrl && <RichLink url={item.videoUrl} />}
                   </div>
                 )}
-                
+
                 {!item.segmentGoal && !item.allocatedTime && !item.text && (
                   <div className="pt-1 text-xs text-muted-foreground/40 italic">
                     Double-click to add name, goal & time...
@@ -1931,13 +1931,13 @@ function PlanItem({
                         }}
                       >
                         <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
-                            {opt.icon === "timer" || opt.icon === "music_note" ? (
-                              <span className="material-icons text-base">{opt.icon}</span>
-                            ) : (
-                              opt.icon
-                            )}
-                          </span>
-                          <span>{opt.label}</span>
+                          {opt.icon === "timer" || opt.icon === "music_note" ? (
+                            <span className="material-icons text-base">{opt.icon}</span>
+                          ) : (
+                            opt.icon
+                          )}
+                        </span>
+                        <span>{opt.label}</span>
                       </div>
                     ))
                   )}
@@ -2288,7 +2288,7 @@ export function PlanEditorPane({
     try {
       (document.activeElement as HTMLElement)?.blur();
       window.getSelection()?.removeAllRanges();
-    } catch {}
+    } catch { }
     const prev = undoStack[undoStack.length - 1];
     setUndoStack((s) => s.slice(0, -1));
     setItems(prev);
@@ -2509,7 +2509,7 @@ export function PlanEditorPane({
             }
           }
         }
-      } catch {}
+      } catch { }
     });
 
     return selectedIds;
@@ -2535,7 +2535,7 @@ export function PlanEditorPane({
 
     try {
       window.getSelection()?.removeAllRanges();
-    } catch {}
+    } catch { }
     setSelectedIds([]);
     setLastSelectedId(null);
   }, [flatList, applyChange, planApi]);
@@ -2588,8 +2588,8 @@ export function PlanEditorPane({
         clipboardEvent.clipboardData.setData("text/plain", outlineText);
       } else {
         try {
-          navigator.clipboard.writeText(outlineText).catch(() => {});
-        } catch {}
+          navigator.clipboard.writeText(outlineText).catch(() => { });
+        } catch { }
       }
       try {
         localStorage.setItem("practice-timer-plan-clipboard", JSON.stringify(copies));
@@ -2633,7 +2633,7 @@ export function PlanEditorPane({
 
     try {
       window.getSelection()?.removeAllRanges();
-    } catch {}
+    } catch { }
     setSelectedIds([]);
     setLastSelectedId(null);
   }, [selectedIds, flatList, handleCopySelectionIds, applyChange, planApi]);
@@ -2764,7 +2764,7 @@ export function PlanEditorPane({
           if (raw) {
             activeClipboard = JSON.parse(raw);
           }
-        } catch {}
+        } catch { }
       }
 
       if (!activeClipboard || activeClipboard.length === 0) {
@@ -3167,199 +3167,199 @@ export function PlanEditorPane({
         </TooltipProvider>
       </div>
 
-          <div
-            ref={contentRef}
-            className="w-full p-0 sm:p-4"
+      <div
+        ref={contentRef}
+        className="w-full p-0 sm:p-4"
+      >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={items.map(item => item.id)}
+            strategy={verticalListSortingStrategy}
           >
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={items.map(item => item.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-1 pb-20 pl-8 sm:pl-14">
-                  {items.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
-                      <p className="mb-4">Your {planTitle.toLowerCase()} is empty.</p>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="gap-2">
-                            <span className="material-icons text-base">add</span>
-                            Create First Item
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="center" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
-                          <DropdownMenuLabel>Choose first block</DropdownMenuLabel>
-                          {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+            <div className="space-y-1 pb-20 pl-8 sm:pl-14">
+              {items.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
+                  <p className="mb-4">Your {planTitle.toLowerCase()} is empty.</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-2">
+                        <span className="material-icons text-base">add</span>
+                        Create First Item
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
+                      <DropdownMenuLabel>Choose first block</DropdownMenuLabel>
+                      {BASIC_BLOCK_OPTIONS.map(({ type, label, icon }) => (
+                        <DropdownMenuItem
+                          key={type}
+                          onSelect={() => handleInsertBlock(0, type)}
+                          className="flex items-center gap-2"
+                        >
+                          <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                          {label}
+                        </DropdownMenuItem>
+                      ))}
+                      {allowSegments && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel>Practice</DropdownMenuLabel>
+                          {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
                             <DropdownMenuItem
                               key={type}
                               onSelect={() => handleInsertBlock(0, type)}
                               className="flex items-center gap-2"
                             >
-                              <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
+                              <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
+                                <span className="material-icons text-base">{icon}</span>
+                              </span>
                               {label}
                             </DropdownMenuItem>
                           ))}
-                          {allowSegments && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuLabel>Practice</DropdownMenuLabel>
-                              {PRACTICE_BLOCK_OPTIONS.map(({ type, label, icon }) => (
-                                <DropdownMenuItem
-                                  key={type}
-                                  onSelect={() => handleInsertBlock(0, type)}
-                                  className="flex items-center gap-2"
-                                >
-                                  <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
-                                    <span className="material-icons text-base">{icon}</span>
-                                  </span>
-                                  {label}
-                                </DropdownMenuItem>
-                              ))}
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  )}
-                  {items.map((item, idx) => (
-                    <PlanItem
-                      key={item.id}
-                      item={item}
-                      depth={0}
-                      numberIndex={items.slice(0, idx).filter((i) => i.blockType === "number").length}
-                      focusRequest={focusRequest}
-                      onFocusRequestFulfilled={onFocusRequestFulfilled}
-                      selectedIdSet={selectedIdSet}
-                      onToggle={handleToggleCheck}
-                      onUpdateText={handleUpdateText}
-                      onUpdateType={handleUpdateType}
-                      onDelete={handleDelete}
-                      onIndent={handleIndent}
-                      onUnindent={handleUnindent}
-                      onInsertBelow={handleInsertBelow}
-                      onInsertBefore={handleInsertBefore}
-                      onNavigate={handleNavigate}
-                      onMergeWithPrevious={handleMergeWithPrevious}
-                      onInputFocus={handleInputFocus}
-                      selected={selectedIdSet.has(item.id)}
-                      onRowClick={handleRowClick}
-                      onCopySelection={handleCopySelection}
-                      onCutSelection={handleCutSelection}
-                      onPasteBelowSelection={handlePasteBelowSelection}
-                      onPasteMultiLineText={handlePasteMultiLineText}
-                      onUndo={handleUndo}
-                      onOpenAllocationDialog={handleOpenAllocationDialog}
-                      onPlayPiece={handlePlayPiece}
-                      onSaveSegment={handleSaveSegment}
-                      repertoirePieces={repertoirePieces}
-                      allowSegments={allowSegments}
-                      onSelectAllBlocks={handleSelectAllBlocks}
-                    />
-                  ))}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </SortableContext>
-            </DndContext>
-          </div>
-          {/* Link Popover Portal Target */}
-          <div id="practice-sheet-content" className="relative" />
+              )}
+              {items.map((item, idx) => (
+                <PlanItem
+                  key={item.id}
+                  item={item}
+                  depth={0}
+                  numberIndex={items.slice(0, idx).filter((i) => i.blockType === "number").length}
+                  focusRequest={focusRequest}
+                  onFocusRequestFulfilled={onFocusRequestFulfilled}
+                  selectedIdSet={selectedIdSet}
+                  onToggle={handleToggleCheck}
+                  onUpdateText={handleUpdateText}
+                  onUpdateType={handleUpdateType}
+                  onDelete={handleDelete}
+                  onIndent={handleIndent}
+                  onUnindent={handleUnindent}
+                  onInsertBelow={handleInsertBelow}
+                  onInsertBefore={handleInsertBefore}
+                  onNavigate={handleNavigate}
+                  onMergeWithPrevious={handleMergeWithPrevious}
+                  onInputFocus={handleInputFocus}
+                  selected={selectedIdSet.has(item.id)}
+                  onRowClick={handleRowClick}
+                  onCopySelection={handleCopySelection}
+                  onCutSelection={handleCutSelection}
+                  onPasteBelowSelection={handlePasteBelowSelection}
+                  onPasteMultiLineText={handlePasteMultiLineText}
+                  onUndo={handleUndo}
+                  onOpenAllocationDialog={handleOpenAllocationDialog}
+                  onPlayPiece={handlePlayPiece}
+                  onSaveSegment={handleSaveSegment}
+                  repertoirePieces={repertoirePieces}
+                  allowSegments={allowSegments}
+                  onSelectAllBlocks={handleSelectAllBlocks}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
+      {/* Link Popover Portal Target */}
+      <div id="practice-sheet-content" className="relative" />
 
-          <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Import {planTitle}</DialogTitle>
-                <DialogDescription>
-                  Paste exported {planTitle.toLowerCase()} JSON below. Use Export {planTitle} on another tab or device to copy it.
-                </DialogDescription>
-              </DialogHeader>
-              <textarea
-                className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
-                placeholder='[{"id":"...","text":"Item 1","checked":false,"children":[]},...]'
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import {planTitle}</DialogTitle>
+            <DialogDescription>
+              Paste exported {planTitle.toLowerCase()} JSON below. Use Export {planTitle} on another tab or device to copy it.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+            placeholder='[{"id":"...","text":"Item 1","checked":false,"children":[]},...]'
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleImportPlan}>Import</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={allocationDialogOpen} onOpenChange={setAllocationDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Time Box Duration</DialogTitle>
+            <DialogDescription>
+              Set target duration (time box) for "{allocationItemText}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="allocation-minutes">Session Target Duration (Minutes)</Label>
+              <Input
+                id="allocation-minutes"
+                type="number"
+                min="1"
+                placeholder="e.g. 15"
+                value={allocationMinutes}
+                onChange={(e) => setAllocationMinutes(e.target.value)}
               />
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleImportPlan}>Import</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </div>
+          </div>
+          <DialogFooter className="flex sm:justify-between gap-2">
+            <div>
+              <Button type="button" variant="destructive" onClick={handleRemoveAllocation}>
+                Remove
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setAllocationDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleSaveAllocation}>
+                Save
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <Dialog open={allocationDialogOpen} onOpenChange={setAllocationDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Set Time Box Duration</DialogTitle>
-                <DialogDescription>
-                  Set target duration (time box) for "{allocationItemText}".
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="allocation-minutes">Session Target Duration (Minutes)</Label>
-                  <Input
-                    id="allocation-minutes"
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 15"
-                    value={allocationMinutes}
-                    onChange={(e) => setAllocationMinutes(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter className="flex sm:justify-between gap-2">
-                <div>
-                  <Button type="button" variant="destructive" onClick={handleRemoveAllocation}>
-                    Remove
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setAllocationDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="button" onClick={handleSaveAllocation}>
-                    Save
-                  </Button>
-                </div>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <AlertDialog open={!!deleteConfirmItem} onOpenChange={(open) => { if (!open) setDeleteConfirmItem(null); }}>
-            <AlertDialogContent className="sm:max-w-md">
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {deleteConfirmItem?.isSegment
-                    ? `Delete segment?`
-                    : deleteConfirmItem?.hasChildren
-                    ? `Delete block and sub-items?`
-                    : `Delete block?`}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{deleteConfirmItem?.name}"{deleteConfirmItem?.hasChildren ? " and all of its sub-items" : ""}? You can undo this action if needed.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => {
-                    if (deleteConfirmItem) {
-                      const targetId = deleteConfirmItem.id;
-                      setDeleteConfirmItem(null);
-                      handleDelete(targetId, true);
-                    }
-                  }}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      <AlertDialog open={!!deleteConfirmItem} onOpenChange={(open) => { if (!open) setDeleteConfirmItem(null); }}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirmItem?.isSegment
+                ? `Delete segment?`
+                : deleteConfirmItem?.hasChildren
+                  ? `Delete block and sub-items?`
+                  : `Delete block?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteConfirmItem?.name}"{deleteConfirmItem?.hasChildren ? " and all of its sub-items" : ""}? You can undo this action if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmItem) {
+                  const targetId = deleteConfirmItem.id;
+                  setDeleteConfirmItem(null);
+                  handleDelete(targetId, true);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
