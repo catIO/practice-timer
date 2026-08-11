@@ -156,21 +156,21 @@ describe('practiceLog', () => {
         it('logs segment completions with timestamps', () => {
             const now = Date.now();
             logSegmentCompletion('seg-1', now);
-            logSegmentCompletion('seg-1', now + 1000);
+            logSegmentCompletion('seg-1', now + 20000);
             logSegmentCompletion('seg-2', now);
 
             const completions = getSegmentCompletions();
-            expect(completions['seg-1']).toEqual([now, now + 1000]);
+            expect(completions['seg-1']).toEqual([now, now + 20000]);
             expect(completions['seg-2']).toEqual([now]);
         });
 
         it('counts completions for current week and last 7 days', () => {
             const now = new Date('2026-08-10T12:00:00Z').getTime(); // Monday
-            const threeDaysAgo = now - 3 * 86400 * 1000;
+            const twoHoursAgo = now - 2 * 3600 * 1000;
             const tenDaysAgo = now - 10 * 86400 * 1000;
 
             logSegmentCompletion('seg-1', now);
-            logSegmentCompletion('seg-1', threeDaysAgo);
+            logSegmentCompletion('seg-1', twoHoursAgo);
             logSegmentCompletion('seg-1', tenDaysAgo);
 
             expect(getSegmentCompletionsLast7Days('seg-1', now)).toBe(2);

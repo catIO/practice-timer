@@ -298,6 +298,7 @@ export interface PlanStoreApi {
   resetChecks: (items: PlanItem[]) => PlanItem[];
   toggleCheck: (items: PlanItem[], id: string) => PlanItem[];
   checkItem: (items: PlanItem[], id: string) => PlanItem[];
+  uncheckItem: (items: PlanItem[], id: string) => PlanItem[];
   updateText: (items: PlanItem[], id: string, text: string) => PlanItem[];
   updateAllocation: (
     items: PlanItem[],
@@ -395,6 +396,14 @@ export function createPlanStoreApi(
           logSegmentCompletion(item.id);
         }
         return { ...item, checked: true };
+      });
+      save(next);
+      return next;
+    },
+    uncheckItem: (items: PlanItem[], id: string) => {
+      const next = updateItemInTree(items, id, (item) => {
+        if (item.isHeader) return item;
+        return { ...item, checked: false };
       });
       save(next);
       return next;

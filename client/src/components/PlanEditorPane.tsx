@@ -586,6 +586,7 @@ function PlanItem({
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSegmentEditRef = useRef(false); // true while a segment dblclick edit is scheduled
   // isLinkPopoverOpenRef is provided by useTextSelection hook above
   const isVideoPopoverOpenRef = useRef(false);
   const [videoPopoverAnchor, setVideoPopoverAnchor] = useState<HTMLElement | null>(null);
@@ -718,7 +719,10 @@ function PlanItem({
           });
         });
       } else if (focusRequest.type === "row") {
-        setEditing(false);
+        // Don't cancel a pending segment double-click edit
+        if (!pendingSegmentEditRef.current) {
+          setEditing(false);
+        }
         requestAnimationFrame(() => {
           rowRef.current?.focus();
           onFocusRequestFulfilled();
@@ -1083,7 +1087,7 @@ function PlanItem({
           depth !== 0 && !isHeader && !parentIsHeader && "ml-4",
           isHeader && !parentIsHeader && "ml-0",
           isHeader && "first:mt-0",
-          blockType === "segment" ? "my-1" : "my-0.5",
+          blockType === "segment" ? "my-1.5" : "my-0.5",
           blockType === "text" && "mb-2",
           selected && selectedIdSet.size > 1 && "bg-sky-500/10 dark:bg-sky-400/10 border-l border-sky-400/50 rounded-sm px-1 transition-colors duration-150"
         )}
@@ -1140,8 +1144,20 @@ function PlanItem({
         }}
         onDoubleClick={() => {
           if (!editing) {
+            if (blockType === 'segment') {
+              // Explicitly move focus to this row so any other open segment's
+              // onBlur fires synchronously (timer controls stopPropagation
+              // can prevent onClick from calling focusRow).
+              rowRef.current?.focus();
+              pendingSegmentEditRef.current = true;
+              setTimeout(() => {
+                pendingSegmentEditRef.current = false;
+                setEditing(true);
+              }, 50);
+              return;
+            }
             // Delay edit so triple-click can select text; cancel if third click arrives.
-            // Tripple click detection logic:
+            // Triple click detection logic:
             // If the browser selection covers the whole text, it's likely a triple click.
             editTimeoutRef.current = setTimeout(() => {
               editTimeoutRef.current = null;
@@ -1296,7 +1312,7 @@ function PlanItem({
               /* Segment editing form */
               <div
                 ref={segmentFormRef}
-                className="flex-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5 space-y-2"
+                className="flex-1 rounded-xl border border-l-2 border-primary/50 bg-primary/[0.08] p-3.5 space-y-2 shadow-sm shadow-primary/10"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 onBlur={(e) => {
@@ -1306,8 +1322,8 @@ function PlanItem({
                   if (isLinkPopoverOpenRef.current) return;
                   if (isVideoPopoverOpenRef.current) return;
                   if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                  // 200ms gives native elements (select, link popover) time to settle focus
-                  saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; closeSegment(); }, 200);
+                  // 0ms: select/popover cases are guarded above; delay only causes dual-open bug
+                  saveTimeoutRef.current = setTimeout(() => { saveTimeoutRef.current = null; closeSegment(); }, 0);
                 }}
               >
                 <div className="flex items-center gap-2">
@@ -1397,23 +1413,7 @@ function PlanItem({
                   >
                     <span className="material-icons text-base">link</span>
                   </Button>
-                  {hasSegmentLink && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                      title="Remove link"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setHasSegmentLink(false);
-                        setSegmentLinkUrl("");
-                      }}
-                    >
-                      <span className="material-icons text-sm">close</span>
-                    </Button>
-                  )}
+
 
                   {/* Video link icon — always visible; click opens LinkPopover to add/edit video URL */}
                   <Button
@@ -1557,10 +1557,10 @@ function PlanItem({
               /* Segment card view */
               <div
                 className={cn(
-                  "flex-1 rounded-xl border border-l-2 p-3.5 space-y-3 transition-all duration-200 shadow-xs",
+                  "group/card flex-1 rounded-xl border border-l-2 p-3.5 space-y-3 transition-all duration-200 shadow-xs cursor-default",
                   selected
                     ? "border-primary border-l-primary/80 bg-primary/10 shadow-sm shadow-primary/5"
-                    : "border-border/40 border-l-primary/60 hover:bg-muted/20"
+                    : "border-border/60 border-l-primary/70 bg-white/[0.03] dark:bg-white/[0.03] hover:bg-white/[0.06] hover:border-border/80 hover:border-l-white/50"
                 )}
               >
                 {/* Header Row: Title and Timer Actions */}
@@ -2331,6 +2331,9 @@ export function PlanEditorPane({
   }, [allocationItemId, applyChange, planApi]);
 
   const handlePlayPiece = useCallback((id: string, name: string, minutes: number, period: 'day' | 'week') => {
+    // If piece was checked from a previous run, uncheck it so starting a new run resets item check state
+    applyChange((prev) => planApi.uncheckItem(prev, id));
+
     // Select the piece independently
     selectPiece(id, name, minutes, period);
 
@@ -2343,7 +2346,7 @@ export function PlanEditorPane({
         onStart();
       }
     }
-  }, [selectPiece, isRunning, onStart, mode, startPieceOvertime, isPracticeComplete]);
+  }, [selectPiece, isRunning, onStart, mode, startPieceOvertime, isPracticeComplete, applyChange, planApi]);
 
   const handleSaveSegment = useCallback((
     id: string,

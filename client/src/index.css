@@ -53,7 +53,8 @@
   }
 
   body {
-    @apply font-sans antialiased text-foreground bg-gradient-to-br from-slate-50 via-slate-100 to-white;
+    @apply font-sans antialiased text-foreground;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
     min-height: 100vh;
     margin: 0;
     padding: 0;
@@ -67,6 +68,7 @@
   /* Force dark background for better cross-browser compatibility */
   .dark body {
     background: linear-gradient(to bottom, #111827 0%, #0b0f19 50%, #000000 100%);
+    background-attachment: fixed;
   }
 
   /* Ensure text colors are consistent */

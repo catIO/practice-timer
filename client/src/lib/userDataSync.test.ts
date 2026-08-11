@@ -41,10 +41,10 @@ describe('userDataSync cross-device sync', () => {
 
   it('pullUserDataFromCloud restores practice plan AND lesson plan data from Supabase', async () => {
     const cloudPracticePlan: PlanItem[] = [
-      { id: 'p1', text: 'Cloud Practice Step', checked: false, children: [], blockType: 'heading1' },
+      { id: 'p1', text: 'Cloud Practice Step', checked: false, children: [], blockType: 'heading1', isHeader: true },
     ];
     const cloudLessonPlan: PlanItem[] = [
-      { id: 'l1', text: 'Cloud Lesson Note', checked: false, children: [], blockType: 'heading1' },
+      { id: 'l1', text: 'Cloud Lesson Note', checked: false, children: [], blockType: 'heading1', isHeader: true },
     ];
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -77,7 +77,7 @@ describe('userDataSync cross-device sync', () => {
 
   it('pushUserDataToCloud includes both practice plan and lesson plan data', async () => {
     const localLessonPlan: PlanItem[] = [
-      { id: 'l-local', text: 'My Local Lesson Note', checked: false, children: [], blockType: 'heading1' },
+      { id: 'l-local', text: 'My Local Lesson Note', checked: false, children: [], blockType: 'heading1', isHeader: true },
     ];
     saveLessonPlan(localLessonPlan);
 

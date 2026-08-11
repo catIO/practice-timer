@@ -299,44 +299,36 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                     if (oldState.isPiecePaused) {
                       // If the piece is paused, only log to general practice time
                       addPracticeTime(diff);
-                    } else if (oldState.pieceTimeRemaining > 0) {
-                      // Calculate how much of the diff belongs to the piece (cap at remaining time)
-                      const pieceDiff = Math.min(diff, oldState.pieceTimeRemaining);
-                      addDetailedPracticeTime(oldState.activePieceId, oldState.activePieceName, pieceDiff);
-
-                      // Log any leftover time only to overall practice time
-                      const extraDiff = diff - pieceDiff;
-                      if (extraDiff > 0) {
-                        addPracticeTime(extraDiff);
-                      }
-
-                      const nextPieceTime = Math.max(0, oldState.pieceTimeRemaining - diff);
-                      set({ pieceTimeRemaining: nextPieceTime });
-
-                      if (nextPieceTime === 0) {
-                        // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
-                        if (oldState.activePieceId) {
-                          logSegmentCompletion(oldState.activePieceId);
-                          practicePlanApi.checkItem(getPracticePlan(), oldState.activePieceId);
-                          scheduleUserDataPush();
-                        }
-                        if (typeof window !== 'undefined') {
-                          window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                            detail: { name: oldState.activePieceName, id: oldState.activePieceId }
-                          }));
-                        }
-                        // Automatically clear/reset the active piece timer
-                        set({
-                          activePieceId: null,
-                          activePieceName: null,
-                          pieceTimeRemaining: 0,
-                          pieceTotalTime: 0,
-                          isPiecePaused: false
-                        });
-                      }
                     } else {
-                      // If the piece has no remaining time (already completed), only log to general practice time
-                      addPracticeTime(diff);
+                      // Always log to piece detailed practice time (which also adds to general practice time)
+                      addDetailedPracticeTime(oldState.activePieceId, oldState.activePieceName, diff);
+
+                      if (oldState.pieceTimeRemaining > 0) {
+                        const nextPieceTime = Math.max(0, oldState.pieceTimeRemaining - diff);
+                        set({ pieceTimeRemaining: nextPieceTime });
+
+                        if (nextPieceTime === 0) {
+                          // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
+                          if (oldState.activePieceId) {
+                            logSegmentCompletion(oldState.activePieceId);
+                            practicePlanApi.checkItem(getPracticePlan(), oldState.activePieceId);
+                            scheduleUserDataPush();
+                          }
+                          if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+                              detail: { name: oldState.activePieceName, id: oldState.activePieceId }
+                            }));
+                          }
+                          // Automatically clear/reset the active piece timer
+                          set({
+                            activePieceId: null,
+                            activePieceName: null,
+                            pieceTimeRemaining: 0,
+                            pieceTotalTime: 0,
+                            isPiecePaused: false
+                          });
+                        }
+                      }
                     }
                   } else {
                     addPracticeTime(diff);
@@ -729,44 +721,36 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
             if (state.isPiecePaused) {
               // If the piece is paused, only log to general practice time
               addPracticeTime(diff);
-            } else if (state.pieceTimeRemaining > 0) {
-              // Calculate how much of the diff belongs to the piece (cap at remaining time)
-              const pieceDiff = Math.min(diff, state.pieceTimeRemaining);
-              addDetailedPracticeTime(state.activePieceId, state.activePieceName, pieceDiff);
-
-              // Log any leftover time only to overall practice time
-              const extraDiff = diff - pieceDiff;
-              if (extraDiff > 0) {
-                addPracticeTime(extraDiff);
-              }
-
-              const nextPieceTime = Math.max(0, state.pieceTimeRemaining - diff);
-              set({ pieceTimeRemaining: nextPieceTime });
-
-              if (nextPieceTime === 0) {
-                // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
-                if (state.activePieceId) {
-                  logSegmentCompletion(state.activePieceId);
-                  practicePlanApi.checkItem(getPracticePlan(), state.activePieceId);
-                  scheduleUserDataPush();
-                }
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-                    detail: { name: state.activePieceName, id: state.activePieceId }
-                  }));
-                }
-                // Automatically clear/reset the active piece timer
-                set({
-                  activePieceId: null,
-                  activePieceName: null,
-                  pieceTimeRemaining: 0,
-                  pieceTotalTime: 0,
-                  isPiecePaused: false
-                });
-              }
             } else {
-              // If the piece has no remaining time (already completed), only log to general practice time
-              addPracticeTime(diff);
+              // Always log to piece detailed practice time (which also adds to general practice time)
+              addDetailedPracticeTime(state.activePieceId, state.activePieceName, diff);
+
+              if (state.pieceTimeRemaining > 0) {
+                const nextPieceTime = Math.max(0, state.pieceTimeRemaining - diff);
+                set({ pieceTimeRemaining: nextPieceTime });
+
+                if (nextPieceTime === 0) {
+                  // Always persist the check directly so it works even when PracticePlanPane is closed/unmounted
+                  if (state.activePieceId) {
+                    logSegmentCompletion(state.activePieceId);
+                    practicePlanApi.checkItem(getPracticePlan(), state.activePieceId);
+                    scheduleUserDataPush();
+                  }
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+                      detail: { name: state.activePieceName, id: state.activePieceId }
+                    }));
+                  }
+                  // Automatically clear/reset the active piece timer
+                  set({
+                    activePieceId: null,
+                    activePieceName: null,
+                    pieceTimeRemaining: 0,
+                    pieceTotalTime: 0,
+                    isPiecePaused: false
+                  });
+                }
+              }
             }
           } else {
             addPracticeTime(diff);
@@ -1059,19 +1043,12 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       await get().resetTimer();
     },
 
-    selectPiece: (id, name, allocatedMinutes, period) => {
-      const settings = getSettings();
-      const weekStartsOn = settings?.weekStartsOn ?? 'monday';
-      const alreadySeconds = getPiecePracticedSeconds(id, period, weekStartsOn);
+    selectPiece: (id, name, allocatedMinutes, _period) => {
       const targetSeconds = allocatedMinutes * 60;
-      let remaining = targetSeconds - alreadySeconds;
-      if (remaining <= 0) {
-        remaining = targetSeconds;
-      }
       set({
         activePieceId: id,
         activePieceName: name,
-        pieceTimeRemaining: remaining,
+        pieceTimeRemaining: targetSeconds,
         pieceTotalTime: targetSeconds,
         isPiecePaused: false
       });
@@ -1096,7 +1073,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
     startPieceOvertime: async () => {
       const state = get();
-      if (!state.activePieceId || state.pieceTimeRemaining <= 0) return;
+      if (!state.activePieceId) return;
       if (pieceOvertimeIntervalId) return; // already running
 
       // The break timer may be running concurrently — do not pause it.
@@ -1105,8 +1082,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
       pieceOvertimeIntervalId = setInterval(() => {
         const s = get();
-        if (!s.activePieceId || s.pieceTimeRemaining <= 0) {
-          // Piece finished or was cleared — stop interval
+        if (!s.activePieceId) {
+          // Piece was cleared — stop interval
           clearInterval(pieceOvertimeIntervalId!);
           pieceOvertimeIntervalId = null;
           set({
@@ -1124,38 +1101,25 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         // Log 1 second of piece (and overall) practice time
         addDetailedPracticeTime(s.activePieceId!, s.activePieceName!, 1);
 
-        const nextPieceTime = s.pieceTimeRemaining - 1;
-
-        if (nextPieceTime <= 0) {
-          // Piece allocation exhausted
-          clearInterval(pieceOvertimeIntervalId!);
-          pieceOvertimeIntervalId = null;
-
-          // Auto-check the piece in the practice plan
-          if (s.activePieceId) {
-            logSegmentCompletion(s.activePieceId);
-            practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
-            scheduleUserDataPush();
-          }
-
-          // Notify listeners
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('piece-timer-complete', {
-              detail: { name: s.activePieceName, id: s.activePieceId }
-            }));
-          }
-
-          set({
-            pieceTimeRemaining: 0,
-            pieceOvertimeRunning: false,
-            isPieceOvertime: false,
-            activePieceId: null,
-            activePieceName: null,
-            pieceTotalTime: 0,
-            isPiecePaused: false
-          });
-        } else {
+        if (s.pieceTimeRemaining > 0) {
+          const nextPieceTime = s.pieceTimeRemaining - 1;
           set({ pieceTimeRemaining: nextPieceTime });
+
+          if (nextPieceTime === 0) {
+            // Piece target time reached
+            if (s.activePieceId) {
+              logSegmentCompletion(s.activePieceId);
+              practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
+              scheduleUserDataPush();
+            }
+
+            // Notify listeners
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('piece-timer-complete', {
+                detail: { name: s.activePieceName, id: s.activePieceId }
+              }));
+            }
+          }
         }
       }, 1000);
     },

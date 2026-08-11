@@ -134,7 +134,7 @@ function ReportItem({
       : "";
 
     return (
-      <div className="py-2 border-b border-border/30 last:border-b-0 space-y-1.5 transition-colors hover:bg-muted/10 rounded-lg px-2" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
+      <div className="py-2.5 rounded-xl border border-border/50 border-l-2 border-l-primary/60 bg-white/[0.03] dark:bg-white/[0.03] space-y-1.5 transition-colors hover:bg-white/[0.05] px-3.5 mb-2" style={{ paddingLeft: depth ? `${paddingLeft + 14}px` : undefined }}>
         <div className="space-y-1.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">

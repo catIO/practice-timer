@@ -595,17 +595,52 @@ export function restorePracticeLogStateFromSync(data: {
   completions?: SegmentCompletionLog;
 }): void {
   if (data.log) {
+    const currentLog = getPracticeLog();
+    const mergedLog = { ...data.log };
+    for (const [date, secs] of Object.entries(currentLog)) {
+      mergedLog[date] = Math.max(mergedLog[date] ?? 0, secs);
+    }
     try {
-      localStorage.setItem(PRACTICE_LOG_KEY, JSON.stringify(data.log));
+      localStorage.setItem(PRACTICE_LOG_KEY, JSON.stringify(mergedLog));
     } catch (e) {
       console.error('Failed to restore practice log:', e);
     }
   }
   if (data.detailedLog) {
-    saveDetailedPracticeLog(data.detailedLog);
+    const currentDetailed = getDetailedPracticeLog();
+    const mergedDetailed = { ...data.detailedLog };
+    for (const [date, items] of Object.entries(currentDetailed)) {
+      if (!mergedDetailed[date]) {
+        mergedDetailed[date] = items;
+      } else {
+        mergedDetailed[date] = { ...mergedDetailed[date] };
+        for (const [itemId, entry] of Object.entries(items)) {
+          if (!mergedDetailed[date][itemId]) {
+            mergedDetailed[date][itemId] = entry;
+          } else {
+            mergedDetailed[date][itemId] = {
+              ...mergedDetailed[date][itemId],
+              seconds: Math.max(mergedDetailed[date][itemId].seconds, entry.seconds),
+              itemName: entry.itemName || mergedDetailed[date][itemId].itemName,
+            };
+          }
+        }
+      }
+    }
+    saveDetailedPracticeLog(mergedDetailed);
   }
   if (data.completions) {
-    saveSegmentCompletions(data.completions);
+    const currentCompletions = getSegmentCompletions();
+    const mergedCompletions = { ...data.completions };
+    for (const [itemId, timestamps] of Object.entries(currentCompletions)) {
+      if (!mergedCompletions[itemId]) {
+        mergedCompletions[itemId] = timestamps;
+      } else {
+        const combined = Array.from(new Set([...mergedCompletions[itemId], ...timestamps])).sort((a, b) => a - b);
+        mergedCompletions[itemId] = combined;
+      }
+    }
+    saveSegmentCompletions(mergedCompletions);
   }
 }
 

@@ -25,6 +25,7 @@ vi.mock('@/lib/practicePlan', () => ({
 
 import { useTimerStore } from './timerStore';
 import { DEFAULT_SETTINGS } from '@/lib/timerService';
+import { addDetailedPracticeTime } from '@/lib/practiceLog';
 
 describe('timerStore', () => {
     beforeEach(() => {
@@ -98,9 +99,17 @@ describe('timerStore', () => {
         expect(state.activePieceName).toBeNull();
     });
 
+    it('selectPiece initializes target time box duration', () => {
+        useTimerStore.getState().selectPiece('piece-1', 'Bach Prelude', 10, 'day');
+        const state = useTimerStore.getState();
+        expect(state.activePieceId).toBe('piece-1');
+        expect(state.activePieceName).toBe('Bach Prelude');
+        expect(state.pieceTimeRemaining).toBe(600);
+        expect(state.pieceTotalTime).toBe(600);
+    });
+
     it('startPieceOvertime starts overtime count and logs time', async () => {
         vi.useFakeTimers();
-        const { addDetailedPracticeTime } = await import('@/lib/practiceLog');
         
         useTimerStore.setState({
             activePieceId: 'piece-1',
