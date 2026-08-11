@@ -55,7 +55,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   const isIOSRef = useRef<boolean>(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const completeSessionRef = useRef<(() => void) | null>(null);
-  
+
   const { showNotification } = useNotification();
   const { toast } = useToast();
 
@@ -77,7 +77,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       const userAgent = navigator.userAgent.toLowerCase();
       const isIOS = /iphone|ipad|ipod/.test(userAgent);
       isIOSRef.current = isIOS;
-      
+
       if (isIOS) {
         // Initialize iOS background timer (PRESERVED)
         iosBackgroundTimerRef.current = initializeIOSBackgroundTimer({
@@ -89,7 +89,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             // When iOS background timer completes, trigger store completion
             const store = useTimerStore.getState();
             store.setIsRunning(false);
-            
+
             // Show notification
             showNotification(
               state.mode === 'work' ? 'Work Time Complete!' : 'Break Time Complete!',
@@ -98,10 +98,10 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
                 requireInteraction: true
               }
             );
-            
+
             // Complete session in store (which will handle mode transitions)
             await store.completeSession();
-            
+
             // Call onComplete callback if provided
             if (onComplete) {
               try {
@@ -123,7 +123,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
             }
           }
         });
-        
+
         // Initialize iOS wake lock (PRESERVED - battery optimized)
         iosWakeLockRef.current = getIOSWakeLock({
           preventScreenTimeout: true,
@@ -152,7 +152,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         try {
           const registration = await navigator.serviceWorker.ready;
           serviceWorkerRef.current = registration;
-          
+
           if ('sync' in window.ServiceWorkerRegistration.prototype) {
             backgroundSyncRef.current = true;
           }
@@ -207,7 +207,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     const handlePlaySound = async (event: Event) => {
       const customEvent = event as CustomEvent;
       const { numberOfBeeps, volume, soundType } = customEvent.detail;
-      
+
       // Prevent duplicate sound playback within 200ms window
       const now = Date.now();
       if (now - lastSoundPlayTime < 200) {
@@ -215,7 +215,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         return;
       }
       lastSoundPlayTime = now;
-      
+
       try {
         console.log('Handling play-sound event:', { numberOfBeeps, volume, soundType });
         // Ensure audio context is ready
@@ -229,9 +229,9 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         }
         // Clamp to valid range
         normalizedVolume = Math.min(100, Math.max(0, normalizedVolume));
-        
+
         console.log('Normalized volume:', normalizedVolume, 'from original:', volume);
-        
+
         // Only play if volume is greater than 0
         if (normalizedVolume > 0) {
           await playSound('end', numberOfBeeps, normalizedVolume, soundType);
@@ -255,7 +255,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           silent: false
         }
       );
-      
+
       if (onComplete) {
         try {
           await onComplete();
@@ -268,9 +268,9 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     const handlePracticeComplete = async (event: Event) => {
       const customEvent = event as CustomEvent;
       const detail = customEvent.detail;
-      
+
       console.log('handlePracticeComplete called with detail:', detail);
-      
+
       // Play sound first if enabled (before showing completion screen)
       const store = useTimerStore.getState();
       if (store.settings.soundEnabled) {
@@ -286,7 +286,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           }
           // Clamp to valid range
           volume = Math.min(100, Math.max(0, volume));
-          
+
           // Only play if volume is greater than 0
           if (volume > 0) {
             await playSound('end', store.settings.numberOfBeeps, volume, store.settings.soundType as any);
@@ -301,7 +301,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       } else {
         console.log('Sound is disabled, skipping sound playback');
       }
-      
+
       // Now set practice complete (this will show the completion screen)
       store.setIsPracticeComplete(true);
       store.setIsRunning(false);
@@ -314,7 +314,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
         totalIterations: store.totalIterations,
         isPracticeComplete: true,
       });
-      
+
       // Show notification
       showNotification(
         'Practice Complete!',
@@ -324,7 +324,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           silent: false
         }
       );
-      
+
       // Don't call onComplete for practice completion - it would play sound again
       // The sound has already been played above, and onComplete is meant for regular timer completions
       // For practice completion, we handle everything here (sound, notification, state update)
@@ -383,20 +383,20 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
           await wakeLockFallbackRef.current.release();
           wakeLockFallbackRef.current = null;
         }
-        
+
         // Try native wake lock first (most efficient)
         if ('wakeLock' in navigator) {
           // Screen Wake Lock API only supports 'screen' type
           const wakeLock = await (navigator as any).wakeLock.request('screen');
           wakeLockRef.current = wakeLock;
-          
+
           if (wakeLock && 'addEventListener' in wakeLock) {
             wakeLock.addEventListener('release', () => {
               wakeLockRef.current = null;
               document.documentElement.removeAttribute('data-wake-lock');
             });
           }
-          
+
           document.documentElement.setAttribute('data-wake-lock', 'active');
         } else {
           // Only use fallback if native wake lock is not available
@@ -410,7 +410,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
 
       // Start timer in store
       await storeStartTimer();
-      
+
       // Start background timer for iOS background support (PRESERVED)
       startBackgroundTimer({
         timeRemaining,
@@ -435,7 +435,7 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
 
     await storePauseTimer();
     stopBackgroundTimer();
-    
+
     // Keep wake locks active when paused to prevent screen timeout
     // This ensures the screen stays on even when timer is paused
   }, [isRunning, storePauseTimer, stopBackgroundTimer]);
@@ -443,14 +443,14 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   // Reset timer
   const resetTimer = useCallback(async () => {
     await storeResetTimer();
-    
+
     // Release wake locks when timer is reset
     if (wakeLockRef.current) {
-      wakeLockRef.current.release().catch(() => {});
+      wakeLockRef.current.release().catch(() => { });
       wakeLockRef.current = null;
     }
     if (wakeLockFallbackRef.current) {
-      wakeLockFallbackRef.current.release().catch(() => {});
+      wakeLockFallbackRef.current.release().catch(() => { });
       wakeLockFallbackRef.current = null;
     }
   }, [storeResetTimer]);
@@ -507,11 +507,11 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current.release().catch(() => { });
         wakeLockRef.current = null;
       }
       if (wakeLockFallbackRef.current) {
-        wakeLockFallbackRef.current.release().catch(() => {});
+        wakeLockFallbackRef.current.release().catch(() => { });
         wakeLockFallbackRef.current = null;
       }
     };
@@ -563,11 +563,11 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       // to check practice logs without disrupting their active session
 
       if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current.release().catch(() => { });
         wakeLockRef.current = null;
       }
       if (wakeLockFallbackRef.current) {
-        wakeLockFallbackRef.current.release().catch(() => {});
+        wakeLockFallbackRef.current.release().catch(() => { });
         wakeLockFallbackRef.current = null;
       }
     };
@@ -577,10 +577,10 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
   // Only react to isRunning changes - don't trigger on mode/iteration changes when not running
   useEffect(() => {
     if (!isIOSRef.current) return;
-    
+
     const iosTimer = getIOSBackgroundTimer();
     if (!iosTimer) return;
-    
+
     if (isRunning) {
       // Start iOS background timer with current store state
       iosTimer.start(
@@ -594,12 +594,12 @@ export function useTimer({ initialSettings, onComplete }: UseTimerProps) {
       iosTimer.pause();
     }
   }, [isRunning]); // Only watch isRunning - mode/iteration changes shouldn't trigger timing
-  
+
   // Update iOS background timer state when running and state changes
   // This only updates if timer is already running (from play button), not from skip
   useEffect(() => {
     if (!isIOSRef.current || !isRunning) return;
-    
+
     const iosTimer = getIOSBackgroundTimer();
     if (iosTimer) {
       // Update state without restarting (only if already running from play button)
