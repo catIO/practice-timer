@@ -1,5 +1,5 @@
 import { BlockType, PlanItem, PlanSnapshot, generateId } from "./planTypes";
-import { logSegmentCompletion } from "./practiceLog";
+import { logSegmentCompletion, removeSegmentCompletionToday } from "./practiceLog";
 import { scheduleUserDataPush } from "./userDataSync";
 
 const MAX_SNAPSHOTS = 5;
@@ -381,8 +381,12 @@ export function createPlanStoreApi(
       const next = updateItemInTree(items, id, (item) => {
         if (item.isHeader) return item;
         const newChecked = !item.checked;
-        if (newChecked && item.blockType === "segment") {
-          logSegmentCompletion(item.id);
+        if (item.blockType === "segment") {
+          if (newChecked) {
+            logSegmentCompletion(item.id);
+          } else {
+            removeSegmentCompletionToday(item.id);
+          }
         }
         return { ...item, checked: newChecked };
       });
@@ -403,6 +407,9 @@ export function createPlanStoreApi(
     uncheckItem: (items: PlanItem[], id: string) => {
       const next = updateItemInTree(items, id, (item) => {
         if (item.isHeader) return item;
+        if (item.checked && item.blockType === "segment") {
+          removeSegmentCompletionToday(item.id);
+        }
         return { ...item, checked: false };
       });
       save(next);

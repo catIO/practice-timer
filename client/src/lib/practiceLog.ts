@@ -525,6 +525,32 @@ export function logSegmentCompletion(itemId: string, timestamp: number = Date.no
   saveSegmentCompletions(completions);
 }
 
+export function removeSegmentCompletionToday(itemId: string, now: number = Date.now()): void {
+  if (!itemId) return;
+  const completions = getSegmentCompletions();
+  const rawTimestamps = completions[itemId] || [];
+  if (rawTimestamps.length === 0) return;
+
+  const dateObj = new Date(now);
+  const dateStr = getLocalYMD(dateObj);
+  const startMs = new Date(dateStr + 'T00:00:00').getTime();
+  const endMs = startMs + 24 * 60 * 60 * 1000;
+
+  let lastIndexToday = -1;
+  for (let i = rawTimestamps.length - 1; i >= 0; i--) {
+    if (rawTimestamps[i] >= startMs && rawTimestamps[i] < endMs) {
+      lastIndexToday = i;
+      break;
+    }
+  }
+
+  if (lastIndexToday !== -1) {
+    rawTimestamps.splice(lastIndexToday, 1);
+    completions[itemId] = rawTimestamps;
+    saveSegmentCompletions(completions);
+  }
+}
+
 export function getSegmentCompletionsForThisWeek(
   itemId: string,
   weekStartsOn: WeekStartsOn = 'monday',
@@ -542,23 +568,26 @@ export function getSegmentCompletionsForThisWeek(
 
   const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts < endMs).length;
 
-  // Fallback / historical practice log count:
-  // Count unique days in current week where detailed practice time was logged for this item.
-  const detailedLog = getDetailedPracticeLog();
-  let legacyCount = 0;
-  const startD = new Date(weekStart + 'T00:00:00');
-  const endD = new Date(startD);
-  endD.setDate(startD.getDate() + 6);
-  endD.setHours(23, 59, 59, 999);
+  // Fallback for legacy logs without explicit completion timestamps only
+  if (rawTimestamps.length === 0) {
+    const detailedLog = getDetailedPracticeLog();
+    let legacyCount = 0;
+    const startD = new Date(weekStart + 'T00:00:00');
+    const endD = new Date(startD);
+    endD.setDate(startD.getDate() + 6);
+    endD.setHours(23, 59, 59, 999);
 
-  for (const [dStr, pieces] of Object.entries(detailedLog)) {
-    const d = new Date(dStr + 'T12:00:00');
-    if (d >= startD && d <= endD && (pieces[itemId]?.seconds ?? 0) > 0) {
-      legacyCount++;
+    for (const [dStr, pieces] of Object.entries(detailedLog)) {
+      const d = new Date(dStr + 'T12:00:00');
+      // Legacy logs require at least 60 seconds to count as a day completed
+      if (d >= startD && d <= endD && (pieces[itemId]?.seconds ?? 0) >= 60) {
+        legacyCount++;
+      }
     }
+    return Math.max(explicitCount, legacyCount);
   }
 
-  return Math.max(explicitCount, legacyCount);
+  return explicitCount;
 }
 
 export function getSegmentCompletionsToday(
@@ -576,11 +605,15 @@ export function getSegmentCompletionsToday(
 
   const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts < endMs).length;
 
-  const detailedLog = getDetailedPracticeLog();
-  const todaySeconds = detailedLog[dateStr]?.[itemId]?.seconds ?? 0;
-  const legacyCount = todaySeconds > 0 ? 1 : 0;
+  // Fallback for legacy logs without explicit completion timestamps only
+  if (rawTimestamps.length === 0) {
+    const detailedLog = getDetailedPracticeLog();
+    const todaySeconds = detailedLog[dateStr]?.[itemId]?.seconds ?? 0;
+    const legacyCount = todaySeconds >= 60 ? 1 : 0;
+    return Math.max(explicitCount, legacyCount);
+  }
 
-  return Math.max(explicitCount, legacyCount);
+  return explicitCount;
 }
 
 export function hasCompletedSegmentToday(

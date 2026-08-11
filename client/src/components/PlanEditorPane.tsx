@@ -1626,6 +1626,7 @@ function PlanItem({
                         const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
                         const isCompletedToday = hasCompletedSegmentToday(item.id) || (item.checked ?? false);
                         const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
+                        const hasTimeBox = typeof item.allocatedTime === 'number' && item.allocatedTime > 0;
 
                         return (
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -1648,14 +1649,38 @@ function PlanItem({
                               </span>
                             )}
 
-                            <Button
-                              variant="ghost" size="icon"
-                              className="h-7 w-7 rounded-full text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
-                              onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day')}
-                              title="Start segment time box"
-                            >
-                              <span className="material-icons text-base">play_arrow</span>
-                            </Button>
+                            {hasTimeBox ? (
+                              <Button
+                                variant="ghost" size="icon"
+                                className="h-7 w-7 rounded-full border border-primary/40 text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
+                                onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day')}
+                                title="Start segment time box"
+                              >
+                                <span className="material-icons text-base">play_arrow</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "h-7 w-7 rounded-full transition-all duration-150 shrink-0 group/checkbtn",
+                                  isCompletedToday
+                                    ? "bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 border border-emerald-500"
+                                    : "border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
+                                )}
+                                onClick={() => onToggle(item.id)}
+                                title={isCompletedToday ? "Uncheck segment" : "Mark as completed"}
+                              >
+                                {isCompletedToday ? (
+                                  <>
+                                    <span className="material-icons text-base group-hover/checkbtn:hidden" aria-hidden="true">check</span>
+                                    <span className="material-icons text-base hidden group-hover/checkbtn:inline-block" aria-hidden="true">close</span>
+                                  </>
+                                ) : (
+                                  <span className="material-icons text-base" aria-hidden="true">check</span>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         );
                       })()

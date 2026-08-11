@@ -10,6 +10,7 @@ import {
     addDetailedPracticeTime,
     getDetailedPracticeLog,
     logSegmentCompletion,
+    removeSegmentCompletionToday,
     getSegmentCompletions,
     getSegmentCompletionsForThisWeek,
     getSegmentCompletionsToday,
@@ -191,6 +192,25 @@ describe('practiceLog', () => {
             expect(hasCompletedSegmentToday('seg-1', now)).toBe(true);
             expect(getSegmentCompletionsToday('seg-2', now)).toBe(0);
             expect(hasCompletedSegmentToday('seg-2', now)).toBe(false);
+        });
+
+        it('does not mark segment as completed when starting practice now without completing it', () => {
+            const now = new Date('2026-08-11T14:30:00Z').getTime();
+            addDetailedPracticeTime('seg-3', 'Scales', 10); // Practiced for 10 seconds (in-progress/started)
+
+            expect(getSegmentCompletionsToday('seg-3', now)).toBe(0);
+            expect(hasCompletedSegmentToday('seg-3', now)).toBe(false);
+            expect(getSegmentCompletionsForThisWeek('seg-3', 'monday', now)).toBe(0);
+        });
+
+        it('removes today completion when unchecking a segment', () => {
+            const now = new Date('2026-08-11T14:30:00Z').getTime();
+            logSegmentCompletion('seg-4', now);
+            expect(hasCompletedSegmentToday('seg-4', now)).toBe(true);
+
+            removeSegmentCompletionToday('seg-4', now);
+            expect(hasCompletedSegmentToday('seg-4', now)).toBe(false);
+            expect(getSegmentCompletionsToday('seg-4', now)).toBe(0);
         });
 
         it('supports state sync export and restore', () => {
