@@ -358,7 +358,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               // Log elapsed time if we are in work mode and it's a valid tick down.
               // Skip piece logging when isPieceOvertime — the worker-driven PIECE_TICK owns that.
               const oldState = get();
-              if (oldState.mode === 'work' && oldState.isRunning && !oldState.isPieceOvertime && oldState.timeRemaining > payload.timeRemaining) {
+              const isWorkMode = oldState.mode === 'work' || payload.mode === 'work';
+              if (isWorkMode && !oldState.isPieceOvertime && oldState.timeRemaining > payload.timeRemaining) {
                 const diff = oldState.timeRemaining - payload.timeRemaining;
                 attributePracticeTime(diff);
               }
