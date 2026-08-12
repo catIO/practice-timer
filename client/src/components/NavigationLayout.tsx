@@ -46,9 +46,22 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
     skipTimer,
   } = useTimerStore();
 
+  const isReportPath = pathname.startsWith('/report') || pathname.startsWith('/r/');
+
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar_expanded') !== 'false';
+      const isReport = window.location.pathname.startsWith('/report') || window.location.pathname.startsWith('/r/');
+      if (isReport) {
+        const savedReport = localStorage.getItem('sidebar_expanded_report');
+        if (savedReport !== null) {
+          return savedReport === 'true';
+        }
+        return false; // Collapsed by default on shared report
+      }
+      const saved = localStorage.getItem('sidebar_expanded');
+      if (saved !== null) {
+        return saved === 'true';
+      }
     }
     return true;
   });
@@ -77,7 +90,6 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
     setIsUser(false);
   }, [isLoggedIn]);
 
-  const isReportPath = pathname.startsWith('/report') || pathname.startsWith('/r/');
   if (isPasswordRecovery || pathname === '/reset-password') {
     return (
       <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center p-4">
@@ -93,9 +105,24 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebar_expanded', String(isSidebarExpanded));
+      if (isReportPath) {
+        const savedReport = localStorage.getItem('sidebar_expanded_report');
+        if (savedReport === null) {
+          setIsSidebarExpanded(false);
+        }
+      }
     }
-  }, [isSidebarExpanded]);
+  }, [isReportPath]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (isReportPath) {
+        localStorage.setItem('sidebar_expanded_report', String(isSidebarExpanded));
+      } else {
+        localStorage.setItem('sidebar_expanded', String(isSidebarExpanded));
+      }
+    }
+  }, [isSidebarExpanded, isReportPath]);
 
   const toggleSidebar = () => {
     setIsSidebarExpanded(!isSidebarExpanded);
