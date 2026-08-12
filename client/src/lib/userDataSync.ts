@@ -127,3 +127,7 @@ export function initUserDataSync(): void {
   // Initial pull if session exists
   pullUserDataFromCloud();
 }
+
+if (typeof window !== 'undefined') {
+  (window as any).pushUserDataToCloud = pushUserDataToCloud;
+}
