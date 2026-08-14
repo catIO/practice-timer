@@ -445,7 +445,6 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
             case 'UPDATE_MODE':
               // Worker confirms mode update - ensure totalTime matches timeRemaining
               console.log('Store: Received UPDATE_MODE message:', { mode: payload.mode, iteration: payload.currentIteration, sequence });
-              // Validate sequence for UPDATE_MODE messages to prevent stale updates
               if (sequence !== undefined) {
                 const lastSeq = get().lastMessageSequence;
                 if (sequence <= lastSeq) {
@@ -455,96 +454,27 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                 set({ lastMessageSequence: sequence });
               }
 
-              // Read current state to validate update
-              const currentState = get();
-              console.log('Store: Current state before UPDATE_MODE:', { mode: currentState.mode, iteration: currentState.currentIteration, isSkipping: currentState.isSkipping });
-              const updateTimeRemaining = payload.timeRemaining || (
+              if (skipTimeoutId) {
+                clearTimeout(skipTimeoutId);
+                skipTimeoutId = null;
+              }
+
+              const updateTimeRemaining = payload.timeRemaining ?? (
                 payload.mode === 'work'
                   ? get().settings.workDuration * 60
                   : get().settings.breakDuration * 60
               );
 
-              // Validate that this update makes sense (not going backwards)
-              // If we're skipping, always accept the worker's confirmation (optimistic update was already applied)
-              // Otherwise, validate that it's a forward progression
-              const isSkipping = currentState.isSkipping;
+              set({
+                mode: payload.mode,
+                timeRemaining: updateTimeRemaining,
+                totalTime: updateTimeRemaining,
+                currentIteration: payload.currentIteration,
+                totalIterations: payload.totalIterations,
+                isRunning: false,
+                isSkipping: false
+              });
 
-              let isValidUpdate = false;
-              if (isSkipping) {
-                // When skipping, always accept worker confirmation - we've already optimistically updated the UI
-                // The worker is just confirming what we set, so accept it regardless
-                isValidUpdate = true;
-              } else {
-                // Not skipping - validate forward progression only
-                isValidUpdate =
-                  payload.mode !== currentState.mode || // Mode change is always valid
-                  (payload.mode === 'work' && payload.currentIteration >= currentState.currentIteration) || // Work: same or advancing
-                  (payload.mode === 'break' && payload.currentIteration === currentState.currentIteration); // Break: same iteration
-              }
-
-              if (!isValidUpdate) {
-                console.warn('Store: Ignoring UPDATE_MODE that would move backwards:', {
-                  current: { mode: currentState.mode, iteration: currentState.currentIteration, isSkipping },
-                  payload: { mode: payload.mode, iteration: payload.currentIteration },
-                  sequence
-                });
-                // If we were skipping but validation failed, clear the flag to unblock the button
-                if (isSkipping) {
-                  console.warn('Store: Clearing isSkipping flag due to validation failure');
-                  if (skipTimeoutId) {
-                    clearTimeout(skipTimeoutId);
-                    skipTimeoutId = null;
-                  }
-                  set({ isSkipping: false });
-                }
-                return;
-              }
-
-              // Update state with worker's confirmed values
-              // When skipping, we only updated timeRemaining optimistically, so now update mode/iteration
-              // This ensures the dot indicator only changes once when the state is confirmed
-              if (isSkipping) {
-                // Clear the timeout since we got the confirmation
-                if (skipTimeoutId) {
-                  clearTimeout(skipTimeoutId);
-                  skipTimeoutId = null;
-                }
-
-                console.log('Store: Received UPDATE_MODE confirmation while skipping, updating mode/iteration');
-                // We were skipping - update mode and iteration now (they weren't in optimistic update)
-                set({
-                  mode: payload.mode,
-                  timeRemaining: updateTimeRemaining,
-                  totalTime: updateTimeRemaining, // Reset totalTime to match the new session duration
-                  currentIteration: payload.currentIteration,
-                  totalIterations: payload.totalIterations,
-                  isRunning: false,
-                  isSkipping: false // Clear skip flag when mode update is confirmed by worker
-                });
-                console.log('Store: Skip operation completed, isSkipping cleared');
-              } else {
-                // Not skipping, so this is a regular update
-                const finalState = get();
-                const valuesChanged =
-                  finalState.mode !== payload.mode ||
-                  finalState.timeRemaining !== updateTimeRemaining ||
-                  finalState.totalTime !== updateTimeRemaining ||
-                  finalState.currentIteration !== payload.currentIteration ||
-                  finalState.totalIterations !== payload.totalIterations ||
-                  finalState.isRunning !== false;
-
-                // Only update if values changed to prevent unnecessary re-renders
-                if (valuesChanged) {
-                  set({
-                    mode: payload.mode,
-                    timeRemaining: updateTimeRemaining,
-                    totalTime: updateTimeRemaining,
-                    currentIteration: payload.currentIteration,
-                    totalIterations: payload.totalIterations,
-                    isRunning: false
-                  });
-                }
-              }
               // Persist progress after mode/iteration update
               persistProgress({
                 timeRemaining: updateTimeRemaining,
@@ -904,43 +834,38 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       }
 
       console.log('Store: Starting skip operation');
-      // Set flag to prevent concurrent operations
       set({ isSkipping: true });
 
-      // Set a timeout to clear the flag if worker doesn't respond (fallback safety)
       // Clear any existing timeout first
       if (skipTimeoutId) {
         clearTimeout(skipTimeoutId);
         skipTimeoutId = null;
       }
 
-      const clearSkipFlag = () => {
-        const state = get();
-        if (state.isSkipping) {
-          console.warn('Store: Timeout waiting for worker UPDATE_MODE confirmation, clearing isSkipping flag');
-          set({ isSkipping: false });
-        }
+      // Fast safety timeout to ensure isSkipping never stays true
+      skipTimeoutId = setTimeout(() => {
+        set({ isSkipping: false });
         skipTimeoutId = null;
-      };
-      skipTimeoutId = setTimeout(clearSkipFlag, 2000); // 2 second timeout
+      }, 300);
 
       try {
-        // Read fresh state right before processing to avoid stale data
-        const state = get();
         if (!worker) {
-          if (skipTimeoutId) {
-            clearTimeout(skipTimeoutId);
-            skipTimeoutId = null;
+          console.warn('Store: Worker not initialized in skipTimer, initializing now...');
+          try {
+            await initializeWorker();
+          } catch (error) {
+            console.error('Store: Failed to initialize worker:', error);
           }
-          set({ isSkipping: false });
-          return;
         }
+
+        const state = get();
 
         // Pause timer first if running
         if (state.isRunning) {
-          await sendMessage('PAUSE');
-          // Wait a bit for pause to complete
-          await new Promise(resolve => setTimeout(resolve, 50));
+          if (worker) {
+            await sendMessage('PAUSE');
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
         }
 
         // Re-read state after pause to ensure we have latest values
@@ -949,11 +874,6 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         if (freshState.mode === 'work') {
           // Check if this is the last work session
           if (freshState.currentIteration === freshState.totalIterations) {
-            if (skipTimeoutId) {
-              clearTimeout(skipTimeoutId);
-              skipTimeoutId = null;
-            }
-            // Also stop piece overtime — practice is done
             stopWorkerPieceTicks();
             set({
               isPracticeComplete: true,
@@ -962,6 +882,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               isPieceOvertime: false,
               pieceOvertimeRunning: false
             });
+            clearTimerProgress();
             return;
           }
 
@@ -979,13 +900,24 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
             isSkipping: false
           });
 
-          await sendMessage('UPDATE_MODE', {
-            mode: 'break',
+          persistProgress({
             timeRemaining: newTimeRemaining,
+            totalTime: newTimeRemaining,
+            mode: 'break',
             currentIteration: freshState.currentIteration,
             totalIterations: freshState.totalIterations,
-            isRunning: false
+            isPracticeComplete: false,
           });
+
+          if (worker) {
+            await sendMessage('UPDATE_MODE', {
+              mode: 'break',
+              timeRemaining: newTimeRemaining,
+              currentIteration: freshState.currentIteration,
+              totalIterations: freshState.totalIterations,
+              isRunning: false
+            });
+          }
         } else {
           // After break, increment iteration and go to work
           const nextIteration = freshState.currentIteration + 1;
@@ -994,6 +926,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
           console.log('Store: Transitioning to work, iteration:', newIteration);
 
+          stopWorkerPieceTicks();
+
           // Update store state atomically with consistent mode and duration
           set({
             mode: 'work',
@@ -1001,29 +935,37 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
             totalTime: newTimeRemaining,
             currentIteration: newIteration,
             isRunning: false,
+            isPieceOvertime: false,
+            pieceOvertimeRunning: false,
             isSkipping: false
           });
 
-          await sendMessage('UPDATE_MODE', {
-            mode: 'work',
+          persistProgress({
             timeRemaining: newTimeRemaining,
+            totalTime: newTimeRemaining,
+            mode: 'work',
             currentIteration: newIteration,
             totalIterations: freshState.totalIterations,
-            isRunning: false
+            isPracticeComplete: false,
           });
+
+          if (worker) {
+            await sendMessage('UPDATE_MODE', {
+              mode: 'work',
+              timeRemaining: newTimeRemaining,
+              currentIteration: newIteration,
+              totalIterations: freshState.totalIterations,
+              isRunning: false
+            });
+          }
         }
       } catch (error) {
-        if (skipTimeoutId) {
-          clearTimeout(skipTimeoutId);
-          skipTimeoutId = null;
-        }
         console.error('Error in skipTimer:', error);
-        set({ isSkipping: false });
+      } finally {
+        setTimeout(() => {
+          set({ isSkipping: false });
+        }, 150);
       }
-
-      // Store timeout ID in a way that UPDATE_MODE handler can clear it
-      // We'll clear it when UPDATE_MODE is received
-      // For now, the timeout will check if isSkipping is still true before clearing
     },
 
     completeSession: async () => {

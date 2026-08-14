@@ -199,6 +199,26 @@ describe('timerStore', () => {
         expect(state.totalTime).toBe(DEFAULT_SETTINGS.breakDuration * 60);
     });
 
+    it('skipTimer updates mode and timeRemaining atomically from break to work', async () => {
+        useTimerStore.setState({
+            mode: 'break',
+            timeRemaining: 300,
+            totalTime: 300,
+            currentIteration: 1,
+            totalIterations: 4,
+            settings: DEFAULT_SETTINGS,
+            isSkipping: false
+        });
+
+        await useTimerStore.getState().skipTimer();
+
+        const state = useTimerStore.getState();
+        expect(state.mode).toBe('work');
+        expect(state.timeRemaining).toBe(DEFAULT_SETTINGS.workDuration * 60);
+        expect(state.totalTime).toBe(DEFAULT_SETTINGS.workDuration * 60);
+        expect(state.currentIteration).toBe(2);
+    });
+
     it('startTimer corrects desynchronized mode when timeRemaining exceeds break duration', async () => {
         useTimerStore.setState({
             mode: 'break',
