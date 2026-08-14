@@ -81,7 +81,7 @@ import { formatTime } from "@/lib/formatTime";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { applyTextFormat, stripMarkdownLinks } from "@/lib/richText";
 import { useTimerStore } from "@/stores/timerStore";
-import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, formatDuration } from "@/lib/practiceLog";
+import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, hasPlayedSegmentInLast2Days, getCompletionPillColorClass, formatDuration } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
 import "@/assets/headerBlur.css";
 import {
@@ -1544,7 +1544,7 @@ function PlanItem({
                   "group/card flex-1 rounded-xl border border-l-2 p-3.5 space-y-3 transition-all duration-200 shadow-xs cursor-default",
                   selected
                     ? "border-primary border-l-primary/80 bg-primary/10 shadow-sm shadow-primary/5"
-                    : "border-border/60 border-l-primary/70 bg-white/[0.03] dark:bg-white/[0.03] hover:bg-white/[0.06] hover:border-border/80 hover:border-l-white/50"
+                    : "border-border/60 border-l-primary/30 bg-white/[0.03] dark:bg-white/[0.03] hover:bg-white/[0.06] hover:border-primary/30 hover:border-l-primary/70"
                 )}
               >
                 {/* Header Row: Title and Timer Actions */}
@@ -1625,6 +1625,7 @@ function PlanItem({
                         const weekStartsOn = settings?.weekStartsOn ?? 'monday';
                         const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
                         const isCompletedToday = hasCompletedSegmentToday(item.id) || (item.checked ?? false);
+                        const playedInLast2Days = hasPlayedSegmentInLast2Days(item.id) || (item.checked ?? false);
                         const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
                         const hasTimeBox = typeof item.allocatedTime === 'number' && item.allocatedTime > 0;
 
@@ -1633,9 +1634,7 @@ function PlanItem({
                             {weeklyCompletions > 0 && (
                               <span className={cn(
                                 "inline-flex items-center h-[22px] px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none border transition-colors",
-                                isCompletedToday
-                                  ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300"
-                                  : "bg-muted/60 border-muted-foreground/20 text-muted-foreground"
+                                getCompletionPillColorClass(weeklyCompletions, playedInLast2Days)
                               )}>
                                 <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
                                   replay

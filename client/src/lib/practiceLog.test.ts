@@ -16,6 +16,8 @@ import {
     getSegmentCompletionsToday,
     hasCompletedSegmentToday,
     getSegmentCompletionsLast7Days,
+    hasPlayedSegmentInLast2Days,
+    getCompletionPillColorClass,
     getPracticeLogStateForSync,
     restorePracticeLogStateFromSync,
 } from './practiceLog';
@@ -211,6 +213,33 @@ describe('practiceLog', () => {
             removeSegmentCompletionToday('seg-4', now);
             expect(hasCompletedSegmentToday('seg-4', now)).toBe(false);
             expect(getSegmentCompletionsToday('seg-4', now)).toBe(0);
+        });
+
+        it('identifies if a segment has been played in the last 2 days', () => {
+            const now = new Date('2026-08-14T12:00:00Z').getTime();
+            const yesterday = now - 24 * 3600 * 1000;
+            const threeDaysAgo = now - 3 * 24 * 3600 * 1000;
+
+            logSegmentCompletion('seg-played-yesterday', yesterday);
+            logSegmentCompletion('seg-played-3-days-ago', threeDaysAgo);
+
+            expect(hasPlayedSegmentInLast2Days('seg-played-yesterday', now)).toBe(true);
+            expect(hasPlayedSegmentInLast2Days('seg-played-3-days-ago', now)).toBe(false);
+            expect(hasPlayedSegmentInLast2Days('seg-never-played', now)).toBe(false);
+        });
+
+        it('returns correct color class for completion pill', () => {
+            // >= 5 times -> green
+            expect(getCompletionPillColorClass(5, true)).toContain('emerald');
+            expect(getCompletionPillColorClass(7, false)).toContain('emerald');
+
+            // < 5 times and not played in last 2 days -> amber
+            expect(getCompletionPillColorClass(2, false)).toContain('amber');
+            expect(getCompletionPillColorClass(1, false)).toContain('amber');
+
+            // < 5 times and played in last 2 days -> current muted
+            expect(getCompletionPillColorClass(3, true)).toContain('muted');
+            expect(getCompletionPillColorClass(1, true)).toContain('muted');
         });
 
         it('supports state sync export and restore', () => {

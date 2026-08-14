@@ -551,36 +551,29 @@ export function removeSegmentCompletionToday(itemId: string, now: number = Date.
   }
 }
 
-export function getSegmentCompletionsForThisWeek(
+export function getSegmentCompletionsForRange(
   itemId: string,
-  weekStartsOn: WeekStartsOn = 'monday',
-  now: number = Date.now()
+  startDateStr: string,
+  endDateStr: string
 ): number {
   const completions = getSegmentCompletions();
   const rawTimestamps = completions[itemId] || [];
   const itemTimestamps = deduplicateTimestamps(rawTimestamps);
 
-  const dateObj = new Date(now);
-  const dateStr = getLocalYMD(dateObj);
-  const weekStart = getWeekStart(dateStr, weekStartsOn);
-  const startMs = new Date(weekStart + 'T00:00:00').getTime();
-  const endMs = startMs + 7 * 24 * 60 * 60 * 1000;
+  const start = new Date(startDateStr + 'T00:00:00');
+  const end = new Date(endDateStr + 'T23:59:59');
+  const startMs = start.getTime();
+  const endMs = end.getTime();
 
-  const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts < endMs).length;
+  const explicitCount = itemTimestamps.filter((ts) => ts >= startMs && ts <= endMs).length;
 
   // Fallback for legacy logs without explicit completion timestamps only
   if (rawTimestamps.length === 0) {
     const detailedLog = getDetailedPracticeLog();
     let legacyCount = 0;
-    const startD = new Date(weekStart + 'T00:00:00');
-    const endD = new Date(startD);
-    endD.setDate(startD.getDate() + 6);
-    endD.setHours(23, 59, 59, 999);
-
     for (const [dStr, pieces] of Object.entries(detailedLog)) {
       const d = new Date(dStr + 'T12:00:00');
-      // Legacy logs require at least 60 seconds to count as a day completed
-      if (d >= startD && d <= endD && (pieces[itemId]?.seconds ?? 0) >= 60) {
+      if (d >= start && d <= end && (pieces[itemId]?.seconds ?? 0) >= 60) {
         legacyCount++;
       }
     }
@@ -588,6 +581,20 @@ export function getSegmentCompletionsForThisWeek(
   }
 
   return explicitCount;
+}
+
+export function getSegmentCompletionsForThisWeek(
+  itemId: string,
+  weekStartsOn: WeekStartsOn = 'monday',
+  now: number = Date.now()
+): number {
+  const dateObj = new Date(now);
+  const dateStr = getLocalYMD(dateObj);
+  const weekStart = getWeekStart(dateStr, weekStartsOn);
+  const startD = new Date(weekStart + 'T12:00:00');
+  const endD = new Date(startD);
+  endD.setDate(startD.getDate() + 6);
+  return getSegmentCompletionsForRange(itemId, weekStart, getLocalYMD(endD));
 }
 
 export function getSegmentCompletionsToday(
@@ -621,6 +628,50 @@ export function hasCompletedSegmentToday(
   now: number = Date.now()
 ): boolean {
   return getSegmentCompletionsToday(itemId, now) > 0;
+}
+
+export function hasPlayedSegmentInLast2Days(
+  itemId: string,
+  now: number = Date.now()
+): boolean {
+  if (!itemId) return false;
+
+  const dateObj = new Date(now);
+  const todayStr = getLocalYMD(dateObj);
+
+  const yesterdayObj = new Date(dateObj);
+  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+  const yesterdayStr = getLocalYMD(yesterdayObj);
+
+  const startYesterdayMs = new Date(yesterdayStr + 'T00:00:00').getTime();
+  const endTodayMs = new Date(todayStr + 'T23:59:59').getTime();
+
+  const completions = getSegmentCompletions();
+  const rawTimestamps = completions[itemId] || [];
+  const itemTimestamps = deduplicateTimestamps(rawTimestamps);
+
+  const hasTimestamp = itemTimestamps.some((ts) => ts >= startYesterdayMs && ts <= endTodayMs);
+  if (hasTimestamp) return true;
+
+  const detailedLog = getDetailedPracticeLog();
+  const todaySecs = detailedLog[todayStr]?.[itemId]?.seconds ?? 0;
+  const yesterdaySecs = detailedLog[yesterdayStr]?.[itemId]?.seconds ?? 0;
+  if (todaySecs >= 60 || yesterdaySecs >= 60) return true;
+
+  return false;
+}
+
+export function getCompletionPillColorClass(
+  completionsCount: number,
+  playedInLast2Days: boolean
+): string {
+  if (completionsCount >= 5) {
+    return "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300";
+  }
+  if (!playedInLast2Days) {
+    return "bg-amber-500/15 border-amber-500/35 text-amber-700 dark:text-amber-300";
+  }
+  return "bg-muted/60 border-muted-foreground/20 text-muted-foreground";
 }
 
 export function getSegmentCompletionsLast7Days(

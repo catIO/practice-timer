@@ -1,14 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { TextWithLinks } from "@/components/TextWithLinks";
 import {
   getDailyBreakdown,
@@ -19,8 +11,10 @@ import {
   formatDate,
   getPieceTimeForRange,
   getThisWeekRange,
-  getLastWeekRange,
-  getSegmentCompletionsForThisWeek,
+  getSegmentCompletionsForRange,
+  hasCompletedSegmentToday,
+  hasPlayedSegmentInLast2Days,
+  getCompletionPillColorClass,
   PieceTimeSummary
 } from "@/lib/practiceLog";
 import { getPracticePlan } from "@/lib/practicePlan";
@@ -40,17 +34,18 @@ export default function PracticeLog() {
   const thisWeekSeconds = getThisWeekSeconds(weekStartsOn);
   const lastWeekSeconds = getLastWeekSeconds(weekStartsOn);
 
-  const [selectedWeek, setSelectedWeek] = useState<'this' | 'last'>('this');
   const [pieceSummaries, setPieceSummaries] = useState<PieceTimeSummary[]>([]);
+
+  const thisWeekRange = getThisWeekRange(weekStartsOn);
 
   useEffect(() => {
     const planItems = getPracticePlan();
-    const range = selectedWeek === 'this' ? getThisWeekRange(weekStartsOn) : getLastWeekRange(weekStartsOn);
+    const range = getThisWeekRange(weekStartsOn);
     const summaries = getPieceTimeForRange(range.start, range.end, planItems);
     
     summaries.sort((a, b) => {
-      const compA = getSegmentCompletionsForThisWeek(a.itemId, weekStartsOn);
-      const compB = getSegmentCompletionsForThisWeek(b.itemId, weekStartsOn);
+      const compA = getSegmentCompletionsForRange(a.itemId, range.start, range.end);
+      const compB = getSegmentCompletionsForRange(b.itemId, range.start, range.end);
       if (compA !== compB) {
         return compA - compB; // Lowest completion count first (needs practice most)
       }
@@ -58,7 +53,7 @@ export default function PracticeLog() {
     });
 
     setPieceSummaries(summaries);
-  }, [selectedWeek, weekStartsOn, timeRemaining]);
+  }, [weekStartsOn, timeRemaining]);
 
   return (
     <div className="space-y-6">
@@ -96,91 +91,68 @@ export default function PracticeLog() {
         </div>
       </div>
       
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold text-foreground">
-            Weekly breakdown by piece
-          </h2>
-          <div className="flex gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/40">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-7 px-2 text-xs rounded",
-                selectedWeek === 'this' ? "bg-background text-primary shadow-sm font-semibold" : "text-muted-foreground"
-              )}
-              onClick={() => setSelectedWeek('this')}
-            >
-              This Week
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-7 px-2 text-xs rounded",
-                selectedWeek === 'last' ? "bg-background text-primary shadow-sm font-semibold" : "text-muted-foreground"
-              )}
-              onClick={() => setSelectedWeek('last')}
-            >
-              Last Week
-            </Button>
-          </div>
-        </div>
+      <Tabs defaultValue="weekly" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-3">
+          <TabsTrigger value="weekly">Weekly breakdown</TabsTrigger>
+          <TabsTrigger value="daily">Daily breakdown</TabsTrigger>
+        </TabsList>
 
-        {pieceSummaries.length === 0 ? (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <p className="text-sm text-muted-foreground">
-              No piece-specific time logged for this period.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {pieceSummaries.map((summary) => {
-              const practicedMins = Math.round(summary.seconds / 60);
-              const completions = getSegmentCompletionsForThisWeek(summary.itemId, weekStartsOn);
-              
-              return (
-                <div
-                  key={summary.itemId}
-                  className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2"
-                >
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span className="truncate text-foreground max-w-[200px] sm:max-w-md">
-                      <TextWithLinks text={summary.itemName} />
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {summary.allocatedTime && (
-                        <span className="font-mono text-xs text-muted-foreground bg-muted/50 border border-border/40 px-2 py-0.5 rounded-full">
-                          {summary.allocatedTime}m time box
-                        </span>
-                      )}
-                      <span className={cn(
-                        "font-mono text-xs px-2 py-0.5 rounded-full border",
-                        completions > 0
-                          ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300 font-semibold"
-                          : "bg-muted/40 border-border/40 text-muted-foreground"
-                      )}>
-                        {completions}x completed this week ({practicedMins} min total)
+        <TabsContent value="weekly" className="space-y-2 mt-0">
+          {pieceSummaries.length === 0 ? (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <p className="text-sm text-muted-foreground">
+                No piece-specific time logged for this week.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pieceSummaries.map((summary) => {
+                const completions = getSegmentCompletionsForRange(summary.itemId, thisWeekRange.start, thisWeekRange.end);
+                const playedInLast2Days = hasPlayedSegmentInLast2Days(summary.itemId);
+                
+                return (
+                  <div
+                    key={summary.itemId}
+                    className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-sm font-semibold">
+                      <span className="truncate text-foreground min-w-0 pr-2">
+                        <TextWithLinks text={summary.itemName} />
                       </span>
+                      <div className="flex items-center gap-1.5 shrink-0 select-none flex-wrap">
+                        {completions > 0 && (
+                          <span className={cn(
+                            "inline-flex items-center h-[22px] px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none border transition-colors",
+                            getCompletionPillColorClass(completions, playedInLast2Days)
+                          )}>
+                            <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
+                              replay
+                            </span>
+                            {completions} {completions === 1 ? 'time' : 'times'}
+                          </span>
+                        )}
+                        {summary.seconds > 0 && (
+                          <span className="inline-flex items-center h-[22px] bg-primary/10 border border-primary/25 text-primary px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none">
+                            {formatDuration(summary.seconds)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
-      <div>
-        <h2 className="mb-3 text-xl font-semibold text-foreground">
-          Daily breakdown
-        </h2>
-        {last10Days.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No practice sessions logged yet. Complete work sessions to
-            track your time.
-          </p>
-        ) : (
+        <TabsContent value="daily" className="space-y-2 mt-0">
+          {last10Days.length === 0 ? (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <p className="text-sm text-muted-foreground">
+                No practice sessions logged yet. Complete work sessions to track your time.
+              </p>
+            </div>
+          ) : (
             <ul className="space-y-2">
               {last10Days.map(({ date, seconds }) => (
                 <li
@@ -196,8 +168,9 @@ export default function PracticeLog() {
                 </li>
               ))}
             </ul>
-        )}
-      </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
