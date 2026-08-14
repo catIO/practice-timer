@@ -89,8 +89,14 @@ function AppContent() {
       window.location.reload();
     };
 
+    const isPublicOrSharedRoute = () => {
+      const path = window.location.pathname;
+      return path.startsWith('/r/') || path.startsWith('/report/') || path === '/reset-password';
+    };
+
     const showUpdateToast = (waitingWorker: ServiceWorker) => {
       if (hasShownUpdateToast) return;
+      if (isPublicOrSharedRoute()) return;
       hasShownUpdateToast = true;
 
       toast({
@@ -125,6 +131,26 @@ function AppContent() {
       });
     };
 
+    const checkForWaitingWorker = () => {
+      if (hasShownUpdateToast || isPublicOrSharedRoute()) return;
+
+      const existingReg = (window as any).__swWaitingRegistration as ServiceWorkerRegistration | undefined;
+      if (existingReg?.waiting) {
+        showUpdateToast(existingReg.waiting);
+        return;
+      }
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then((registration) => {
+          if (registration && registration.waiting) {
+            showUpdateToast(registration.waiting);
+          }
+        }).catch(err => {
+          console.warn('Failed to get service worker registration:', err);
+        });
+      }
+    };
+
     const handleUpdate = (e: Event) => {
       const registration = (e as CustomEvent).detail as ServiceWorkerRegistration;
       const waitingWorker = registration?.waiting;
@@ -134,25 +160,14 @@ function AppContent() {
     };
 
     window.addEventListener('sw-update-ready', handleUpdate);
+    window.addEventListener('popstate', checkForWaitingWorker);
 
-    // 1. Check window global in case event fired before component mounted
-    const existingReg = (window as any).__swWaitingRegistration as ServiceWorkerRegistration | undefined;
-    if (existingReg?.waiting) {
-      showUpdateToast(existingReg.waiting);
-    }
+    checkForWaitingWorker();
 
-    // 2. Also check active registration via ServiceWorker API
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        if (registration && registration.waiting) {
-          showUpdateToast(registration.waiting);
-        }
-      }).catch(err => {
-        console.warn('Failed to get service worker registration:', err);
-      });
-    }
-
-    return () => window.removeEventListener('sw-update-ready', handleUpdate);
+    return () => {
+      window.removeEventListener('sw-update-ready', handleUpdate);
+      window.removeEventListener('popstate', checkForWaitingWorker);
+    };
   }, [toast]);
 
   return (
