@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { sanitizeHref } from "@/lib/urlSafety";
 import { useSharedReport } from "@/contexts/SharedReportContext";
 import { ScoreUrlTooltip } from "@/components/ScoreUrlTooltip";
-import { getSegmentCompletionsLast7Days, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, hasPlayedSegmentInLast2Days, getCompletionPillColorClass, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
+import { getSegmentCompletionsLast7Days, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, getThisWeekSummary, getLastWeekSummary, getLast7DaysSummary } from "@/lib/practiceLog";
 import { getPracticePlan } from "@/lib/practicePlan";
 import { getSettings } from "@/lib/localStorage";
 import { cn } from "@/lib/utils";
@@ -135,7 +135,6 @@ function ReportItem({
       : "";
 
     const isCompletedToday = (item.id ? hasCompletedSegmentToday(item.id) : false) || (item.checked ?? false);
-    const playedInLast2Days = item.id ? (hasPlayedSegmentInLast2Days(item.id) || (item.checked ?? false)) : false;
 
     return (
       <div className="py-2.5 rounded-xl border border-border/50 border-l-2 border-l-primary/30 bg-white/[0.03] dark:bg-white/[0.03] space-y-1.5 transition-all duration-200 hover:bg-white/[0.05] hover:border-primary/30 hover:border-l-primary/70 px-3.5 mb-2" style={{ paddingLeft: depth ? `${paddingLeft + 14}px` : undefined }}>
@@ -164,7 +163,9 @@ function ReportItem({
               {completionsCount > 0 && (
                 <span className={cn(
                   "inline-flex items-center h-[22px] px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none border transition-colors",
-                  getCompletionPillColorClass(completionsCount, playedInLast2Days)
+                  isCompletedToday
+                    ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300"
+                    : "bg-muted/60 border-muted-foreground/20 text-muted-foreground"
                 )}>
                   <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
                     replay

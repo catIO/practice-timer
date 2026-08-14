@@ -81,7 +81,7 @@ import { formatTime } from "@/lib/formatTime";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { applyTextFormat, stripMarkdownLinks } from "@/lib/richText";
 import { useTimerStore } from "@/stores/timerStore";
-import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, hasPlayedSegmentInLast2Days, getCompletionPillColorClass, formatDuration } from "@/lib/practiceLog";
+import { getPiecePracticedSeconds, getLast7DaysSummary, getSegmentCompletionsForThisWeek, hasCompletedSegmentToday, formatDuration } from "@/lib/practiceLog";
 import { getSettings } from "@/lib/localStorage";
 import "@/assets/headerBlur.css";
 import {
@@ -1625,7 +1625,6 @@ function PlanItem({
                         const weekStartsOn = settings?.weekStartsOn ?? 'monday';
                         const weeklyCompletions = getSegmentCompletionsForThisWeek(item.id, weekStartsOn);
                         const isCompletedToday = hasCompletedSegmentToday(item.id) || (item.checked ?? false);
-                        const playedInLast2Days = hasPlayedSegmentInLast2Days(item.id) || (item.checked ?? false);
                         const todaySeconds = getPiecePracticedSeconds(item.id, 'day', weekStartsOn);
                         const hasTimeBox = typeof item.allocatedTime === 'number' && item.allocatedTime > 0;
 
@@ -1634,7 +1633,9 @@ function PlanItem({
                             {weeklyCompletions > 0 && (
                               <span className={cn(
                                 "inline-flex items-center h-[22px] px-2 rounded-full text-xs font-semibold font-mono tracking-tight shrink-0 select-none border transition-colors",
-                                getCompletionPillColorClass(weeklyCompletions, playedInLast2Days)
+                                isCompletedToday
+                                  ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-muted/60 border-muted-foreground/20 text-muted-foreground"
                               )}>
                                 <span className="material-icons text-[13px] mr-1 shrink-0 select-none" aria-hidden="true">
                                   replay
