@@ -246,7 +246,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       <aside
         className={cn(
           "sticky top-0 h-screen self-start z-30 flex flex-col border-r border-black/5 dark:border-white/10 bg-slate-100/30 dark:bg-transparent backdrop-blur-md transition-all duration-300 shrink-0",
-          isSidebarExpanded ? "w-16 md:w-64" : "w-16 md:w-20"
+          isSidebarExpanded ? "w-64" : "w-16"
         )}
       >
         {/* Sidebar Header */}

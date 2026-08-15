@@ -1246,7 +1246,7 @@ function PlanItem({
       >
         <div className={cn(
           "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
-          "absolute left-0 -translate-x-full",
+          "absolute -left-1 -translate-x-full pr-1",
           blockType === "segment" ? "top-1/2 -translate-y-1/2" : "top-0"
         )}>
           <DropdownMenu>
@@ -1255,11 +1255,11 @@ function PlanItem({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded hover:bg-muted"
+                className="h-7 w-7 rounded hover:bg-muted touch-manipulation active:scale-95"
                 title="Add block"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="material-icons text-lg">add</span>
+                <span className="material-icons text-base">add</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -1268,7 +1268,7 @@ function PlanItem({
                 <DropdownMenuItem
                   key={type}
                   onSelect={() => onInsertBelow(item.id, type)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 py-1.5 cursor-pointer"
                 >
                   <span className="w-6 text-center font-semibold text-muted-foreground">{icon}</span>
                   {label}
@@ -1282,7 +1282,7 @@ function PlanItem({
                     <DropdownMenuItem
                       key={type}
                       onSelect={() => onInsertBelow(item.id, type)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 py-1.5 cursor-pointer"
                     >
                       <span className="w-6 text-center font-semibold text-muted-foreground flex items-center justify-center">
                         <span className="material-icons text-base">{icon}</span>
@@ -1306,7 +1306,7 @@ function PlanItem({
                     onDelete(item.id);
                     setDragMenuOpen(false);
                   }}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 cursor-pointer font-medium"
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 cursor-pointer font-medium py-1.5"
                 >
                   <span className="material-icons text-base">delete</span>
                   Delete
@@ -1318,7 +1318,7 @@ function PlanItem({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+              className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing touch-manipulation"
               title="Drag to reorder / Menu"
               {...attributes}
               {...listeners}
@@ -3287,7 +3287,7 @@ export function PlanEditorPane({
             items={items.map(item => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1 pb-20 pl-4 sm:pl-7 md:pl-8 lg:pl-14">
+            <div className="space-y-1 pb-20 pl-[70px] lg:pl-[72px]">
               {items.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
                   <p className="mb-4">Your {planTitle.toLowerCase()} is empty.</p>
