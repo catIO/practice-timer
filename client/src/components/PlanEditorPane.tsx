@@ -447,7 +447,7 @@ interface PlanItemProps {
   onMergeWithPrevious: (id: string, currentText?: string) => void;
   onInputFocus: (id: string) => void; // Notify parent that this item is focused
   selected: boolean;
-  onRowClick: (id: string, e: any) => void;
+  onRowClick: (id: string, e: any, requestType?: "row" | "edit") => void;
   onCopySelection: (targetItem?: PracticePlanItem) => void;
   onCutSelection: (targetItem?: PracticePlanItem) => void;
   onPasteBelowSelection: (targetId?: string) => void;
@@ -943,6 +943,12 @@ function PlanItem({
         }
       }
 
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        onUndo();
+        return;
+      }
+
       // Slash command keyboard navigation
       if (slashMenuOpen) {
         if (e.key === 'ArrowDown') {
@@ -1022,14 +1028,19 @@ function PlanItem({
         const isListType = blockType === "bullet" || blockType === "number" || blockType === "todo";
         const isEmpty = editValue.trim() === "";
 
-        // Text block: Enter = newline, Shift+Enter = new block below
+        // Text block: Enter = new block below, Shift+Enter = newline in same block
         if (isTextBlock) {
           if (e.shiftKey) {
-            e.preventDefault();
-            saveEdit();
+            // Shift+Enter: allow soft newline within the same block
+            return;
+          }
+          e.preventDefault();
+          saveEdit();
+          if (target.selectionStart === 0 && target.selectionEnd === 0 && !isEmpty) {
+            onInsertBefore(item.id, "text", true);
+          } else {
             onInsertBelow(item.id, "text", true);
           }
-          // Enter without shift: allow default (newline)
           return;
         }
 
@@ -1128,7 +1139,15 @@ function PlanItem({
           if (editing && inputRef.current && (e.target === inputRef.current || inputRef.current.contains(e.target as Node))) {
             return;
           }
-          onRowClick(item.id, e);
+          const isEmpty = (!item.text || !item.text.trim()) && blockType !== "divider" && blockType !== "segment";
+
+          if (isEmpty) {
+            onRowClick(item.id, e, "edit");
+            setEditing(true);
+            return;
+          }
+
+          onRowClick(item.id, e, "row");
 
           // Triple-click: let browser select line, then enter edit mode with that selection
           if (editTimeoutRef.current && !editing) {
@@ -1227,7 +1246,7 @@ function PlanItem({
       >
         <div className={cn(
           "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
-          "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full"
+          "absolute left-0 top-0 -translate-x-full"
         )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1843,7 +1862,7 @@ function PlanItem({
                     }
                   }}
                   className="block min-h-[1.5rem] leading-[1.25rem] py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent resize-none overflow-y-auto"
-                  placeholder="Type '/' for commands"
+                  placeholder="Type '/' for commands..."
                   rows={1}
                   autoFocus
                 />
@@ -1952,7 +1971,7 @@ function PlanItem({
                     blockType === "heading1" ? "Heading 1" :
                       blockType === "heading2" ? "Heading 2" :
                         blockType === "heading3" ? "Heading 3" :
-                          "Type '/' for commands"
+                          "Type '/' for commands..."
                   }
                   autoFocus
                 />
@@ -2029,7 +2048,7 @@ function PlanItem({
                   onUpdateLink={(start, end, newUrl) => handleUpdateLink(start, end, newUrl)}
                   onRemoveLink={handleRemoveLink}
                 />
-              ) : blockType === "text" ? "Type '/' for commands..." : ""}
+              ) : null}
               {planType === "lesson" && item.checked && item.checkedDate && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground/80 bg-muted/60 dark:bg-white/5 border border-border/50 px-1.5 py-0.5 rounded shrink-0 select-none">
                   <span className="material-icons text-[12px]">check</span>
@@ -2308,8 +2327,8 @@ export function PlanEditorPane({
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
-  // 20-level undo stack: each applyChange pushes the current state before mutating.
-  const MAX_UNDO = 20;
+  // 10-level undo stack: each applyChange pushes the current state before mutating.
+  const MAX_UNDO = 10;
   const [undoStack, setUndoStack] = useState<PracticePlanItem[][]>([]);
   const itemsRef = useRef<PracticePlanItem[]>(items);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -2325,7 +2344,10 @@ export function PlanEditorPane({
     itemsRef.current = items;
   }, [items]);
 
+  const isUndoingRef = useRef(false);
+
   const applyChange = useCallback((updater: (prev: PracticePlanItem[]) => PracticePlanItem[]) => {
+    if (isUndoingRef.current) return;
     setUndoStack(prev => [...prev.slice(-(MAX_UNDO - 1)), JSON.parse(JSON.stringify(itemsRef.current))]);
     setItems(updater);
     // Throttled ring-buffer snapshot (at most once per minute)
@@ -2338,6 +2360,7 @@ export function PlanEditorPane({
 
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
+    isUndoingRef.current = true;
     try {
       (document.activeElement as HTMLElement)?.blur();
       window.getSelection()?.removeAllRanges();
@@ -2346,7 +2369,24 @@ export function PlanEditorPane({
     setUndoStack((s) => s.slice(0, -1));
     setItems(prev);
     planApi.save(prev);
+    setTimeout(() => {
+      isUndoingRef.current = false;
+    }, 200);
   }, [undoStack, planApi]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        if (contentRef.current && (contentRef.current === e.target || contentRef.current.contains(e.target as Node) || e.target === document.body)) {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [handleUndo]);
 
   const selectPiece = useTimerStore((state) => state.selectPiece);
   const activePieceName = useTimerStore((state) => state.activePieceName);
@@ -2470,7 +2510,7 @@ export function PlanEditorPane({
   }, [applyChange]);
 
   const handleRowClick = useCallback(
-    (id: string, e: React.MouseEvent<HTMLDivElement>) => {
+    (id: string, e: React.MouseEvent<HTMLDivElement>, requestType: "row" | "edit" = "row") => {
       // Selection logic with support for multi-select (meta/ctrl) and range (shift).
       if (e.metaKey || e.ctrlKey) {
         setSelectedIds((prev) => {
@@ -2497,8 +2537,8 @@ export function PlanEditorPane({
         setLastSelectedId(id);
       }
 
-      // Ensure the row gets focus for keyboard operations.
-      setFocusRequest({ id, type: "row" });
+      // Ensure the row gets focus for keyboard operations, or edit focus for editing.
+      setFocusRequest({ id, type: requestType, cursorPosition: "start" });
     },
     [flatList, lastSelectedId]
   );
@@ -2921,6 +2961,7 @@ export function PlanEditorPane({
   }, [applyChange, planApi]);
 
   const handleUpdateText = useCallback((id: string, text: string) => {
+    if (isUndoingRef.current) return;
     if (text.includes("\n") || text.includes("\r")) {
       handlePasteMultiLineText(id, text);
       return;
