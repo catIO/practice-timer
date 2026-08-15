@@ -261,9 +261,6 @@ function ReportItem({
     );
   }
 
-  const isLessonTodo = planType === "lesson" && (item.blockType === "todo" || item.blockType === undefined);
-  const isLessonChecked = isLessonTodo && Boolean(item.checked);
-
   return (
     <div className="py-0.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
       <div className="flex items-start gap-2 text-foreground">
@@ -290,15 +287,10 @@ function ReportItem({
             {numberIndex + 1}.
           </span>
         ) : null}
-        <span
-          className={cn(
-            "flex-1 min-w-0 flex items-center flex-wrap gap-x-2",
-            isLessonChecked && "text-muted-foreground line-through decoration-muted-foreground/50"
-          )}
-        >
+        <span className="flex-1 min-w-0 flex items-center flex-wrap gap-x-2">
           <TextWithLinks text={item.text || "\u00A0"} richLinkVariant="report" />
           {planType === "lesson" && item.checked && item.checkedDate && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground/80 bg-muted/60 dark:bg-white/5 border border-border/50 px-1.5 py-0.5 rounded shrink-0 select-none not-sr-only no-underline font-normal inline-block">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground/80 bg-muted/60 dark:bg-white/5 border border-border/50 px-1.5 py-0.5 rounded shrink-0 select-none">
               <span className="material-icons text-[11px] mr-0.5">event_available</span>
               {formatCheckedDate(item.checkedDate)}
             </span>
@@ -639,25 +631,25 @@ export default function Report() {
       <main className="w-full space-y-8">
         {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 ? (
           <Tabs defaultValue="practice" className="w-full space-y-0">
-            <div className="flex items-center gap-2 mb-0">
-              <TabsList className="inline-flex h-11 items-center justify-start rounded-t-2xl rounded-b-none bg-slate-900/90 dark:bg-slate-900/90 border-t border-x border-white/10 border-b-0 p-1.5 gap-1.5 shadow-sm">
+            <div className="flex items-center w-full mb-0">
+              <TabsList className="h-auto p-0 bg-transparent flex items-end gap-1.5 relative z-10 w-full justify-start border-b-0 rounded-none">
                 <TabsTrigger
                   value="practice"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:shadow-xs"
+                  className="relative inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all text-muted-foreground hover:text-foreground rounded-t-xl rounded-b-none border border-transparent translate-y-[1px] data-[state=active]:border-white/[0.08] data-[state=active]:border-b-transparent data-[state=active]:bg-white/[0.03] dark:data-[state=active]:bg-white/[0.03] data-[state=active]:backdrop-blur-md data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:hover:bg-white/[0.02] data-[state=active]:z-20"
                 >
                   <span className="material-icons text-base select-none">assignment</span>
                   Practice Plan
                 </TabsTrigger>
                 <TabsTrigger
                   value="lesson"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:shadow-xs"
+                  className="relative inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all text-muted-foreground hover:text-foreground rounded-t-xl rounded-b-none border border-transparent translate-y-[1px] data-[state=active]:border-white/[0.08] data-[state=active]:border-b-transparent data-[state=active]:bg-white/[0.03] dark:data-[state=active]:bg-white/[0.03] data-[state=active]:backdrop-blur-md data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:hover:bg-white/[0.02] data-[state=active]:z-20"
                 >
                   <span className="material-icons text-base select-none">school</span>
                   Lesson Plan
                 </TabsTrigger>
               </TabsList>
             </div>
-            <div className="relative rounded-b-2xl rounded-tr-2xl border border-border/60 bg-card/40 dark:bg-slate-900/40 p-5 sm:p-7 shadow-sm transition-all">
+            <div className="relative rounded-b-2xl rounded-tr-2xl border border-white/[0.08] bg-white/[0.03] dark:bg-white/[0.03] backdrop-blur-md p-5 sm:p-7 shadow-sm transition-all">
               <TabsContent value="practice" className="space-y-2 mt-0 focus-visible:outline-none focus-visible:ring-0">
                 {snapshot.items && snapshot.items.length > 0 ? (
                   snapshot.items.map((item, i, arr) => {
@@ -700,7 +692,7 @@ export default function Report() {
           </Tabs>
         ) : (
           snapshot.items && snapshot.items.length > 0 && (
-            <div className="relative rounded-2xl border border-border/60 bg-card/40 dark:bg-slate-900/40 p-5 sm:p-7 shadow-sm space-y-2">
+            <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.03] dark:bg-white/[0.03] backdrop-blur-md p-5 sm:p-7 shadow-sm space-y-2">
               {snapshot.items.map((item, i, arr) => {
                 const numIdx = arr.slice(0, i).filter((c) => c.blockType === "number").length;
                 return (
