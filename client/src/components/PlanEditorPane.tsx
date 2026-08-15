@@ -3283,7 +3283,7 @@ export function PlanEditorPane({
 
       <div
         ref={contentRef}
-        className="w-full p-0 lg:p-4"
+        className="w-full p-0"
       >
         <DndContext
           sensors={sensors}
@@ -3294,7 +3294,7 @@ export function PlanEditorPane({
             items={items.map(item => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1 pb-20 pl-[70px] lg:pl-[72px]">
+            <div className="space-y-1 pb-20 pl-14">
               {items.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
                   <p className="mb-4">Your {planTitle.toLowerCase()} is empty.</p>
