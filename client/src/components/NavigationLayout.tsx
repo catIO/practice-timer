@@ -58,10 +58,19 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         }
         return false; // Collapsed by default on shared report
       }
+      const isSmallScreen = window.innerWidth < 1024;
+      if (isSmallScreen) {
+        const savedSmall = localStorage.getItem('sidebar_expanded_small');
+        if (savedSmall !== null) {
+          return savedSmall === 'true';
+        }
+        return false; // Collapsed by default on small screens (iPad, tablet, mobile)
+      }
       const saved = localStorage.getItem('sidebar_expanded');
       if (saved !== null) {
         return saved === 'true';
       }
+      return true;
     }
     return true;
   });
@@ -115,9 +124,28 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   }, [isReportPath]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      if (isReportPath) return;
+      if (e.matches) {
+        const saved = localStorage.getItem('sidebar_expanded');
+        setIsSidebarExpanded(saved !== null ? saved === 'true' : true);
+      } else {
+        const savedSmall = localStorage.getItem('sidebar_expanded_small');
+        setIsSidebarExpanded(savedSmall !== null ? savedSmall === 'true' : false);
+      }
+    };
+    mediaQuery.addEventListener('change', handleMediaChange);
+    return () => mediaQuery.removeEventListener('change', handleMediaChange);
+  }, [isReportPath]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       if (isReportPath) {
         localStorage.setItem('sidebar_expanded_report', String(isSidebarExpanded));
+      } else if (window.innerWidth < 1024) {
+        localStorage.setItem('sidebar_expanded_small', String(isSidebarExpanded));
       } else {
         localStorage.setItem('sidebar_expanded', String(isSidebarExpanded));
       }
@@ -488,9 +516,9 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         </header>
 
         {/* Dynamic Card Area */}
-        <main className="flex-1 overflow-y-auto p-1 sm:p-6 md:p-8 flex flex-col justify-start">
+        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-5 lg:p-6 flex flex-col justify-start">
           {isReportPath && (
-            <div className="w-full max-w-4xl mx-auto mb-6 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm backdrop-blur-md">
+            <div className="w-full max-w-6xl mx-auto mb-6 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm backdrop-blur-md">
               <div className="flex items-center gap-3 text-foreground">
                 <span className="material-icons text-primary text-xl shrink-0 select-none">cloud_queue</span>
                 <span className="leading-relaxed">
@@ -519,8 +547,8 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
           )}
           <div
             className={cn(
-              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-2xl sm:rounded-3xl p-2 sm:p-8 transition-all duration-300",
-              isLargePage ? "max-w-4xl" : "max-w-2xl"
+              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-2xl sm:rounded-3xl p-3 sm:p-5 md:p-6 lg:p-8 transition-all duration-300",
+              isLargePage ? "max-w-6xl" : "max-w-2xl"
             )}
           >
             {children}
