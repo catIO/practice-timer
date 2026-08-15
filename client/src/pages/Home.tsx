@@ -96,9 +96,6 @@ export default function Home() {
     initialSettings: settings,
     onComplete: useCallback(async () => {
       try {
-        // Play timer completion sound effect
-        await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-
         // Show push notification if enabled
         try {
           await showTimerCompletionNotification({

@@ -5,7 +5,7 @@ import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds, log
 import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
 import { scheduleUserDataPush } from '@/lib/userDataSync';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
-import { playSound, resumeAudioContext } from '@/lib/soundEffects';
+import { playSound, resumeAudioContext, unlockAudioContext, startSilenceKeepAlive, stopSilenceKeepAlive } from '@/lib/soundEffects';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
 if (typeof window !== 'undefined') {
@@ -809,6 +809,9 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       });
 
       try {
+        unlockAudioContext();
+        startSilenceKeepAlive();
+
         await sendMessage('START', {
           timeRemaining: state.timeRemaining,
           mode: effectiveMode,
@@ -824,6 +827,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     },
 
     pauseTimer: async () => {
+      stopSilenceKeepAlive();
       const state = get();
       if (!worker || !state.isRunning) return;
 
@@ -832,6 +836,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     },
 
     resetTimer: async () => {
+      stopSilenceKeepAlive();
       const state = get();
       if (!worker) return;
 

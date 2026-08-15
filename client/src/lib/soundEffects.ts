@@ -12,6 +12,8 @@ export interface SoundEffectParams {
 let masterVolume = 0.5;
 let audioContext: AudioContext | null = null;
 let lastPlaySoundTime = 0;
+let silentSource: AudioBufferSourceNode | null = null;
+let silentGain: GainNode | null = null;
 
 export const detectIPad = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -45,17 +47,17 @@ export const getNormalizedVolume = (volume: number): number => {
   return Math.pow(linearVolume, 2);
 };
 
-// Unlock AudioContext permanently on user gesture for iOS/iPadOS Safari and all modern browsers
-export const unlockAudioContext = async (): Promise<boolean> => {
+// Synchronously unlock AudioContext within user gesture for iOS/iPadOS Safari & desktop
+export const unlockAudioContext = (): boolean => {
   try {
     const ctx = getAudioContext();
     if (!ctx) return false;
 
     if (ctx.state === 'suspended') {
-      await ctx.resume();
+      ctx.resume().catch(() => {});
     }
 
-    // Play 1 sample of silence to prime and unlock the Web Audio destination on iOS/Safari
+    // Play 1 sample of silence synchronously within the gesture
     const buffer = ctx.createBuffer(1, 1, 22050);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -69,8 +71,13 @@ export const unlockAudioContext = async (): Promise<boolean> => {
   }
 };
 
-export const initializeAudioForIOS = unlockAudioContext;
-export const initializeAudioContext = unlockAudioContext;
+export const initializeAudioForIOS = async (): Promise<boolean> => {
+  return unlockAudioContext();
+};
+
+export const initializeAudioContext = async (): Promise<boolean> => {
+  return unlockAudioContext();
+};
 
 export const resumeAudioContext = async (): Promise<boolean> => {
   try {
@@ -87,11 +94,56 @@ export const resumeAudioContext = async (): Promise<boolean> => {
   }
 };
 
+// Keep Web Audio engine alive on iOS Safari during active timer countdown
+export const startSilenceKeepAlive = (): void => {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx || silentSource) return;
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const buffer = ctx.createBuffer(1, ctx.sampleRate || 44100, ctx.sampleRate || 44100);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.00001, ctx.currentTime);
+
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(0);
+
+    silentSource = source;
+    silentGain = gain;
+  } catch (e) {
+    console.warn('startSilenceKeepAlive notice:', e);
+  }
+};
+
+export const stopSilenceKeepAlive = (): void => {
+  try {
+    if (silentSource) {
+      silentSource.stop();
+      silentSource.disconnect();
+      silentSource = null;
+    }
+    if (silentGain) {
+      silentGain.disconnect();
+      silentGain = null;
+    }
+  } catch (e) {
+    console.warn('stopSilenceKeepAlive notice:', e);
+  }
+};
+
 // Register automatic unlock on first user interaction across all devices
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   const unlockEvents = ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown', 'click'];
   const handleInteraction = () => {
-    unlockAudioContext().catch(() => {});
+    unlockAudioContext();
     unlockEvents.forEach((evt) => {
       document.removeEventListener(evt, handleInteraction, true);
     });
