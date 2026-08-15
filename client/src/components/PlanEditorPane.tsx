@@ -1343,7 +1343,10 @@ function PlanItem({
             id={item.id}
             checked={item.checked}
             onCheckedChange={() => onToggle(item.id)}
-            className="mt-1 shrink-0"
+            className="shrink-0 mt-0.5 touch-manipulation cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           />
         ) : blockType === "bullet" ? (
           <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/70" aria-hidden />
@@ -1719,7 +1722,11 @@ function PlanItem({
                                     ? "bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 border border-emerald-500"
                                     : "border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
                                 )}
-                                onClick={() => onToggle(item.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggle(item.id);
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
                                 title={isCompletedToday ? "Uncheck segment" : "Mark as completed"}
                               >
                                 {isCompletedToday ? (
