@@ -46,11 +46,14 @@ export function getSettings(): SettingsType {
     const storedSettings = localStorage.getItem(SETTINGS_KEY);
     if (storedSettings) {
       const parsedSettings = JSON.parse(storedSettings);
-      // Ensure all required fields are present
-      return {
+      const result = {
         ...DEFAULT_SETTINGS,
         ...parsedSettings,
       };
+      if (!['beep', 'bell', 'chime', 'digital', 'woodpecker'].includes(result.soundType)) {
+        result.soundType = 'beep';
+      }
+      return result;
     }
     return DEFAULT_SETTINGS;
   } catch (error) {

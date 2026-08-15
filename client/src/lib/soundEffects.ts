@@ -1,12 +1,7 @@
 // Sound effects for the timer application
-
-// Sound effect types
 export type SoundEffect = 'start' | 'end' | 'reset' | 'skip';
-
-// Sound types
 export type SoundType = 'beep' | 'bell' | 'chime' | 'digital' | 'woodpecker';
 
-// Interface for sound effect parameters
 export interface SoundEffectParams {
   effect: SoundEffect;
   numberOfBeeps: number;
@@ -14,744 +9,123 @@ export interface SoundEffectParams {
   soundType: SoundType;
 }
 
-// Volume control (0.0 to 1.0)
 let masterVolume = 0.5;
-
-// Audio context
 let audioContext: AudioContext | null = null;
-let audioContextInitialized = false;
-let audioContextResumed = false;
-let audioUnlockListenerAdded = false;
-let userGestureDetected = false;
 let lastPlaySoundTime = 0;
 
-// Initialize audio context
-const getAudioContext = () => {
+export const detectIPad = (): boolean => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (/iPad/.test(navigator.userAgent)) return true;
+  if (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints > 1 || 'ontouchstart' in window)) {
+    return true;
+  }
+  return false;
+};
+
+export const detectIOS = (): boolean => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || detectIPad();
+};
+
+export const getAudioContext = (): AudioContext | null => {
+  if (typeof window === 'undefined') return null;
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextClass) {
+      audioContext = new AudioContextClass();
+    }
   }
   return audioContext;
 };
 
-// Helper to normalize volume from 0-100 range to 0.0-1.0 range
-// Uses a quadratic curve to make lower volumes more sensitive and 50% feel like "medium"
-const getNormalizedVolume = (volume: number): number => {
-  // Ensure volume is in 0-100 range (handle legacy cases where it might be 0-1)
+// Helper to normalize volume from 0-100 range to 0.0-1.0 range with natural quadratic response
+export const getNormalizedVolume = (volume: number): number => {
   const volumeInRange = volume <= 1 && volume > 0 ? volume * 100 : volume;
-  // Map 0-100 to 0.0-1.0 linearly first
   const linearVolume = Math.min(100, Math.max(0, volumeInRange)) / 100;
-  // Apply quadratic curve (v^2) for more natural volume control
-  // This means 50% slider = 0.25 gain (medium), 10% slider = 0.01 gain (very quiet)
   return Math.pow(linearVolume, 2);
 };
 
-// Enhanced iOS audio unlock with better iPad support
-export const initializeAudioForIOS = async (): Promise<boolean> => {
+// Unlock AudioContext permanently on user gesture for iOS/iPadOS Safari and all modern browsers
+export const unlockAudioContext = async (): Promise<boolean> => {
   try {
-    console.log('iOS: Enhanced audio unlock attempt for iPad...');
-    
-    // Create a new audio context specifically for iOS
-    const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // Resume if suspended
-    if (context.state === 'suspended') {
-      console.log('iOS: Audio context suspended, attempting to resume...');
-      await context.resume();
+    const ctx = getAudioContext();
+    if (!ctx) return false;
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
     }
-    
-    // Create and play a simple sound immediately to unlock audio
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-    
-    // Set up the sound (very quiet unlock sound)
-    oscillator.frequency.setValueAtTime(800, context.currentTime);
-    gainNode.gain.setValueAtTime(0.1, context.currentTime); // Very quiet
-    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
-    
-    // Play the sound
-    oscillator.start(context.currentTime);
-    oscillator.stop(context.currentTime + 0.1);
-    
-    // Wait a bit for the sound to play
-    await new Promise(resolve => setTimeout(resolve, 150));
-    
-    console.log('iOS: Enhanced audio unlock successful, context state:', context.state);
-    userGestureDetected = true;
+
+    // Play 1 sample of silence to prime and unlock the Web Audio destination on iOS/Safari
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+
     return true;
   } catch (error) {
-    console.error('Error in enhanced iOS audio unlock:', error);
+    console.warn('AudioContext unlock notice:', error);
     return false;
   }
 };
 
-// Initialize audio context after user interaction
-export const initializeAudioContext = async () => {
-  try {
-    console.log('Initializing audio context...');
-    const context = getAudioContext();
-    console.log('Audio context state:', context.state);
-    
-    // Check if we're on iOS or iPad
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isIPad = detectIPad();
-    
-    if (context.state === 'suspended') {
-      console.log('Resuming suspended audio context...');
-      
-      if (isIOS || isIPad) {
-        // Use enhanced iOS-specific unlock
-        await initializeAudioForIOS();
-      } else {
-        await context.resume();
-      }
-      
-      console.log('Audio context resumed successfully');
-      audioContextResumed = true;
-    } else if (context.state === 'running') {
-      console.log('Audio context already running');
-      audioContextResumed = true;
-    }
-    
-    audioContextInitialized = true;
-    console.log('Audio context initialized successfully');
-    
-    // Add global audio unlock listener for iOS/iPad
-    if ((isIOS || isIPad) && !audioUnlockListenerAdded) {
-      addGlobalAudioUnlockListener();
-      audioUnlockListenerAdded = true;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error initializing audio context:', error);
-    return false;
-  }
-};
+export const initializeAudioForIOS = unlockAudioContext;
+export const initializeAudioContext = unlockAudioContext;
 
-// Enhanced global listener to unlock audio on any user interaction
-const addGlobalAudioUnlockListener = () => {
-  const unlockAudio = async () => {
-    try {
-      if (!userGestureDetected) {
-        console.log('iOS: User gesture detected, unlocking audio...');
-        const context = getAudioContext();
-        if (context.state === 'suspended') {
-          await initializeAudioForIOS();
-        }
-        userGestureDetected = true;
-      }
-    } catch (error) {
-      console.error('Error unlocking audio on user interaction:', error);
-    }
-  };
-
-  // Add listeners for various user interactions (more comprehensive for iPad)
-  const events = ['touchstart', 'touchend', 'click', 'keydown', 'scroll', 'mousedown', 'mouseup'];
-  events.forEach(event => {
-    document.addEventListener(event, unlockAudio, { once: true, passive: true });
-  });
-  
-  console.log('iOS: Added enhanced global audio unlock listeners');
-};
-
-// Enhanced iPad detection that works with new iPadOS behavior
-const detectIPad = (): boolean => {
-  // Check for iPad-specific user agent (older iPads)
-  if (/iPad/.test(navigator.userAgent)) {
-    return true;
-  }
-  
-  // Check for new iPadOS behavior where iPad reports as Macintosh
-  if (/Macintosh/.test(navigator.userAgent)) {
-    // Check if it has touch support (iPad has touch, Mac doesn't)
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-      // Check screen size (iPad typically has larger screen than iPhone)
-      const screenWidth = window.screen.width;
-      const screenHeight = window.screen.height;
-      const minDimension = Math.min(screenWidth, screenHeight);
-      const maxDimension = Math.max(screenWidth, screenHeight);
-      
-      // iPad typically has screen dimensions like 768x1024, 834x1194, etc.
-      if (minDimension >= 768 && maxDimension >= 1024) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-};
-
-// Generate sine wave
-const generateSineWave = (frequency: number, duration: number): Float32Array => {
-  const sampleRate = getAudioContext().sampleRate;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = new Float32Array(numSamples);
-  
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    const amplitude = Math.exp(-2 * t); // Exponential decay
-    buffer[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
-  }
-  
-  return buffer;
-};
-
-// Generate bell sound
-const generateBellSound = (duration: number): Float32Array => {
-  const sampleRate = getAudioContext().sampleRate;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = new Float32Array(numSamples);
-  
-  // Bell frequencies (fundamental and harmonics)
-  const frequencies = [440, 880, 1320, 1760];
-  const amplitudes = [1.0, 0.5, 0.25, 0.125];
-  
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-    
-    // Combine multiple frequencies with different amplitudes
-    for (let j = 0; j < frequencies.length; j++) {
-      const amplitude = amplitudes[j] * Math.exp(-3 * t); // Faster decay for bell
-      sample += amplitude * Math.sin(2 * Math.PI * frequencies[j] * t);
-    }
-    
-    buffer[i] = sample;
-  }
-  
-  return buffer;
-};
-
-// Generate chime sound
-const generateChimeSound = (duration: number): Float32Array => {
-  const sampleRate = getAudioContext().sampleRate;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = new Float32Array(numSamples);
-  
-  // Chime frequencies (pentatonic scale)
-  const frequencies = [523.25, 587.33, 659.25, 783.99, 880.00];
-  const amplitudes = [1.0, 0.8, 0.6, 0.4, 0.2];
-  
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-    
-    // Combine multiple frequencies with different amplitudes
-    for (let j = 0; j < frequencies.length; j++) {
-      const amplitude = amplitudes[j] * Math.exp(-2.5 * t); // Medium decay for chime
-      sample += amplitude * Math.sin(2 * Math.PI * frequencies[j] * t);
-    }
-    
-    buffer[i] = sample;
-  }
-  
-  return buffer;
-};
-
-// Generate digital sound
-const generateDigitalSound = (duration: number): Float32Array => {
-  const sampleRate = getAudioContext().sampleRate;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = new Float32Array(numSamples);
-  
-  // Digital sound frequencies
-  const frequencies = [880, 1100, 1320];
-  const amplitudes = [1.0, 0.7, 0.4];
-  
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-    
-    // Combine multiple frequencies with different amplitudes
-    for (let j = 0; j < frequencies.length; j++) {
-      const amplitude = amplitudes[j] * Math.exp(-4 * t); // Very fast decay for digital
-      sample += amplitude * Math.sin(2 * Math.PI * frequencies[j] * t);
-    }
-    
-    buffer[i] = sample;
-  }
-  
-  return buffer;
-};
-
-// Generate woodpecker sound
-const generateWoodpeckerSound = (duration: number): Float32Array => {
-  const sampleRate = getAudioContext().sampleRate;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = new Float32Array(numSamples);
-  
-  // Pileated Woodpecker frequencies (deep, hollow sound)
-  const frequencies = [300, 225, 150];  // Slightly higher frequencies
-  const amplitudes = [1.0, 0.7, 0.4];   // Same harmonic balance
-  
-  // Create drumming pattern (Pileated Woodpecker style)
-  const tapDuration = 0.03;    // 30ms per tap (shorter, sharper taps)
-  const tapInterval = 0.06;    // 60ms between taps (about 16-17 beats per second)
-  const numTaps = Math.floor(duration / tapInterval);
-  
-  for (let tap = 0; tap < numTaps; tap++) {
-    const tapStart = Math.floor(tap * tapInterval * sampleRate);
-    const tapEnd = Math.floor((tap * tapInterval + tapDuration) * sampleRate);
-    
-    for (let i = tapStart; i < tapEnd; i++) {
-      if (i < numSamples) {
-        const t = (i - tapStart) / sampleRate;
-        let sample = 0;
-        
-        // Combine frequencies with sharp attack and longer decay
-        for (let j = 0; j < frequencies.length; j++) {
-          // Sharp attack, longer decay for hollow sound
-          const attack = Math.min(1, t * 100); // Very fast attack
-          const decay = Math.exp(-8 * t);      // Slower decay for resonance
-          const amplitude = amplitudes[j] * attack * decay;
-          sample += amplitude * Math.sin(2 * Math.PI * frequencies[j] * t);
-        }
-        
-        buffer[i] = sample;
-      }
-    }
-  }
-  
-  return buffer;
-};
-
-// Resume audio context (compatibility function)
 export const resumeAudioContext = async (): Promise<boolean> => {
   try {
-    console.log('Resuming audio context...');
-    
-    // Check if we're on iOS or iPad
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isIPad = detectIPad();
-    
-    // Create a new audio context if we don't have one
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      console.log('Created new audio context, state:', audioContext.state);
+    const ctx = getAudioContext();
+    if (!ctx) return false;
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
     }
-    
-    // Resume the audio context
-    if (audioContext.state === 'suspended') {
-      console.log('Audio context suspended, attempting to resume...');
-      
-      if (isIOS || isIPad) {
-        // Use iOS-specific unlock for better reliability
-        await initializeAudioForIOS();
-      } else {
-        await audioContext.resume();
-      }
-      
-      console.log('Audio context resumed, new state:', audioContext.state);
-      audioContextResumed = true;
-    } else if (audioContext.state === 'running') {
-      console.log('Audio context already running');
-      audioContextResumed = true;
-    } else {
-      console.log('Audio context state:', audioContext.state);
-    }
-    
-    audioContextInitialized = true;
-    console.log('Audio context initialization complete');
-    return true;
+    return ctx.state === 'running';
   } catch (error) {
-    console.error('Error resuming audio context:', error);
+    console.warn('Error resuming AudioContext:', error);
     return false;
   }
 };
 
-// iOS-specific sound playback using HTML5 Audio (more reliable)
-const playSoundIOS = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  try {
-    console.log(`iOS: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
-    
-    // Ensure audio is unlocked first
-    if (!userGestureDetected) {
-      console.log('iOS: No user gesture detected, attempting to unlock audio...');
-      await initializeAudioForIOS();
-    }
-    
-    // Convert volume from 0-100 to 0-1 range using non-linear normalization
-    const normalizedVolume = getNormalizedVolume(volume);
-    
-    // Generate a simple beep sound using data URL
-    const sampleRate = 44100;
-    const duration = 0.3; // 300ms
-    const frequency = soundType === 'bell' ? 440 : 
-                     soundType === 'chime' ? 523.25 : 
-                     soundType === 'digital' ? 880 : 
-                     soundType === 'woodpecker' ? 300 : 800;
-    
-    // Create a simple sine wave
-    const numSamples = Math.floor(sampleRate * duration);
-    const audioData = new Float32Array(numSamples);
-    
-    for (let i = 0; i < numSamples; i++) {
-      const t = i / sampleRate;
-      const amplitude = Math.exp(-3 * t); // Exponential decay
-      audioData[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
-    }
-    
-    // Convert to WAV format
-    const wavData = createWAV(audioData, sampleRate);
-    const blob = new Blob([wavData], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    
-    // Play the sound(s)
-    if (effect === 'end') {
-      // Play multiple beeps
-      for (let i = 0; i < numberOfBeeps; i++) {
-        console.log(`iOS: Playing beep ${i + 1} of ${numberOfBeeps}`);
-        
-        // Create a new audio element for each beep
-        const beepAudio = new Audio(url);
-        beepAudio.volume = normalizedVolume;
-        
-        try {
-          // Ensure audio is loaded before playing
-          await new Promise((resolve, reject) => {
-            beepAudio.oncanplaythrough = resolve;
-            beepAudio.onerror = reject;
-            beepAudio.load();
-          });
-          
-          await beepAudio.play();
-          
-          // Wait for the beep to finish
-          await new Promise((resolve) => {
-            beepAudio.onended = resolve;
-            // Fallback timeout
-            setTimeout(resolve, 500);
-          });
-          
-          // Wait between beeps
-          if (i < numberOfBeeps - 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        } catch (error) {
-          console.error(`iOS: Error playing beep ${i + 1}:`, error);
-          // Continue with next beep even if one fails
-        }
-      }
-      console.log(`iOS: Finished playing all ${numberOfBeeps} beeps`);
-    } else {
-      // For other sounds, just play once
-      const audio = new Audio(url);
-      audio.volume = normalizedVolume;
-      
-      try {
-        // Ensure audio is loaded before playing
-        await new Promise((resolve, reject) => {
-          audio.oncanplaythrough = resolve;
-          audio.onerror = reject;
-          audio.load();
-        });
-        
-        await audio.play();
-        console.log('iOS: Sound played successfully');
-      } catch (error) {
-        console.error('iOS: Error playing sound:', error);
-        throw error;
-      }
-    }
-    
-    // Clean up the blob URL
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('iOS: Error in playSoundIOS:', error);
-    throw error;
-  }
-};
-
-// Simple fallback audio for iPad using basic HTML5 Audio
-const playSoundFallback = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  try {
-    console.log(`Fallback: Playing ${effect} sound with ${numberOfBeeps} beeps at volume ${volume}`);
-    console.log(`Fallback: Audio context state check...`);
-    
-    // Convert volume from 0-100 to 0-1 range using non-linear normalization
-    const normalizedVolume = getNormalizedVolume(volume);
-    
-    // Test audio context state
-    try {
-      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-      console.log(`Fallback: Audio context state: ${context.state}`);
-      
-      if (context.state === 'suspended') {
-        console.log('Fallback: Attempting to resume suspended audio context...');
-        await context.resume();
-        console.log(`Fallback: Audio context state after resume: ${context.state}`);
-      }
-    } catch (contextError) {
-      console.log('Fallback: Audio context creation failed:', contextError);
-    }
-    
-    // Create a simple beep using oscillator (if available) or fallback to basic audio
-    if (effect === 'end') {
-      // Play multiple beeps
-      for (let i = 0; i < numberOfBeeps; i++) {
-        console.log(`Fallback: Playing beep ${i + 1} of ${numberOfBeeps}`);
-        
-        try {
-          // Try to create a simple beep using Web Audio API
-          const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-          
-          if (context.state === 'suspended') {
-            console.log('Fallback: Resuming audio context for beep...');
-            await context.resume();
-          }
-          
-          const oscillator = context.createOscillator();
-          const gainNode = context.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(context.destination);
-          
-          oscillator.frequency.setValueAtTime(800, context.currentTime);
-          gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-          
-          console.log('Fallback: Starting oscillator...');
-          oscillator.start(context.currentTime);
-          oscillator.stop(context.currentTime + 0.3);
-          console.log('Fallback: Oscillator started and stopped');
-          
-          // Wait for the beep to finish
-          await new Promise(resolve => setTimeout(resolve, 350));
-          console.log(`Fallback: Beep ${i + 1} completed`);
-          
-        } catch (error) {
-          console.log('Fallback: Web Audio failed, trying basic audio element:', error);
-          
-          // Fallback to basic audio element
-          const audio = new Audio();
-          audio.volume = normalizedVolume;
-          
-          // Create a simple data URL for a beep sound
-          const sampleRate = 44100;
-          const duration = 0.3;
-          const frequency = 800;
-          const numSamples = Math.floor(sampleRate * duration);
-          const audioData = new Float32Array(numSamples);
-          
-          for (let i = 0; i < numSamples; i++) {
-            const t = i / sampleRate;
-            const amplitude = Math.exp(-3 * t);
-            audioData[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
-          }
-          
-          const wavData = createWAV(audioData, sampleRate);
-          const blob = new Blob([wavData], { type: 'audio/wav' });
-          const url = URL.createObjectURL(blob);
-          
-          audio.src = url;
-          
-          try {
-            await audio.play();
-            await new Promise(resolve => setTimeout(resolve, 350));
-            URL.revokeObjectURL(url);
-          } catch (audioError) {
-            console.error('Fallback: Basic audio also failed:', audioError);
-            URL.revokeObjectURL(url);
-          }
-        }
-        
-        // Wait between beeps
-        if (i < numberOfBeeps - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-      console.log(`Fallback: Finished playing all ${numberOfBeeps} beeps`);
-    } else {
-      // Single beep
-      try {
-        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        if (context.state === 'suspended') {
-          await context.resume();
-        }
-        
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-        
-        oscillator.frequency.setValueAtTime(800, context.currentTime);
-        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-        
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 0.3);
-        
-      } catch (error) {
-        console.error('Fallback: Single beep failed:', error);
-      }
-    }
-  } catch (error) {
-    console.error('Fallback: Error in fallback audio:', error);
-    throw error;
-  }
-};
-
-// Helper function to create WAV data
-const createWAV = (audioData: Float32Array, sampleRate: number): ArrayBuffer => {
-  const buffer = new ArrayBuffer(44 + audioData.length * 2);
-  const view = new DataView(buffer);
-  
-  // WAV header
-  const writeString = (offset: number, string: string) => {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
+// Register automatic unlock on first user interaction across all devices
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const unlockEvents = ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown', 'click'];
+  const handleInteraction = () => {
+    unlockAudioContext().catch(() => {});
+    unlockEvents.forEach((evt) => {
+      document.removeEventListener(evt, handleInteraction, true);
+    });
   };
-  
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + audioData.length * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(36, 'data');
-  view.setUint32(40, audioData.length * 2, true);
-  
-  // Convert float32 to int16
-  let offset = 44;
-  for (let i = 0; i < audioData.length; i++) {
-    const sample = Math.max(-1, Math.min(1, audioData[i]));
-    view.setInt16(offset, sample * 0x7FFF, true);
-    offset += 2;
-  }
-  
-  return buffer;
-};
+  unlockEvents.forEach((evt) => {
+    document.addEventListener(evt, handleInteraction, { capture: true, passive: true, once: true });
+  });
+}
 
-// Play a sound effect (main entry point)
-export const playSound = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  try {
-    const now = Date.now();
-    if (now - lastPlaySoundTime < 300) {
-      console.log(`playSound called too recently (${now - lastPlaySoundTime}ms ago), ignoring duplicate request`);
-      return;
-    }
-    lastPlaySoundTime = now;
-
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isIPad = detectIPad();
-    
-    console.log(`playSound called: effect=${effect}, numberOfBeeps=${numberOfBeeps}, volume=${volume}, soundType=${soundType}`);
-    console.log(`Device detection: isIOS=${isIOS}, isIPad=${isIPad}`);
-
-    if (isIOS || isIPad) {
-      console.log('iOS device detected, using iOS-specific audio playback');
-      // Hybrid approach for iPad: Web Audio -> HTML5 Audio -> Fallback
-      if (isIPad) {
-        try { 
-          console.log('iPad: Attempting Web Audio API first...');
-          await playSoundWebAudio(effect, numberOfBeeps, volume, soundType); 
-          console.log('iPad: Web Audio API successful');
-          return; 
-        }
-        catch (error) {
-          console.log('iPad: Web Audio API failed, trying HTML5 Audio...', error);
-          try { 
-            await playSoundIOS(effect, numberOfBeeps, volume, soundType); 
-            console.log('iPad: HTML5 Audio successful');
-            return; 
-          }
-          catch (iosError) { 
-            console.log('iPad: HTML5 Audio failed, using fallback...', iosError);
-            await playSoundFallback(effect, numberOfBeeps, volume, soundType); 
-            console.log('iPad: Fallback successful');
-            return; 
-          }
-        }
-      } else { // iPhone/iPod
-        try { 
-          console.log('iPhone/iPod: Attempting HTML5 Audio...');
-          await playSoundIOS(effect, numberOfBeeps, volume, soundType); 
-          console.log('iPhone/iPod: HTML5 Audio successful');
-          return; 
-        }
-        catch (error) { 
-          console.log('iPhone/iPod: HTML5 Audio failed, using fallback...', error);
-          await playSoundFallback(effect, numberOfBeeps, volume, soundType); 
-          console.log('iPhone/iPod: Fallback successful');
-          return; 
-        }
-      }
-    } else { // Non-iOS devices
-      console.log('Non-iOS device, using Web Audio API');
-      try { 
-        await playSoundWebAudio(effect, numberOfBeeps, volume, soundType); 
-        console.log('Non-iOS: Web Audio API successful');
-      }
-      catch (error) { 
-        console.log('Non-iOS: Web Audio API failed, using fallback...', error);
-        await playSoundFallback(effect, numberOfBeeps, volume, soundType); 
-        console.log('Non-iOS: Fallback successful');
-      }
-    }
-  } catch (error) {
-    console.error('Error playing sound:', error);
-    throw error;
-  }
-};
-
-// Web Audio API implementation
-const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3, volume: number = 50, soundType: SoundType = 'beep'): Promise<void> => {
-  // Convert volume from 0-100 to 0-1 range using non-linear normalization
+// Web Audio oscillator sound playback with smooth decay
+const playSoundWebAudio = async (
+  effect: SoundEffect,
+  numberOfBeeps: number = 3,
+  volume: number = 50,
+  soundType: SoundType = 'beep'
+): Promise<void> => {
   const normalizedVolume = getNormalizedVolume(volume);
-  
-  // Get audio context and ensure it's ready
   const context = getAudioContext();
-  console.log('Web Audio: Audio context state before playing:', context.state);
-  
-  // Enhanced audio context handling for all platforms
+  if (!context) return;
+
   if (context.state === 'suspended') {
-    console.log('Web Audio: Audio context suspended, attempting to resume...');
     try {
       await context.resume();
-      console.log('Web Audio: Audio context resumed successfully');
-    } catch (error) {
-      console.error('Web Audio: Failed to resume audio context:', error);
-      throw new Error('Audio context could not be resumed');
-    }
+    } catch {}
   }
-  
-  // Double-check context state
-  if (context.state !== 'running') {
-    console.warn('Web Audio: Audio context not running, attempting to resume...');
-    try {
-      await context.resume();
-    } catch (error) {
-      console.error('Web Audio: Failed to resume audio context on second attempt:', error);
-      throw new Error('Audio context could not be resumed');
-    }
-  }
-  
-  // For end sound, play multiple beeps
+
   if (effect === 'end') {
-    console.log(`Web Audio: Playing ${numberOfBeeps} beeps...`);
-    // Play all beeps in the loop
-    for (let i = 0; i < numberOfBeeps; i++) {
-      console.log(`Web Audio: Playing beep ${i + 1} of ${numberOfBeeps}`);
-      
-      // Create oscillator and gain nodes
+    const count = Math.max(1, numberOfBeeps);
+    for (let i = 0; i < count; i++) {
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
-      
-      // Set up oscillator based on sound type
+
       oscillator.type = 'sine';
-      
-      // Set frequency based on sound type
+
       switch (soundType) {
         case 'bell':
           oscillator.frequency.setValueAtTime(440, context.currentTime);
@@ -763,112 +137,133 @@ const playSoundWebAudio = async (effect: SoundEffect, numberOfBeeps: number = 3,
           oscillator.frequency.setValueAtTime(880, context.currentTime);
           break;
         case 'woodpecker':
-          oscillator.frequency.setValueAtTime(300, context.currentTime); // Higher base frequency
+          oscillator.frequency.setValueAtTime(300, context.currentTime);
           break;
         case 'beep':
         default:
           oscillator.frequency.setValueAtTime(880, context.currentTime);
           break;
       }
-      
-      // Set up gain node with the normalized volume
+
       gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-      
-      // Set decay based on sound type
+
+      let decayDuration = 1.2;
       switch (soundType) {
         case 'bell':
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.5);
+          decayDuration = 1.5;
           break;
         case 'chime':
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.3);
+          decayDuration = 1.3;
           break;
         case 'digital':
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.8);
+          decayDuration = 0.8;
           break;
         case 'woodpecker':
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
+          decayDuration = 0.2;
           break;
         case 'beep':
         default:
-          gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.2);
+          decayDuration = 1.2;
           break;
       }
-      
-      // Connect nodes
+
+      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decayDuration);
+
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
-      
-      // Start and stop oscillator
+
       oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + 1.5);
-      
-      // Wait for the full duration of the beep before playing the next one
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      oscillator.stop(context.currentTime + decayDuration + 0.1);
+
+      if (i < count - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
     }
-    console.log(`Web Audio: Finished playing all ${numberOfBeeps} beeps`);
   } else {
-    // For other sounds, just play once
+    // Single sound for start, reset, skip, or preview
     const oscillator = context.createOscillator();
     const gainNode = context.createGain();
-    
-    // Set up oscillator based on sound type
     oscillator.type = 'sine';
-    
-    // Set frequency based on sound type
-    switch (soundType) {
-      case 'bell':
-        oscillator.frequency.setValueAtTime(440, context.currentTime);
-        break;
-      case 'chime':
-        oscillator.frequency.setValueAtTime(523.25, context.currentTime);
-        break;
-      case 'digital':
-        oscillator.frequency.setValueAtTime(880, context.currentTime);
-        break;
-      case 'woodpecker':
-        oscillator.frequency.setValueAtTime(300, context.currentTime); // Higher base frequency
-        break;
-      case 'beep':
-      default:
-        oscillator.frequency.setValueAtTime(880, context.currentTime);
-        break;
+
+    let freq = 880;
+    let decay = 0.5;
+    if (effect === 'start') {
+      freq = 660;
+      decay = 0.4;
+    } else if (effect === 'reset') {
+      freq = 440;
+      decay = 0.4;
+    } else if (effect === 'skip') {
+      freq = 550;
+      decay = 0.4;
+    } else {
+      switch (soundType) {
+        case 'bell':
+          freq = 440;
+          decay = 1.5;
+          break;
+        case 'chime':
+          freq = 523.25;
+          decay = 1.3;
+          break;
+        case 'digital':
+          freq = 880;
+          decay = 0.8;
+          break;
+        case 'woodpecker':
+          freq = 300;
+          decay = 0.2;
+          break;
+        case 'beep':
+        default:
+          freq = 880;
+          decay = 0.5;
+          break;
+      }
     }
-    
-    // Set up gain node with the normalized volume
+
+    oscillator.frequency.setValueAtTime(freq, context.currentTime);
     gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-    
-    // Set decay based on sound type
-    switch (soundType) {
-      case 'bell':
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.5);
-        break;
-      case 'chime':
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.3);
-        break;
-      case 'digital':
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.8);
-        break;
-      case 'woodpecker':
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
-        break;
-      case 'beep':
-      default:
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
-        break;
-    }
-    
-    // Connect nodes
+    gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decay);
+
     oscillator.connect(gainNode);
     gainNode.connect(context.destination);
-    
-    // Start and stop oscillator
+
     oscillator.start(context.currentTime);
-    oscillator.stop(context.currentTime + 1.5);
+    oscillator.stop(context.currentTime + decay + 0.1);
   }
 };
 
-// Set master volume (0.0 to 1.0)
+// Main entry point for sound playback
+export const playSound = async (
+  effect: SoundEffect,
+  numberOfBeeps: number = 3,
+  volume: number = 50,
+  soundType: SoundType = 'beep'
+): Promise<void> => {
+  try {
+    const now = Date.now();
+    if (now - lastPlaySoundTime < 250) {
+      return;
+    }
+    lastPlaySoundTime = now;
+
+    // Validate soundType
+    const validSoundType: SoundType =
+      soundType === 'bell' ||
+      soundType === 'chime' ||
+      soundType === 'digital' ||
+      soundType === 'woodpecker' ||
+      soundType === 'beep'
+        ? soundType
+        : 'beep';
+
+    await playSoundWebAudio(effect, numberOfBeeps, volume, validSoundType);
+  } catch (error) {
+    console.error('Error playing sound:', error);
+  }
+};
+
 export const setVolume = (volume: number): void => {
   masterVolume = Math.max(0, Math.min(1, volume));
-  console.log(`Master volume set to ${masterVolume}`);
 };

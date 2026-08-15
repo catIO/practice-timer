@@ -142,39 +142,6 @@ export default function Settings() {
     setLocalSettings(newSettings);
 
     // For iOS, try to unlock audio on sound type change
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      console.log('iOS: Sound type change detected, trying direct sound test...');
-
-      // Try to play a sound directly in the user gesture context
-      try {
-        const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-        console.log('iOS: Audio context created, state:', context.state);
-
-        if (context.state === 'suspended') {
-          await context.resume();
-          console.log('iOS: Audio context resumed');
-        }
-
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-
-        oscillator.frequency.setValueAtTime(800, context.currentTime);
-        gainNode.gain.setValueAtTime(0.5, context.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 0.3);
-
-        console.log('iOS: Direct sound test completed');
-      } catch (error) {
-        console.error('iOS: Direct sound test failed:', error);
-      }
-    }
-
     playSound('end', 1, localSettings.volume, newSoundType)
       .catch(error => {
         console.error('Error playing preview sound:', error);
@@ -399,7 +366,7 @@ export default function Settings() {
                 </div>
                 <div className="w-48">
                   <Select
-                    value={localSettings.soundType || 'beep'}
+                    value={['beep', 'bell', 'chime', 'digital', 'woodpecker'].includes(localSettings.soundType) ? localSettings.soundType : 'beep'}
                     onValueChange={handleSoundTypeChange}
                     onOpenChange={(open) => {
                       if (!open) {

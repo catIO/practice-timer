@@ -96,104 +96,21 @@ export default function Home() {
     initialSettings: settings,
     onComplete: useCallback(async () => {
       try {
+        // Play timer completion sound effect
+        await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
 
-        // Timer completion callback
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        const detectIPad = (): boolean => {
-          if (/iPad/.test(navigator.userAgent)) {
-            return true;
-          }
-          if (/Macintosh/.test(navigator.userAgent)) {
-            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-              const minDimension = Math.min(window.screen.width, window.screen.height);
-              const maxDimension = Math.max(window.screen.width, window.screen.height);
-              if (minDimension >= 768 && maxDimension >= 1024) {
-                return true;
-              }
-            }
-          }
-          return false;
-        };
-        const isIPad = detectIPad();
-
-
-
-        if (isIOS || isIPad) {
-          // iOS: Try notification sounds first, then direct audio as fallback
-
-
-
-          // Try notification first
-          try {
-            await showTimerCompletionNotification({
-              numberOfBeeps: settings.numberOfBeeps,
-              volume: settings.volume,
-              soundType: settings.soundType
-            });
-          } catch (error) {
-            // Notification error
-          }
-
-          // Also try direct audio playback as fallback
-          try {
-
-            // Force re-initialize audio context for iPad
-            await initializeAudio();
-
-            // Add a small delay to ensure audio context is ready
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Try the complex audio system first
-            await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-
-
-            // Also try a simple HTML5 audio fallback for iPad
-            try {
-
-
-              const audio = new Audio();
-              audio.volume = settings.volume / 100;
-
-              // Create a simple beep sound using oscillator
-              const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const oscillator = context.createOscillator();
-              const gainNode = context.createGain();
-
-              oscillator.connect(gainNode);
-              gainNode.connect(context.destination);
-
-              oscillator.frequency.setValueAtTime(800, context.currentTime);
-              gainNode.gain.setValueAtTime(settings.volume / 100, context.currentTime);
-              gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
-
-              oscillator.start(context.currentTime);
-              oscillator.stop(context.currentTime + 0.5);
-
-
-            } catch (simpleAudioError) {
-
-            }
-          } catch (audioError) {
-
-          }
-        } else {
-          // Non-iOS: Use regular audio
-
-          try {
-            await playSound('end', settings.numberOfBeeps, settings.volume, settings.soundType as any);
-
-          } catch (error) {
-
-          }
-        }
-
-
-
+        // Show push notification if enabled
+        try {
+          await showTimerCompletionNotification({
+            numberOfBeeps: settings.numberOfBeeps,
+            volume: settings.volume,
+            soundType: settings.soundType
+          });
+        } catch {}
       } catch (error) {
-
+        console.error('Error on timer complete:', error);
       }
-    }, [settings.numberOfBeeps, settings.volume, settings.soundType, toast, showTimerCompletionNotification, audioInitialized, initializeAudio])
+    }, [settings.numberOfBeeps, settings.volume, settings.soundType, showTimerCompletionNotification])
   });
 
   // Handle reset all (reset to first iteration)

@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS: SettingsType = {
   numberOfBeeps: 3,
   mode: 'work',
   volume: 50,
-  soundType: 'singing-bowl',
+  soundType: 'beep',
   weekStartsOn: 'monday',
   theme: 'dark',
 };

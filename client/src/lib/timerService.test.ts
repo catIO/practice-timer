@@ -28,7 +28,7 @@ describe('timerService', () => {
         });
 
         it('has correct default sound type', () => {
-            expect(DEFAULT_SETTINGS.soundType).toBe('singing-bowl');
+            expect(DEFAULT_SETTINGS.soundType).toBe('beep');
         });
 
         it('has week starting on monday by default', () => {
