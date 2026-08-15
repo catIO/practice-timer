@@ -1,15 +1,19 @@
 {
   "name": "Practice Mate",
-  "short_name": "Mate",
+  "short_name": "Practice Mate",
   "description": "To keep you practicing",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#333333",
+  "background_color": "#111216",
+  "theme_color": "#181a20",
   "orientation": "portrait",
   "scope": "/",
   "lang": "en",
-  "categories": ["productivity", "education", "music"],
+  "categories": [
+    "productivity",
+    "education",
+    "music"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
