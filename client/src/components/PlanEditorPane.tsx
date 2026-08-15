@@ -1246,7 +1246,8 @@ function PlanItem({
       >
         <div className={cn(
           "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
-          "absolute left-0 top-0 -translate-x-full"
+          "absolute left-0 -translate-x-full",
+          blockType === "segment" ? "top-1/2 -translate-y-1/2" : "top-0"
         )}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1963,9 +1964,9 @@ function PlanItem({
                   }}
                   className={cn(
                     "block min-h-[1.5rem] leading-[1.25rem] h-auto py-0 px-0 border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm bg-transparent",
-                    blockType === "heading1" && "text-xl font-semibold",
-                    blockType === "heading2" && "text-lg font-semibold",
-                    blockType === "heading3" && "text-base font-semibold"
+                    blockType === "heading1" && "text-2xl font-bold",
+                    blockType === "heading2" && "text-xl font-semibold",
+                    blockType === "heading3" && "text-lg font-semibold"
                   )}
                   placeholder={
                     blockType === "heading1" ? "Heading 1" :
@@ -2015,9 +2016,9 @@ function PlanItem({
               aria-level={level}
               className={cn(
                 "cursor-text text-foreground block min-h-[1.5rem] leading-[1.25rem] flex items-center select-text outline-none border-0",
-                blockType === "heading1" && "text-xl font-semibold",
-                blockType === "heading2" && "text-lg font-semibold",
-                blockType === "heading3" && "text-base font-semibold"
+                blockType === "heading1" && "text-2xl font-bold",
+                blockType === "heading2" && "text-xl font-semibold",
+                blockType === "heading3" && "text-lg font-semibold"
               )}
             >
               <TextWithLinks

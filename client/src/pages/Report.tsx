@@ -96,10 +96,10 @@ function ReportItem({
           : "h4";
     const headingSizeClass =
       item.blockType === "heading1"
-        ? "text-xl sm:text-2xl font-semibold tracking-tight"
+        ? "text-2xl font-bold tracking-tight"
         : item.blockType === "heading2"
-          ? "text-lg font-semibold"
-          : "text-base font-semibold";
+          ? "text-xl font-semibold"
+          : "text-lg font-semibold";
     return (
       <>
         <Tag
