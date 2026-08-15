@@ -1123,7 +1123,7 @@ function PlanItem({
         role="group"
         aria-label="Plan item"
         className={cn(
-          "group relative flex rounded-md py-0.5 pr-10 outline-none",
+          "group relative flex rounded-md py-0.5 pr-1 sm:pr-2 lg:pr-10 outline-none",
           blockType === "text" ? "gap-0" : "gap-2",
           blockType === "number" ? "items-baseline" : "items-start",
           depth !== 0 && !isHeader && !parentIsHeader && "ml-4",
@@ -3276,7 +3276,7 @@ export function PlanEditorPane({
 
       <div
         ref={contentRef}
-        className="w-full p-0 sm:p-4"
+        className="w-full p-0 lg:p-4"
       >
         <DndContext
           sensors={sensors}
@@ -3287,7 +3287,7 @@ export function PlanEditorPane({
             items={items.map(item => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1 pb-20 pl-8 sm:pl-14">
+            <div className="space-y-1 pb-20 pl-4 sm:pl-7 md:pl-8 lg:pl-14">
               {items.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in duration-300">
                   <p className="mb-4">Your {planTitle.toLowerCase()} is empty.</p>

@@ -516,9 +516,9 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         </header>
 
         {/* Dynamic Card Area */}
-        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-5 lg:p-6 flex flex-col justify-start">
+        <main className="flex-1 overflow-y-auto p-1.5 sm:p-2.5 md:p-3.5 lg:p-8 flex flex-col justify-start">
           {isReportPath && (
-            <div className="w-full max-w-6xl mx-auto mb-6 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm backdrop-blur-md">
+            <div className="w-full max-w-4xl mx-auto mb-4 lg:mb-6 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 text-sm backdrop-blur-md">
               <div className="flex items-center gap-3 text-foreground">
                 <span className="material-icons text-primary text-xl shrink-0 select-none">cloud_queue</span>
                 <span className="leading-relaxed">
@@ -547,8 +547,8 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
           )}
           <div
             className={cn(
-              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-2xl sm:rounded-3xl p-3 sm:p-5 md:p-6 lg:p-8 transition-all duration-300",
-              isLargePage ? "max-w-6xl" : "max-w-2xl"
+              "w-full mx-auto bg-white/70 dark:bg-slate-900/50 border border-black/5 dark:border-white/10 rounded-xl md:rounded-2xl lg:rounded-3xl p-2.5 sm:p-3.5 md:p-4 lg:p-8 transition-all duration-300",
+              isLargePage ? "max-w-4xl" : "max-w-2xl"
             )}
           >
             {children}

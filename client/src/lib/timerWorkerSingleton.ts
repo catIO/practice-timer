@@ -185,6 +185,16 @@ export function updateWorkerState(
   }
 }
 
+// Update the worker settings
+export function updateWorkerSettings(settings: Partial<TimerState['settings']>): void {
+  if (workerInstance && isInitialized) {
+    workerInstance.postMessage({
+      type: 'UPDATE_SETTINGS',
+      payload: settings
+    });
+  }
+}
+
 // Terminate the worker
 export function terminateTimerWorker(): void {
   if (workerInstance) {

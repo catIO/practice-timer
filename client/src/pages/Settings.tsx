@@ -90,63 +90,14 @@ export default function Settings() {
     // Save to localStorage first
     saveSettings(newSettings);
 
-    // Then update global settings
-    // updateGlobalSettings(newSettings); // This line is removed as per the edit hint
-
     // Apply theme
     if (newSettings.theme) {
       applyTheme(newSettings.theme);
     }
 
-    // If timer duration settings changed, reset the timer only if it's not running
-    if (
-      (updates.workDuration !== undefined ||
-        updates.breakDuration !== undefined ||
-        updates.iterations !== undefined) &&
-      !isRunning // Only reset if timer is not running
-    ) {
-      console.log('Settings: Timer duration changed and timer is not running, resetting timer');
-      const { setTimeRemaining, setTotalTime, setMode, setCurrentIteration, setTotalIterations, setSettings: setStoreSettings } = useTimerStore.getState();
-
-      // Update store settings first
-      setStoreSettings(newSettings);
-
-      // Calculate new duration in seconds
-      const newDuration = newSettings.workDuration * 60;
-
-      // Then update timer state
-      setTimeRemaining(newDuration);
-      setTotalTime(newDuration);
-      setMode('work');
-      setCurrentIteration(1);
-      setTotalIterations(newSettings.iterations);
-
-      // Update worker state with the same values
-      updateWorkerState(
-        newDuration,
-        false, // isRunning
-        'work',
-        1,
-        newSettings.iterations
-      );
-
-      console.log('Settings: Updated timer state:', {
-        timeRemaining: newDuration,
-        totalTime: newDuration,
-        mode: 'work',
-        currentIteration: 1,
-        totalIterations: newSettings.iterations
-      });
-    } else if (
-      updates.workDuration !== undefined ||
-      updates.breakDuration !== undefined ||
-      updates.iterations !== undefined
-    ) {
-      console.log('Settings: Timer duration changed but timer is running, will apply on next session');
-      // Just update the settings, don't reset the timer
-      const { setSettings: setStoreSettings } = useTimerStore.getState();
-      setStoreSettings(newSettings);
-    }
+    // Update store settings (which automatically syncs duration, progress and worker)
+    const { setSettings: setStoreSettings } = useTimerStore.getState();
+    setStoreSettings(newSettings);
 
     toast({
       title: "Settings Saved",

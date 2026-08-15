@@ -93,11 +93,29 @@ describe('timerStore', () => {
         expect(state.timeRemaining).toBe(DEFAULT_SETTINGS.workDuration * 60);
     });
 
-    it('setSettings updates settings and recalculates time', () => {
+    it('setSettings updates settings and recalculates time in work mode', () => {
         const newSettings = { ...DEFAULT_SETTINGS, workDuration: 30 };
         useTimerStore.getState().setSettings(newSettings);
         const state = useTimerStore.getState();
         expect(state.settings.workDuration).toBe(30);
+        expect(state.timeRemaining).toBe(30 * 60);
+        expect(state.totalTime).toBe(30 * 60);
+    });
+
+    it('setSettings updates settings and recalculates time in break mode', () => {
+        useTimerStore.setState({
+            mode: 'break',
+            timeRemaining: 5 * 60,
+            totalTime: 5 * 60,
+        });
+
+        const newSettings = { ...DEFAULT_SETTINGS, breakDuration: 1 };
+        useTimerStore.getState().setSettings(newSettings);
+        const state = useTimerStore.getState();
+        expect(state.settings.breakDuration).toBe(1);
+        expect(state.mode).toBe('break');
+        expect(state.timeRemaining).toBe(60);
+        expect(state.totalTime).toBe(60);
     });
 
     it('setMode updates mode', () => {

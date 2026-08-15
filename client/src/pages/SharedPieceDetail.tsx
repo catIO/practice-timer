@@ -248,7 +248,7 @@ export default function SharedPieceDetail() {
     const typeLabel = typeObj ? typeObj.label : piece.type;
 
     return (
-        <div className="space-y-6 text-foreground max-w-5xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        <div className="space-y-6 text-foreground max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <Button variant="ghost" asChild className="hover:bg-white/5 -ml-2 text-muted-foreground hover:text-foreground w-fit">
                     <Link to={backLink}>

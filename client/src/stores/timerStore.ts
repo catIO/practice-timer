@@ -87,10 +87,9 @@ if (savedProgress && !savedProgress.isPracticeComplete) {
   const breakSec = savedSettings.breakDuration * 60;
 
   if (initialMode === 'break' && initialTimeRemaining > breakSec) {
-    console.warn('Store rehydrate: Healing desynchronized state (mode break with work duration timeRemaining -> mode set to work)');
-    initialMode = 'work';
+    initialTimeRemaining = breakSec;
+    initialTotalTime = breakSec;
   } else if (initialMode === 'work' && initialTimeRemaining > workSec) {
-    console.warn('Store rehydrate: Healing desynchronized state (work timeRemaining exceeds work duration)');
     initialTimeRemaining = workSec;
     initialTotalTime = workSec;
   }
@@ -701,8 +700,48 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       const updates: Partial<TimerState> = { settings };
       if (!state.isRunning) {
         updates.totalIterations = settings.iterations ?? state.totalIterations;
+
+        if (state.mode === 'break') {
+          const newBreakSec = settings.breakDuration * 60;
+          const oldBreakSec = state.settings.breakDuration * 60;
+          if (state.timeRemaining === oldBreakSec || state.timeRemaining === state.totalTime || state.timeRemaining > newBreakSec) {
+            updates.timeRemaining = newBreakSec;
+            updates.totalTime = newBreakSec;
+          }
+        } else if (state.mode === 'work') {
+          const newWorkSec = settings.workDuration * 60;
+          const oldWorkSec = state.settings.workDuration * 60;
+          if (state.timeRemaining === oldWorkSec || state.timeRemaining === state.totalTime || state.timeRemaining > newWorkSec) {
+            updates.timeRemaining = newWorkSec;
+            updates.totalTime = newWorkSec;
+          }
+        }
       }
       set(updates);
+
+      // Persist the updated timer progress to localStorage
+      const freshState = get();
+      persistProgress({
+        timeRemaining: freshState.timeRemaining,
+        totalTime: freshState.totalTime,
+        mode: freshState.mode,
+        currentIteration: freshState.currentIteration,
+        totalIterations: freshState.totalIterations,
+        isPracticeComplete: freshState.isPracticeComplete,
+      });
+
+      if (worker) {
+        sendMessage('UPDATE_SETTINGS', settings).catch(() => {});
+        if (!freshState.isRunning) {
+          sendMessage('UPDATE_MODE', {
+            mode: freshState.mode,
+            timeRemaining: freshState.timeRemaining,
+            currentIteration: freshState.currentIteration,
+            totalIterations: freshState.totalIterations,
+            isRunning: false
+          }).catch(() => {});
+        }
+      }
     },
     setWorkerReady: (ready) => set({ workerReady: ready }),
     setActivePiece: (id, name) => set({ activePieceId: id, activePieceName: name }),
@@ -753,9 +792,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       const breakSec = state.settings.breakDuration * 60;
 
       if (state.mode === 'break' && state.timeRemaining > breakSec) {
-        console.warn('Store startTimer: mode was break but timeRemaining exceeds break duration. Correcting mode to work.');
-        effectiveMode = 'work';
-        set({ mode: 'work' });
+        effectiveMode = 'break';
+        set({ timeRemaining: breakSec, totalTime: breakSec });
       } else if (state.mode === 'work' && state.timeRemaining <= breakSec && breakSec < workSec && state.timeRemaining === breakSec) {
         console.warn('Store startTimer: mode was work but timeRemaining matches break duration. Correcting mode to break.');
         effectiveMode = 'break';
