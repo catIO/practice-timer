@@ -26,6 +26,23 @@ function stripMarkdown(text: string): string {
     .replace(/\*(.+?)\*/g, "$1");
 }
 
+function formatCheckedDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    const isSameYear = d.getFullYear() === now.getFullYear();
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      ...(isSameYear ? {} : { year: "numeric" }),
+    });
+  } catch {
+    return "";
+  }
+}
+
 /** Decode token during render so the first paint has snapshot data (RichLink metadata queries mount immediately). */
 function useTokenSnapshot(token: string | null): ReportSnapshot | null {
   return useMemo(() => {
@@ -42,6 +59,7 @@ function ReportItem({
   embeddedPieces,
   sharedId,
   sharedToken,
+  planType = "practice",
 }: {
   item: ReportSnapshotItem;
   depth?: number;
@@ -50,13 +68,13 @@ function ReportItem({
   embeddedPieces?: Record<string, any>;
   sharedId?: string;
   sharedToken?: string | null;
+  planType?: "practice" | "lesson";
 }) {
   const isDivider = item.blockType === "divider" || (item.text === "---" && !item.blockType);
   const isHeader =
     item.blockType === "heading1" ||
     item.blockType === "heading2" ||
     item.blockType === "heading3";
-  const isTodo = item.blockType === "todo";
   const isSegment = item.blockType === "segment";
 
   const paddingLeft = depth * 16;
@@ -102,6 +120,7 @@ function ReportItem({
               embeddedPieces={embeddedPieces}
               sharedId={sharedId}
               sharedToken={sharedToken}
+              planType={planType}
             />
           );
         })}
@@ -232,6 +251,7 @@ function ReportItem({
                   embeddedPieces={embeddedPieces}
                   sharedId={sharedId}
                   sharedToken={sharedToken}
+                  planType={planType}
                 />
               );
             })}
@@ -241,10 +261,27 @@ function ReportItem({
     );
   }
 
+  const isLessonTodo = planType === "lesson" && (item.blockType === "todo" || item.blockType === undefined);
+  const isLessonChecked = isLessonTodo && Boolean(item.checked);
+
   return (
     <div className="py-0.5" style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}>
       <div className="flex items-start gap-2 text-foreground">
-        {item.blockType === "todo" || item.blockType === "bullet" ? (
+        {planType === "lesson" && item.blockType === "todo" ? (
+          item.checked ? (
+            <span
+              className="shrink-0 mt-0.5 w-4 h-4 rounded border border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center select-none"
+              aria-label="Checked"
+            >
+              <span className="material-icons text-[12px] leading-none">check</span>
+            </span>
+          ) : (
+            <span
+              className="shrink-0 mt-0.5 w-4 h-4 rounded border border-muted-foreground/40 bg-transparent select-none"
+              aria-label="Unchecked"
+            />
+          )
+        ) : item.blockType === "todo" || item.blockType === "bullet" ? (
           <span className="shrink-0 mt-0.5 text-muted-foreground" aria-hidden>
             •
           </span>
@@ -253,8 +290,19 @@ function ReportItem({
             {numberIndex + 1}.
           </span>
         ) : null}
-        <span>
+        <span
+          className={cn(
+            "flex-1 min-w-0 flex items-center flex-wrap gap-x-2",
+            isLessonChecked && "text-muted-foreground line-through decoration-muted-foreground/50"
+          )}
+        >
           <TextWithLinks text={item.text || "\u00A0"} richLinkVariant="report" />
+          {planType === "lesson" && item.checked && item.checkedDate && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground/80 bg-muted/60 dark:bg-white/5 border border-border/50 px-1.5 py-0.5 rounded shrink-0 select-none not-sr-only no-underline font-normal inline-block">
+              <span className="material-icons text-[11px] mr-0.5">event_available</span>
+              {formatCheckedDate(item.checkedDate)}
+            </span>
+          )}
         </span>
       </div>
       {item.children.length > 0 && (
@@ -271,6 +319,7 @@ function ReportItem({
                 embeddedPieces={embeddedPieces}
                 sharedId={sharedId}
                 sharedToken={sharedToken}
+                planType={planType}
               />
             );
           })}
@@ -622,6 +671,7 @@ export default function Report() {
                         embeddedPieces={effectiveEmbeddedPieces}
                         sharedId={id}
                         sharedToken={token}
+                        planType="practice"
                       />
                     );
                   })
@@ -641,6 +691,7 @@ export default function Report() {
                       embeddedPieces={effectiveEmbeddedPieces}
                       sharedId={id}
                       sharedToken={token}
+                      planType="lesson"
                     />
                   );
                 })}
@@ -661,6 +712,7 @@ export default function Report() {
                     embeddedPieces={effectiveEmbeddedPieces}
                     sharedId={id}
                     sharedToken={token}
+                    planType="practice"
                   />
                 );
               })}

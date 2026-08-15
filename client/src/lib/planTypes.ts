@@ -13,6 +13,8 @@ export interface PlanItem {
   id: string;
   text: string;
   checked: boolean;
+  /** ISO timestamp when the item was checked. */
+  checkedDate?: string;
   children: PlanItem[];
   /** When true, renders as a section header (no checkbox, bold). */
   isHeader?: boolean;

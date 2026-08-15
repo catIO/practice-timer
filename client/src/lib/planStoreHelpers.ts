@@ -102,6 +102,7 @@ export function resetPlanChecks(items: PlanItem[]): PlanItem[] {
   return items.map((item) => ({
     ...item,
     checked: false,
+    checkedDate: undefined,
     children: resetPlanChecks(item.children),
   }));
 }
@@ -388,7 +389,11 @@ export function createPlanStoreApi(
             removeSegmentCompletionToday(item.id);
           }
         }
-        return { ...item, checked: newChecked };
+        return {
+          ...item,
+          checked: newChecked,
+          checkedDate: newChecked ? (item.checkedDate || new Date().toISOString()) : undefined,
+        };
       });
       save(next);
       return next;
@@ -399,7 +404,11 @@ export function createPlanStoreApi(
         if (!item.checked && item.blockType === "segment") {
           logSegmentCompletion(item.id);
         }
-        return { ...item, checked: true };
+        return {
+          ...item,
+          checked: true,
+          checkedDate: item.checkedDate || new Date().toISOString(),
+        };
       });
       save(next);
       return next;
@@ -410,7 +419,7 @@ export function createPlanStoreApi(
         if (item.checked && item.blockType === "segment") {
           removeSegmentCompletionToday(item.id);
         }
-        return { ...item, checked: false };
+        return { ...item, checked: false, checkedDate: undefined };
       });
       save(next);
       return next;

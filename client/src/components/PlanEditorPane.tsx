@@ -138,6 +138,23 @@ const PRACTICE_BLOCK_OPTIONS: { type: BlockType | "repertoire-piece"; label: str
 
 const ALL_BLOCK_OPTIONS = [...BASIC_BLOCK_OPTIONS, ...PRACTICE_BLOCK_OPTIONS];
 
+function formatCheckedDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    const isSameYear = d.getFullYear() === now.getFullYear();
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      ...(isSameYear ? {} : { year: "numeric" }),
+    });
+  } catch {
+    return "";
+  }
+}
+
 function EmptyLineSlot({
   index,
   onInsert,
@@ -422,8 +439,8 @@ interface PlanItemProps {
   onUpdateText: (id: string, text: string) => void;
   onUpdateType: (id: string, type: BlockType | "repertoire-piece") => void;
   onDelete: (id: string) => void;
-  onIndent: (id: string) => void;
-  onUnindent: (id: string) => void;
+  onIndent: (id: string, cursorPosition?: number | "start" | "end") => void;
+  onUnindent: (id: string, cursorPosition?: number | "start" | "end") => void;
   onInsertBelow: (id: string, blockType: BlockType | "repertoire-piece", empty?: boolean) => void;
   onInsertBefore: (id: string, blockType: BlockType | "repertoire-piece", empty?: boolean) => void;
   onNavigate: (id: string, direction: "up" | "down", fromEdit: boolean) => void;
@@ -442,6 +459,7 @@ interface PlanItemProps {
   repertoirePieces?: RepertoirePiece[];
   allowSegments?: boolean;
   onSelectAllBlocks: () => void;
+  planType?: "practice" | "lesson";
 }
 
 function PlanItem({
@@ -476,6 +494,7 @@ function PlanItem({
   repertoirePieces,
   allowSegments = true,
   onSelectAllBlocks,
+  planType,
 }: PlanItemProps & { repertoirePieces?: RepertoirePiece[] }) {
   const activePieceId = useTimerStore((state) => state.activePieceId);
   const pieceTimeRemaining = useTimerStore((state) => state.pieceTimeRemaining);
@@ -986,6 +1005,18 @@ function PlanItem({
         }
       }
 
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const cursorPos = target.selectionStart ?? "end";
+        saveEdit();
+        if (e.shiftKey) {
+          onUnindent(item.id, cursorPos);
+        } else {
+          onIndent(item.id, cursorPos);
+        }
+        return;
+      }
+
       // Standard interactions
       if (e.key === "Enter") {
         const isListType = blockType === "bullet" || blockType === "number" || blockType === "todo";
@@ -1008,7 +1039,7 @@ function PlanItem({
         if (isEmpty) {
           // If indented, unindent first (move out of nested list)
           if (depth > 0) {
-            onUnindent(item.id);
+            onUnindent(item.id, "end");
             return;
           }
           // If at root and is a list type, convert to text (break out of list mode)
@@ -1064,7 +1095,7 @@ function PlanItem({
         }
       }
     },
-    [item.id, blockType, depth, editValue, saveEdit, onUpdateType, onInsertBelow, onInsertBefore, onNavigate, onMergeWithPrevious, onUnindent, slashMenuOpen, slashHighlight, filteredSlashOptions, applySlashCommand]
+    [item.id, blockType, depth, editValue, saveEdit, onUpdateType, onInsertBelow, onInsertBefore, onNavigate, onMergeWithPrevious, onIndent, onUnindent, slashMenuOpen, slashHighlight, filteredSlashOptions, applySlashCommand]
   );
 
   const focusRow = useCallback(() => {
@@ -1986,7 +2017,7 @@ function PlanItem({
               className={cn(
                 "cursor-text text-sm block min-h-[1.5rem] leading-[1.25rem] select-text outline-none border-0",
                 blockType === "text" && "whitespace-pre-wrap",
-                !isHeader && blockType !== "text" && "flex items-center",
+                !isHeader && blockType !== "text" && "flex items-center flex-wrap gap-x-2",
                 item.checked && "text-muted-foreground",
                 !item.text && "text-muted-foreground/40 italic"
               )}
@@ -1999,6 +2030,12 @@ function PlanItem({
                   onRemoveLink={handleRemoveLink}
                 />
               ) : blockType === "text" ? "Type '/' for commands..." : ""}
+              {planType === "lesson" && item.checked && item.checkedDate && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground/80 bg-muted/60 dark:bg-white/5 border border-border/50 px-1.5 py-0.5 rounded shrink-0 select-none">
+                  <span className="material-icons text-[12px]">check</span>
+                  {formatCheckedDate(item.checkedDate)}
+                </span>
+              )}
             </span>
           )}
         </div>
@@ -2172,6 +2209,7 @@ function PlanItem({
                 repertoirePieces={repertoirePieces}
                 allowSegments={allowSegments}
                 onSelectAllBlocks={onSelectAllBlocks}
+                planType={planType}
               />
             ))}
           </SortableContext>
@@ -2987,12 +3025,18 @@ export function PlanEditorPane({
     setFocusRequest({ id: newId, type: "edit", cursorPosition: "end" });
   }, [applyChange, planApi]);
 
-  const handleIndent = useCallback((id: string) => {
+  const handleIndent = useCallback((id: string, cursorPosition?: number | "start" | "end") => {
     applyChange((prev) => planApi.indent(prev, id));
+    if (cursorPosition !== undefined) {
+      setFocusRequest({ id, type: "edit", cursorPosition });
+    }
   }, [applyChange, planApi]);
 
-  const handleUnindent = useCallback((id: string) => {
+  const handleUnindent = useCallback((id: string, cursorPosition?: number | "start" | "end") => {
     applyChange((prev) => planApi.unindent(prev, id));
+    if (cursorPosition !== undefined) {
+      setFocusRequest({ id, type: "edit", cursorPosition });
+    }
   }, [applyChange, planApi]);
 
   const handleReset = useCallback(() => {
@@ -3279,6 +3323,7 @@ export function PlanEditorPane({
                   repertoirePieces={repertoirePieces}
                   allowSegments={allowSegments}
                   onSelectAllBlocks={handleSelectAllBlocks}
+                  planType={planType}
                 />
               ))}
             </div>

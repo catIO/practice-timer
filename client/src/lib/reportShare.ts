@@ -14,6 +14,7 @@ export interface ReportSnapshotItem {
   id?: string;
   text: string;
   checked: boolean;
+  checkedDate?: string;
   blockType?: string;
   children: ReportSnapshotItem[];
   segmentGoal?: string;
@@ -53,6 +54,7 @@ function itemToSnapshot(item: PlanItem): ReportSnapshotItem {
   return {
     text: item.text,
     checked: item.checked ?? false,
+    checkedDate: item.checkedDate,
     blockType: item.blockType,
     children: item.children ? item.children.map(itemToSnapshot) : [],
     repertoirePieceId: item.repertoirePieceId,

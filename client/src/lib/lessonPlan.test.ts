@@ -47,7 +47,7 @@ describe('lessonPlan API & report integration', () => {
     expect(retrieved).toEqual(customPlan);
   });
 
-  it('modifies text and toggles checks via API', () => {
+  it('modifies text and toggles checks with checkedDate via API', () => {
     const initial = getLessonPlan();
     const id = initial[0].children[0]?.id;
     expect(id).toBeDefined();
@@ -58,19 +58,59 @@ describe('lessonPlan API & report integration', () => {
 
     const checked = lessonPlanApi.toggleCheck(updated, id);
     expect(checked[0].children[0].checked).toBe(true);
+    expect(checked[0].children[0].checkedDate).toBeDefined();
+    expect(new Date(checked[0].children[0].checkedDate!).getTime()).not.toBeNaN();
+
+    const unchecked = lessonPlanApi.toggleCheck(checked, id);
+    expect(unchecked[0].children[0].checked).toBe(false);
+    expect(unchecked[0].children[0].checkedDate).toBeUndefined();
   });
 
-  it('includes lesson plan items in created report snapshot', () => {
+  it('resets checkedDate when resetting checks', () => {
+    const initial = getLessonPlan();
+    const id = initial[0].children[0]?.id;
+    expect(id).toBeDefined();
+    if (!id) return;
+
+    const checked = lessonPlanApi.checkItem(initial, id);
+    expect(checked[0].children[0].checked).toBe(true);
+    expect(checked[0].children[0].checkedDate).toBeDefined();
+
+    const reset = lessonPlanApi.resetChecks(checked);
+    expect(reset[0].children[0].checked).toBe(false);
+    expect(reset[0].children[0].checkedDate).toBeUndefined();
+  });
+
+  it('includes lesson plan items, checked status, and checkedDate in created report snapshot', () => {
     const practiceItems: PlanItem[] = [
       { id: 'p1', text: 'Practice Session 1', checked: false, children: [], blockType: 'heading1' },
     ];
     const lessonItems: PlanItem[] = [
-      { id: 'l1', text: 'Lesson Goal 1', checked: false, children: [], blockType: 'heading1' },
+      {
+        id: 'l1',
+        text: 'Lesson Goal 1',
+        checked: true,
+        checkedDate: '2026-08-15T12:00:00.000Z',
+        children: [
+          {
+            id: 'l2',
+            text: 'Sub goal 1',
+            checked: false,
+            children: [],
+            blockType: 'todo',
+          },
+        ],
+        blockType: 'todo',
+      },
     ];
 
     const snapshot = createReportSnapshot(practiceItems, 'Test Report', undefined, undefined, undefined, lessonItems);
     expect(snapshot.items[0].text).toBe('Practice Session 1');
     expect(snapshot.lessonPlanItems).toBeDefined();
     expect(snapshot.lessonPlanItems![0].text).toBe('Lesson Goal 1');
+    expect(snapshot.lessonPlanItems![0].checked).toBe(true);
+    expect(snapshot.lessonPlanItems![0].checkedDate).toBe('2026-08-15T12:00:00.000Z');
+    expect(snapshot.lessonPlanItems![0].children[0].text).toBe('Sub goal 1');
+    expect(snapshot.lessonPlanItems![0].children[0].checked).toBe(false);
   });
 });
