@@ -1719,7 +1719,7 @@ function PlanItem({
                                 className={cn(
                                   "h-7 w-7 rounded-full transition-all duration-150 shrink-0 group/checkbtn",
                                   isCompletedToday
-                                    ? "bg-emerald-500 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 border border-emerald-500"
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90 border border-primary"
                                     : "border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
                                 )}
                                 onClick={(e) => {
