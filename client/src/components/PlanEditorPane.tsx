@@ -1716,12 +1716,7 @@ function PlanItem({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={cn(
-                                  "h-7 w-7 rounded-full transition-all duration-150 shrink-0 group/checkbtn",
-                                  isCompletedToday
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90 border border-primary"
-                                    : "border border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
-                                )}
+                                className="h-7 w-7 rounded-full border border-primary/40 text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150 shrink-0 group/checkbtn"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onToggle(item.id);
