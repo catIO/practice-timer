@@ -1339,15 +1339,31 @@ function PlanItem({
           </div>
         </div>
         {showCheckbox ? (
-          <Checkbox
-            id={item.id}
-            checked={item.checked}
-            onCheckedChange={() => onToggle(item.id)}
-            className="shrink-0 mt-0.5 touch-manipulation cursor-pointer"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={item.checked}
+            className="shrink-0 -my-1.5 -ml-2 p-2 flex items-center justify-center touch-manipulation cursor-pointer select-none rounded focus:outline-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(item.id);
+            }}
             onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          />
+            tabIndex={0}
+          >
+            <div
+              className={cn(
+                "h-4 w-4 rounded-[4px] border flex items-center justify-center transition-colors",
+                item.checked
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-primary/50 bg-background hover:bg-muted"
+              )}
+            >
+              {item.checked && (
+                <span className="material-icons text-[13px] font-bold leading-none select-none">check</span>
+              )}
+            </div>
+          </button>
         ) : blockType === "bullet" ? (
           <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-foreground/70" aria-hidden />
         ) : blockType === "number" ? (
