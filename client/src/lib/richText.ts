@@ -45,5 +45,7 @@ export function applyTextFormat(
  */
 export function stripMarkdownLinks(str: string | null | undefined): string {
   if (!str) return "";
-  return str.replace(/\[([^\]\(\)]+)\]?\((https?:\/\/[^\s\)]*)\)?/g, "$1");
+  return str
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s\)]+|[^)]+)\)/g, "$1")
+    .replace(/\[([^\]\(\)]+)\]?\((https?:\/\/[^\s\)]*)\)?/g, "$1");
 }

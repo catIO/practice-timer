@@ -3421,7 +3421,7 @@ export function PlanEditorPane({
           <DialogHeader>
             <DialogTitle>Set Time Box Duration</DialogTitle>
             <DialogDescription>
-              Set target duration (time box) for "{allocationItemText}".
+              Set target duration (time box) for "{stripMarkdownLinks(allocationItemText)}".
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
