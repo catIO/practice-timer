@@ -574,6 +574,25 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Choose light, dark, or system default colors.
               </p>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center">
+                  <span className="material-icons text-muted-foreground mr-3">screen_lock_portrait</span>
+                  <div>
+                    <Label htmlFor="keep-screen-awake">Keep Screen Awake</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Prevent the screen from sleeping while the timer is running.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="keep-screen-awake"
+                  checked={localSettings.keepScreenAwake ?? true}
+                  onCheckedChange={(checked) => handleSettingsUpdate({
+                    keepScreenAwake: checked
+                  })}
+                />
+              </div>
             </div>
           </div>
         </div>

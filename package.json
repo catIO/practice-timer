@@ -10,9 +10,9 @@
     "client": "cd client && vite",
     "build": "cd client && vite build",
     "lint": "eslint . --max-warnings 0",
-    "check": "tsc --noEmit && vitest run",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "check": "tsc --noEmit && vitest run --config client/vite.config.ts",
+    "test": "vitest run --config client/vite.config.ts",
+    "test:watch": "vitest --config client/vite.config.ts",
     "preview": "vite preview",
     "start": "netlify dev"
   },

@@ -18,7 +18,7 @@ let silentGain: GainNode | null = null;
 export const detectIPad = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   if (/iPad/.test(navigator.userAgent)) return true;
-  if (/Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints > 1 || 'ontouchstart' in window)) {
+  if (/Macintosh/.test(navigator.userAgent) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1) {
     return true;
   }
   return false;

@@ -792,8 +792,9 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       const breakSec = state.settings.breakDuration * 60;
 
       if (state.mode === 'break' && state.timeRemaining > breakSec) {
-        effectiveMode = 'break';
-        set({ timeRemaining: breakSec, totalTime: breakSec });
+        console.warn('Store startTimer: mode was break but timeRemaining exceeds break duration. Correcting mode to work.');
+        effectiveMode = 'work';
+        set({ mode: 'work' });
       } else if (state.mode === 'work' && state.timeRemaining <= breakSec && breakSec < workSec && state.timeRemaining === breakSec) {
         console.warn('Store startTimer: mode was work but timeRemaining matches break duration. Correcting mode to break.');
         effectiveMode = 'break';

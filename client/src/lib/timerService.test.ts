@@ -39,10 +39,14 @@ describe('timerService', () => {
             expect(DEFAULT_SETTINGS.theme).toBe('dark');
         });
 
+        it('has keepScreenAwake enabled by default', () => {
+            expect(DEFAULT_SETTINGS.keepScreenAwake).toBe(true);
+        });
+
         it('has all required fields', () => {
             const requiredFields: (keyof SettingsType)[] = [
                 'workDuration', 'breakDuration', 'iterations',
-                'soundEnabled', 'browserNotificationsEnabled',
+                'soundEnabled', 'browserNotificationsEnabled', 'keepScreenAwake',
                 'numberOfBeeps', 'mode', 'volume', 'soundType', 'weekStartsOn'
             ];
             for (const field of requiredFields) {

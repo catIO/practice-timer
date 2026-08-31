@@ -8,6 +8,7 @@ export interface SettingsType {
   userId?: number;
   soundEnabled: boolean;
   browserNotificationsEnabled: boolean;
+  keepScreenAwake: boolean;
   workDuration: number;
   breakDuration: number;
   iterations: number;
@@ -26,6 +27,7 @@ export const DEFAULT_SETTINGS: SettingsType = {
   iterations: 6,
   soundEnabled: true,
   browserNotificationsEnabled: false,
+  keepScreenAwake: true,
   numberOfBeeps: 3,
   mode: 'work',
   volume: 50,
