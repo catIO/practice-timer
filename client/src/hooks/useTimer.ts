@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import { resumeAudioContext, playSound } from '@/lib/soundEffects';
 import { useTimerStore } from '@/stores/timerStore';
 import { saveTimerProgress } from '@/lib/localStorage';
-import { requestWakeLock, releaseWakeLock } from '@/lib/wakeLockManager';
 import { initializeIOSBackgroundTimer, getIOSBackgroundTimer, cleanupIOSBackgroundTimer } from '@/lib/iOSBackgroundTimer';
 import { detectIOS } from '@/lib/device';
 
@@ -318,12 +317,6 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
         console.error('Error initializing audio context:', error);
       }
 
-      // Request wake lock to prevent screen timeout if user enabled it
-      const keepAwake = settings?.keepScreenAwake ?? true;
-      if (keepAwake) {
-        requestWakeLock().catch(() => {});
-      }
-
       // Start timer in store
       await storeStartTimer();
 
@@ -343,7 +336,7 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
         variant: "destructive",
       });
     }
-  }, [timeRemaining, mode, currentIteration, totalIterations, settings?.keepScreenAwake, storeStartTimer, startBackgroundTimer, toast]);
+  }, [timeRemaining, mode, currentIteration, totalIterations, storeStartTimer, startBackgroundTimer, toast]);
 
   // Pause timer
   const pauseTimer = useCallback(async () => {
@@ -356,7 +349,6 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
   // Reset timer
   const resetTimer = useCallback(async () => {
     await storeResetTimer();
-    releaseWakeLock().catch(() => {});
   }, [storeResetTimer]);
 
   // Skip timer
@@ -368,25 +360,6 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
   const updateSettings = useCallback((newSettings: typeof settings) => {
     setStoreSettings(newSettings);
   }, [setStoreSettings]);
-
-  // Manage wake lock state reactively
-  useEffect(() => {
-    const keepAwake = settings?.keepScreenAwake ?? true;
-    const shouldHoldWakeLock = keepAwake && (isRunning || pieceOvertimeRunning);
-
-    if (shouldHoldWakeLock) {
-      requestWakeLock().catch(() => {});
-    } else {
-      releaseWakeLock().catch(() => {});
-    }
-  }, [isRunning, pieceOvertimeRunning, settings?.keepScreenAwake]);
-
-  // Clean up wake lock on unmount
-  useEffect(() => {
-    return () => {
-      releaseWakeLock().catch(() => {});
-    };
-  }, []);
 
   // Sync iOS background timer with store state when timer starts
   useEffect(() => {

@@ -20,6 +20,7 @@ class WakeLockManager {
   constructor() {
     if (typeof window !== 'undefined') {
       this.attachVisibilityListeners();
+      this.setupGestureRecovery();
     }
   }
 
@@ -40,16 +41,19 @@ class WakeLockManager {
       video.setAttribute('webkit-playsinline', '');
       video.setAttribute('loop', '');
       video.setAttribute('muted', '');
+      video.setAttribute('aria-hidden', 'true');
       video.muted = true;
       video.playsInline = true;
       video.loop = true;
+      // Position within viewport micro-footprint so WebKit power management does not throttle it
       video.style.position = 'fixed';
-      video.style.left = '-9999px';
-      video.style.top = '-9999px';
+      video.style.bottom = '0';
+      video.style.right = '0';
       video.style.width = '1px';
       video.style.height = '1px';
-      video.style.opacity = '0';
+      video.style.opacity = '0.001';
       video.style.pointerEvents = 'none';
+      video.style.zIndex = '-1';
       video.src = BLANK_VIDEO_DATA_URI;
       this.fallbackVideo = video;
     }
@@ -62,7 +66,7 @@ class WakeLockManager {
 
     const handleVisibilityOrFocus = async () => {
       if (this.isRequested && document.visibilityState === 'visible') {
-        // Page returned to foreground; re-acquire native wake lock if released by Safari
+        // Page returned to foreground; re-acquire wake lock if released by Safari
         await this.acquireInternal();
       }
     };
@@ -70,6 +74,22 @@ class WakeLockManager {
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
     window.addEventListener('focus', handleVisibilityOrFocus);
     window.addEventListener('pageshow', handleVisibilityOrFocus);
+  }
+
+  private setupGestureRecovery(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const onGesture = async () => {
+      // If wake lock is requested but neither native sentinel nor playing video is active, try acquiring
+      if (this.isRequested && !this.nativeSentinel && (!this.fallbackVideo || this.fallbackVideo.paused)) {
+        await this.acquireInternal();
+      }
+    };
+
+    const gestureEvents = ['touchstart', 'touchend', 'pointerdown', 'click'];
+    gestureEvents.forEach((evt) => {
+      document.addEventListener(evt, onGesture, { passive: true });
+    });
   }
 
   private async acquireInternal(): Promise<boolean> {
@@ -80,16 +100,31 @@ class WakeLockManager {
       try {
         const sentinel = await (navigator as any).wakeLock.request('screen');
         this.nativeSentinel = sentinel;
+
+        // Clean up video fallback if native succeeded
+        if (this.fallbackVideo && !this.fallbackVideo.paused) {
+          try {
+            this.fallbackVideo.pause();
+          } catch (e) {
+            // Ignore
+          }
+        }
+
         sentinel.addEventListener('release', () => {
           this.nativeSentinel = null;
-          if (!this.isRequested) {
+          if (this.isRequested) {
+            // Safari/WebKit revoked the lock (e.g. multitasking, slide over, lock screen)
+            // Re-acquire native or fall back to video loop
+            this.acquireInternal().catch(() => {});
+          } else {
             this.updateStatusAttribute(false);
           }
         });
+
         this.updateStatusAttribute(true);
         return true;
       } catch (error) {
-        // Native wake lock can fail in low power mode or non-secure contexts
+        // Native wake lock can fail in low power mode, non-secure contexts, or standalone PWA
         console.warn('[WakeLock] Native wakeLock request failed, trying fallback:', error);
       }
     }

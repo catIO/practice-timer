@@ -13,7 +13,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { resumeAudioContext } from "@/lib/soundEffects";
 import { getSettings } from "@/lib/localStorage";
 import { iOSBackgroundInstructions } from "@/components/IOSBackgroundInstructions";
-import { cleanupWakeLockFallback } from "@/lib/wakeLockFallback";
 import { cn } from "@/lib/utils";
 import { useTimerStore } from "@/stores/timerStore";
 import { PracticePlanPane } from "@/components/PracticePlanPane";
@@ -43,7 +42,6 @@ export default function Home() {
   const settings: SettingsType = getSettings();
   const audioInitialized = useTimerStore((state) => state.audioInitialized);
   const setAudioInitialized = useTimerStore((state) => state.setAudioInitialized);
-  const [wakeLockActive, setWakeLockActive] = useState(false);
   // Setup notifications and toast
   const { toast } = useToast();
   const { showNotification, showTimerCompletionNotification } = useNotification();
@@ -131,13 +129,6 @@ export default function Home() {
     skipTimer();
   }, [skipTimer, isSkipping]);
 
-  // Cleanup wake locks when component unmounts
-  useEffect(() => {
-    return () => {
-      cleanupWakeLockFallback();
-    };
-  }, []);
-
   // Handle start timer
   const handleStart = useCallback(async () => {
     // Initialize audio context first when play button is clicked
@@ -202,31 +193,6 @@ export default function Home() {
     // Allowing timer to continue running while user checks their practice log
     navigate('/practice-log');
   }, [navigate]);
-
-
-  // Monitor wake lock status
-  useEffect(() => {
-    const checkWakeLockStatus = () => {
-      // Check if a wake lock is actually held (not just API presence)
-      const hasNativeWakeLock = !!document.querySelector('[data-wake-lock="active"]');
-      const hasWakeLockFallback = document.documentElement.getAttribute('data-wake-lock') === 'active';
-
-      setWakeLockActive(hasNativeWakeLock || hasWakeLockFallback);
-    };
-
-    // Check initially
-    checkWakeLockStatus();
-
-    // Check periodically while any timer (main or segment overtime) is active
-    const active = isRunning || pieceOvertimeRunning;
-    const intervalId = active ? setInterval(checkWakeLockStatus, 5000) : null;
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [isRunning, pieceOvertimeRunning]);
 
 
 

@@ -24,6 +24,7 @@ import { SharedReportProvider } from '@/contexts/SharedReportContext';
 import { ShareProvider } from '@/contexts/ShareContext';
 
 import { useTimerStore } from '@/stores/timerStore';
+import { useGlobalWakeLock } from '@/hooks/useGlobalWakeLock';
 import { ToastProvider, useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 
@@ -66,6 +67,7 @@ function AppRoutes() {
 
 function AppContent() {
   const { toast } = useToast();
+  useGlobalWakeLock();
 
   useEffect(() => {
     // Initialize settings from local storage

@@ -581,7 +581,7 @@ export default function Settings() {
                   <div>
                     <Label htmlFor="keep-screen-awake">Keep Screen Awake</Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Prevent the screen from sleeping while the timer is running.
+                      Prevent the screen from sleeping while using the app.
                     </p>
                   </div>
                 </div>
