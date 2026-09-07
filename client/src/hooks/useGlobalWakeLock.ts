@@ -3,23 +3,28 @@ import { useTimerStore } from '@/stores/timerStore';
 import { requestWakeLock, releaseWakeLock } from '@/lib/wakeLockManager';
 
 /**
- * Global hook to manage screen lock prevention across all pages in the app.
- * Keeps the screen awake whenever `keepScreenAwake` is enabled in settings (defaults to true).
+ * Global hook to manage screen lock prevention across the app.
+ * Keeps the screen awake only when `keepScreenAwake` is enabled in settings (defaults to true)
+ * AND a timer is actively running (work timer, break timer, or overtime).
  */
 export function useGlobalWakeLock(): void {
   const keepScreenAwake = useTimerStore((state) => state.settings?.keepScreenAwake ?? true);
+  const isRunning = useTimerStore((state) => state.isRunning);
+  const pieceOvertimeRunning = useTimerStore((state) => state.pieceOvertimeRunning);
+
+  const shouldKeepAwake = keepScreenAwake && (isRunning || pieceOvertimeRunning);
 
   useEffect(() => {
-    if (keepScreenAwake) {
+    if (shouldKeepAwake) {
       requestWakeLock().catch(() => {});
     } else {
       releaseWakeLock().catch(() => {});
     }
-  }, [keepScreenAwake]);
+  }, [shouldKeepAwake]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && keepScreenAwake) {
+      if (document.visibilityState === 'visible' && shouldKeepAwake) {
         requestWakeLock().catch(() => {});
       }
     };
@@ -28,7 +33,7 @@ export function useGlobalWakeLock(): void {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [keepScreenAwake]);
+  }, [shouldKeepAwake]);
 
   // Release on application unmount
   useEffect(() => {
