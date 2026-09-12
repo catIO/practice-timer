@@ -288,6 +288,15 @@ const playSoundWebAudio = async (
     oscillator.start(context.currentTime);
     oscillator.stop(context.currentTime + decay + 0.1);
   }
+
+  // Suspend AudioContext after sound finishes decaying so iOS / iPadOS does not
+  // treat the idle AudioContext as an active media session preventing screen sleep.
+  const remainingDecay = effect === 'end' ? 1.6 : 0.6;
+  setTimeout(() => {
+    if (!silentSource && context && context.state === 'running') {
+      context.suspend().catch(() => {});
+    }
+  }, Math.ceil((remainingDecay + 0.2) * 1000));
 };
 
 // Main entry point for sound playback

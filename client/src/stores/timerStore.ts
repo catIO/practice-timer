@@ -509,6 +509,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
               }
 
               // Stop running state & transition to completed mode from worker payload
+              stopSilenceKeepAlive();
               const completeTimeRemaining = payload.timeRemaining || (
                 payload.mode === 'work'
                   ? get().settings.workDuration * 60
@@ -571,6 +572,10 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   }
                 } catch (e) {
                   console.error('[timerStore] Error playing PLAY_SOUND audio:', e);
+                } finally {
+                  if (!get().isRunning && !get().pieceOvertimeRunning) {
+                    stopSilenceKeepAlive();
+                  }
                 }
               })();
               break;
@@ -605,6 +610,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   }
                 } catch (e) {
                   console.error('[timerStore] Error playing PRACTICE_COMPLETE sound:', e);
+                } finally {
+                  stopSilenceKeepAlive();
                 }
               })();
               set({ isPracticeComplete: true, isRunning: false });
@@ -878,6 +885,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       }
 
       console.log('Store: Starting skip operation');
+      stopSilenceKeepAlive();
       set({ isSkipping: true });
 
       // Clear any existing timeout first
@@ -1076,6 +1084,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     stopPieceOvertime: () => {
       stopWorkerPieceTicks();
       set({ pieceOvertimeRunning: false });
+      stopSilenceKeepAlive();
     },
 
     togglePausePiece: () => {

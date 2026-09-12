@@ -56,6 +56,39 @@ export default function Settings() {
   const [isUpdatingDisplayName, setIsUpdatingDisplayName] = useState(false);
   const [displayNameSuccess, setDisplayNameSuccess] = useState(false);
   const [displayNameError, setDisplayNameError] = useState<string | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+
+  const handleCheckUpdatesAndReload = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          await reg.update().catch(() => {});
+        }
+      }
+
+      toast({
+        title: "Cache cleared",
+        description: "Reloading latest version...",
+      });
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err) {
+      console.error('Update check failed:', err);
+      window.location.reload();
+    }
+  };
 
   // Sync activeTab when query param changes
   useEffect(() => {
@@ -593,6 +626,28 @@ export default function Settings() {
                   })}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* App Updates & Cache */}
+          <div className="bg-card border border-white/5 rounded-2xl p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">App Updates & Cache</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Check for the latest version and clear locally cached files. Useful when updating the app on an iPad or mobile home screen.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/10"
+                onClick={handleCheckUpdatesAndReload}
+                disabled={isCheckingUpdate}
+              >
+                <span className="material-icons text-sm mr-1.5">refresh</span>
+                {isCheckingUpdate ? 'Updating...' : 'Check for Updates & Reload'}
+              </Button>
             </div>
           </div>
         </div>

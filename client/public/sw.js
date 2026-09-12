@@ -1,4 +1,4 @@
-const CACHE_NAME = 'practice-timer-v3';
+const CACHE_NAME = 'practice-timer-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -50,35 +50,32 @@ self.addEventListener('activate', (event) => {
             .map((name) => caches.delete(name))
         );
       }),
-      registerBackgroundSync()
+      registerBackgroundSync().catch(() => {})
     ])
   );
 });
 
 // Register background sync for iOS background operation
 async function registerBackgroundSync() {
-  if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-
-      // Register periodic background sync if supported
-      if ('periodicSync' in window.ServiceWorkerRegistration.prototype) {
-        const status = await navigator.permissions.query({
-          name: 'periodic-background-sync'
-        });
-
-        if (status.state === 'granted') {
-          await registration.periodicSync.register('timer-sync', {
-            minInterval: 60000 // Minimum 1 minute interval
-          });
-          console.log('Periodic background sync registered');
-        }
-      }
-
+  try {
+    if (self.registration && 'sync' in self.registration) {
       backgroundSyncRegistered = true;
-    } catch (error) {
-      console.log('Background sync registration failed:', error);
     }
+
+    if (self.registration && 'periodicSync' in self.registration && self.navigator && 'permissions' in self.navigator) {
+      const status = await self.navigator.permissions.query({
+        name: 'periodic-background-sync'
+      });
+
+      if (status.state === 'granted') {
+        await self.registration.periodicSync.register('timer-sync', {
+          minInterval: 60000 // Minimum 1 minute interval
+        });
+        console.log('Periodic background sync registered');
+      }
+    }
+  } catch (error) {
+    console.log('Background sync registration notice:', error);
   }
 }
 
@@ -232,6 +229,16 @@ self.addEventListener('message', (event) => {
 
     case 'GET_BACKGROUND_STATE':
       event.ports[0].postMessage(backgroundTimerState);
+      break;
+
+    case 'CLEAR_CACHE':
+      caches.keys().then((names) => {
+        return Promise.all(names.map((name) => caches.delete(name)));
+      }).then(() => {
+        if (event.ports && event.ports[0]) {
+          event.ports[0].postMessage({ success: true });
+        }
+      });
       break;
   }
 });
