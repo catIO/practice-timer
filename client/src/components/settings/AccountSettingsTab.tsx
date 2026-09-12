@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,13 @@ export function AccountSettingsTab({
   const [displayNameSuccess, setDisplayNameSuccess] = useState(false);
   const [displayNameError, setDisplayNameError] = useState<string | null>(null);
 
+  // Sync display name when user prop updates
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.user_metadata?.full_name || user.user_metadata?.name || '');
+    }
+  }, [user]);
+
   // Password state
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -44,16 +51,40 @@ export function AccountSettingsTab({
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [isRestoringPlan, setIsRestoringPlan] = useState(false);
 
+  const formatErrorMessage = (msg?: string | null): string => {
+    if (!msg) return 'An unexpected error occurred';
+    if (msg.toLowerCase().includes('failed to fetch')) {
+      return 'Unable to reach the server. Please check your internet connection or ad blocker.';
+    }
+    return msg;
+  };
+
   const handleDisplayNameUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setDisplayNameError(null);
     setDisplayNameSuccess(false);
+
+    const trimmed = displayName.trim();
+    if (!trimmed) {
+      setDisplayNameError('Name cannot be empty');
+      return;
+    }
+
+    const currentName = user?.user_metadata?.full_name || user?.user_metadata?.name || '';
+    if (trimmed === currentName) {
+      toast({
+        title: 'No changes',
+        description: 'Display name is already set to that value.',
+      });
+      return;
+    }
+
     setIsUpdatingDisplayName(true);
 
     try {
-      const { error } = await updateDisplayName(displayName.trim());
+      const { error } = await updateDisplayName(trimmed);
       if (error) {
-        setDisplayNameError(error.message);
+        setDisplayNameError(formatErrorMessage(error.message));
       } else {
         setDisplayNameSuccess(true);
         await onRefreshUser();
@@ -63,7 +94,7 @@ export function AccountSettingsTab({
         });
       }
     } catch {
-      setDisplayNameError('Failed to update display name');
+      setDisplayNameError('Unable to reach the server. Please check your connection.');
     } finally {
       setIsUpdatingDisplayName(false);
     }
@@ -87,7 +118,7 @@ export function AccountSettingsTab({
     try {
       const { error } = await updatePassword(newPassword);
       if (error) {
-        setPasswordError(error.message);
+        setPasswordError(formatErrorMessage(error.message));
       } else {
         setPasswordSuccess(true);
         setNewPassword('');
@@ -98,7 +129,7 @@ export function AccountSettingsTab({
         });
       }
     } catch {
-      setPasswordError('Failed to update password');
+      setPasswordError('Unable to reach the server. Please check your connection.');
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -233,7 +264,11 @@ export function AccountSettingsTab({
                 id="display-name"
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => {
+                  setDisplayName(e.target.value);
+                  if (displayNameError) setDisplayNameError(null);
+                  if (displayNameSuccess) setDisplayNameSuccess(false);
+                }}
                 placeholder="Your name"
                 className="mt-1"
               />
@@ -275,7 +310,11 @@ export function AccountSettingsTab({
               id="new-password"
               type="password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e) => {
+                setNewPassword(e.target.value);
+                if (passwordError) setPasswordError(null);
+                if (passwordSuccess) setPasswordSuccess(false);
+              }}
               placeholder="New password (min 6 characters)"
               className="mt-1"
               required
@@ -288,7 +327,11 @@ export function AccountSettingsTab({
               id="confirm-new-password"
               type="password"
               value={confirmNewPassword}
-              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              onChange={(e) => {
+                setConfirmNewPassword(e.target.value);
+                if (passwordError) setPasswordError(null);
+                if (passwordSuccess) setPasswordSuccess(false);
+              }}
               placeholder="Confirm new password"
               className="mt-1"
               required
