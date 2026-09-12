@@ -22,6 +22,7 @@ import SharedPieceDetail from '@/pages/SharedPieceDetail';
 import { NavigationLayout } from '@/components/NavigationLayout';
 import { SharedReportProvider } from '@/contexts/SharedReportContext';
 import { ShareProvider } from '@/contexts/ShareContext';
+import { AboutProvider } from '@/contexts/AboutContext';
 
 import { useTimerStore } from '@/stores/timerStore';
 import { useGlobalWakeLock } from '@/hooks/useGlobalWakeLock';
@@ -187,9 +188,11 @@ function App() {
         <AuthProvider>
           <SharedReportProvider>
             <ShareProvider>
-              <ToastProvider>
-                <AppContent />
-              </ToastProvider>
+              <AboutProvider>
+                <ToastProvider>
+                  <AppContent />
+                </ToastProvider>
+              </AboutProvider>
             </ShareProvider>
           </SharedReportProvider>
         </AuthProvider>

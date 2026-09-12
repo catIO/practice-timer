@@ -15,7 +15,9 @@ import { AuthModal } from '@/components/AuthModal';
 import { cn } from '@/lib/utils';
 import { useSharedReport } from '@/contexts/SharedReportContext';
 import { useShareModal } from '@/contexts/ShareContext';
+import { useAboutModal } from '@/contexts/AboutContext';
 import { GlobalShareModal } from '@/components/GlobalShareModal';
+import { AboutModal } from '@/components/AboutModal';
 import { stripMarkdownLinks } from '@/lib/richText';
 
 interface NavigationLayoutProps {
@@ -25,6 +27,7 @@ interface NavigationLayoutProps {
 export function NavigationLayout({ children }: NavigationLayoutProps) {
   const { creatorName } = useSharedReport();
   const { openShareModal } = useShareModal();
+  const { openAboutModal } = useAboutModal();
   const location = useLocation();
   const pathname = location.pathname;
   const navigate = useNavigate();
@@ -352,6 +355,43 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
             })
           )}
         </nav>
+
+        {/* Sidebar Footer: About & Practice Lab Suite */}
+        <div className="p-3 border-t border-black/5 dark:border-white/10 mt-auto space-y-1">
+          {isSidebarExpanded ? (
+            <div className="space-y-1">
+              <button
+                onClick={() => openAboutModal('about')}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all text-left"
+              >
+                <span className="material-icons text-base text-primary">info</span>
+                <span className="font-medium truncate">About Practice Mate</span>
+              </button>
+              <a
+                href="https://practice-lab.net"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] text-muted-foreground/70 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all group"
+              >
+                <span className="truncate">Practice Lab Suite</span>
+                <span className="material-icons text-xs group-hover:translate-x-0.5 transition-transform">open_in_new</span>
+              </a>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => openAboutModal('about')}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition-all duration-200 relative group"
+                aria-label="About Practice Mate"
+              >
+                <span className="material-icons text-lg">info</span>
+                <span className="absolute left-16 scale-0 bg-slate-900 border border-white/10 text-foreground text-xs py-1 px-2.5 rounded-lg transition-all whitespace-nowrap z-50 group-hover:scale-100">
+                  About Practice Mate
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* 2. Main Container (Top App Bar + Page Card View) */}
@@ -565,6 +605,9 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
 
       {/* Global Share Modal Container */}
       <GlobalShareModal />
+
+      {/* About & Privacy Modal Container */}
+      <AboutModal />
     </div>
   );
 }

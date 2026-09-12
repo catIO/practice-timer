@@ -2344,7 +2344,7 @@ export function PlanEditorPane({
 
   const [items, setItems] = useState<PracticePlanItem[]>([]);
   const { toast } = useToast();
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, user, isSyncingData } = useAuth();
   const { data: repertoirePieces = [] } = useQuery({
     queryKey: ['repertoire'],
     queryFn: repertoireService.getAll,
@@ -2356,6 +2356,14 @@ export function PlanEditorPane({
 
   useEffect(() => {
     setItems(planApi.get());
+  }, [planApi, isSyncingData]);
+
+  useEffect(() => {
+    const handlePlanDataSynced = () => {
+      setItems(planApi.get());
+    };
+    window.addEventListener('plan-data-synced', handlePlanDataSynced);
+    return () => window.removeEventListener('plan-data-synced', handlePlanDataSynced);
   }, [planApi]);
 
   // Maintain a flat list of IDs for navigation
@@ -3276,6 +3284,17 @@ export function PlanEditorPane({
   }, [applyChange, planApi]);
 
   if (!open) return null;
+
+  if (isSyncingData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 min-h-[300px]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">
+          Loading {planTitle ? planTitle.toLowerCase() : "plan"}...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

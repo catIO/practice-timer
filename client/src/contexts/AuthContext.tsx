@@ -16,6 +16,7 @@ interface AuthContextType {
     session: Session | null;
     isLoggedIn: boolean;
     isLoading: boolean;
+    isSyncingData: boolean;
     isPasswordRecovery: boolean;
     clearPasswordRecovery: () => void;
     signUp: (email: string, password: string) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
@@ -42,6 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isSyncingData, setIsSyncingData] = useState<boolean>(false);
     const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
 
     const clearPasswordRecovery = () => setIsPasswordRecovery(false);
@@ -85,8 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     setSession(currentSession);
                     setUser(currentSession?.user ?? null);
                     if (currentSession?.user) {
+                        setIsSyncingData(true);
                         migrateLocalReports(currentSession.user.id);
-                        pullUserDataFromCloud();
+                        await pullUserDataFromCloud();
                     }
                 }
             } catch (error) {
@@ -94,6 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             } finally {
                 if (mounted) {
                     setIsLoading(false);
+                    setIsSyncingData(false);
                 }
             }
         };
@@ -101,13 +105,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         initializeAuth();
         initUserDataSync();
 
-        const { data: { subscription } } = onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = onAuthStateChange(async (_event, session) => {
             if (mounted) {
                 setSession(session);
                 setUser(session?.user ?? null);
-                if (session?.user) {
+                if (session?.user && _event === 'SIGNED_IN') {
+                    setIsSyncingData(true);
                     migrateLocalReports(session.user.id);
-                    pullUserDataFromCloud();
+                    await pullUserDataFromCloud();
+                    if (mounted) {
+                        setIsSyncingData(false);
+                    }
                 }
                 if (_event === 'PASSWORD_RECOVERY') {
                     setIsPasswordRecovery(true);
@@ -136,17 +144,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const signIn = async (email: string, password: string) => {
         try {
+            setIsSyncingData(true);
             const result = await authSignIn(email, password);
             if (result.error) {
+                setIsSyncingData(false);
                 return { error: new Error(result.error.message) };
             }
+            if (result.user) {
+                migrateLocalReports(result.user.id);
+                try {
+                    await pullUserDataFromCloud();
+                } catch (e) {
+                    console.warn('[AuthContext] Failed to pull cloud data on sign-in:', e);
+                }
+            }
+            setIsSyncingData(false);
             return { error: null };
         } catch (error) {
+            setIsSyncingData(false);
             return { error: error instanceof Error ? error : new Error('Sign in failed') };
         }
     };
 
     const signOut = async () => {
+        setIsSyncingData(false);
         try {
             await authSignOut();
         } catch (error) {
@@ -182,6 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         session,
         isLoggedIn: !!user,
         isLoading,
+        isSyncingData,
         isPasswordRecovery,
         clearPasswordRecovery,
         signUp,

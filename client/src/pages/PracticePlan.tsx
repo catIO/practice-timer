@@ -12,7 +12,7 @@ export default function PracticePlan() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { showNotification } = useNotification();
-    const { isLoggedIn } = useAuth();
+    const { isLoggedIn, isSyncingData } = useAuth();
 
     const timeRemaining = useTimerStore((state) => state.timeRemaining);
     const totalTime = useTimerStore((state) => state.totalTime);
@@ -98,6 +98,17 @@ export default function PracticePlan() {
                 title="Build Your Practice Plan"
                 description="Design structured practice sessions with tasks, timings, and notes to focus your time and track your progress."
             />
+        );
+    }
+
+    if (isSyncingData) {
+        return (
+            <div className="flex flex-col items-center justify-center py-24 space-y-4 min-h-[350px]">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-sm font-medium text-muted-foreground animate-pulse">
+                    Loading your practice plan...
+                </p>
+            </div>
         );
     }
 

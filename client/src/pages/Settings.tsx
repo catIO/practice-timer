@@ -18,6 +18,9 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { restorePlanFromSnapshot, type ReportSnapshot } from "@/lib/reportShare";
 import { practicePlanApi } from "@/lib/practicePlan";
 import { supabase } from "@/lib/supabaseClient";
+import { useAboutModal } from "@/contexts/AboutContext";
+import { exportAllPracticeData } from "@/lib/exportData";
+import { openProtectedMailto, copyProtectedEmail } from "@/lib/contactObfuscation";
 
 
 import {
@@ -42,6 +45,7 @@ export default function Settings() {
   const [isSoundTypeChanging, setIsSoundTypeChanging] = useState(false);
   const { isRunning } = useTimerStore();
   const { isLoggedIn, user, signOut, refreshUser } = useAuth();
+  const { openAboutModal } = useAboutModal();
 
   const initialTab = searchParams.get('tab') === 'account' ? 'account' : 'general';
   const [activeTab, setActiveTab] = useState<'general' | 'account'>(initialTab);
@@ -360,6 +364,45 @@ export default function Settings() {
             </form>
           </div>
 
+          {/* Privacy & Account Deletion */}
+          <div className="pt-4 border-t border-white/10 space-y-2">
+            <h3 className="text-sm font-medium text-foreground">Data Deletion & Privacy Rights</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Under GDPR and CCPA, you have the right to request deletion of your account and all associated cloud data (practice plans, lesson plans, repertoire entries, and logs).
+            </p>
+            <div className="pt-1 flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/10 text-xs h-8"
+                onClick={() => openProtectedMailto({
+                  subject: 'Practice Mate Account and Data Deletion Request',
+                  body: `Please delete my Practice Mate account and all associated data for: ${user?.email || ''}`,
+                })}
+              >
+                <span className="material-icons text-xs mr-1">mail</span>
+                Email Deletion Request
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                onClick={async () => {
+                  const copied = await copyProtectedEmail();
+                  if (copied) {
+                    toast({
+                      title: "Email copied",
+                      description: "Contact address copied to clipboard.",
+                    });
+                  }
+                }}
+              >
+                <span className="material-icons text-xs mr-1">content_copy</span>
+                Copy Contact Email
+              </Button>
+            </div>
+          </div>
+
           <div className="pt-4 border-t border-white/10">
             <Button variant="destructive" size="sm" onClick={handleSignOut}>
               Sign Out
@@ -626,6 +669,60 @@ export default function Settings() {
                   })}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* About, Privacy & Data Export */}
+          <div className="bg-card border border-white/5 rounded-2xl p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">About Practice Mate</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Structured practice tools for musicians. Part of the Practice Lab suite, crafted by Catherina.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/10"
+                onClick={() => openAboutModal('about')}
+              >
+                <span className="material-icons text-sm mr-1.5">info</span>
+                About & Ecosystem
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/10"
+                onClick={() => openAboutModal('privacy')}
+              >
+                <span className="material-icons text-sm mr-1.5">shield</span>
+                Privacy & Rights
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/10"
+                onClick={() => {
+                  try {
+                    const { count, filename } = exportAllPracticeData();
+                    toast({
+                      title: "Practice data exported",
+                      description: `Exported ${count} data collections to ${filename}.`,
+                    });
+                  } catch (e) {
+                    console.error("Export failed:", e);
+                    toast({
+                      title: "Export failed",
+                      description: "Could not export practice data.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                <span className="material-icons text-sm mr-1.5">download</span>
+                Export Data (JSON)
+              </Button>
             </div>
           </div>
 

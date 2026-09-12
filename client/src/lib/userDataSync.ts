@@ -51,6 +51,10 @@ export async function pullUserDataFromCloud(): Promise<boolean> {
       await pushUserDataToCloud();
     }
 
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('plan-data-synced'));
+    }
+
     isSyncing = false;
     return true;
   } catch (err) {

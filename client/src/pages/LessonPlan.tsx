@@ -13,7 +13,7 @@ export default function LessonPlan() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { showNotification } = useNotification();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isSyncingData } = useAuth();
 
   const timeRemaining = useTimerStore((state) => state.timeRemaining);
   const totalTime = useTimerStore((state) => state.totalTime);
@@ -96,6 +96,17 @@ export default function LessonPlan() {
         title="Save Your Lesson Plans"
         description="Capture lesson notes and structured plans from your teacher so you can review and practice with intention."
       />
+    );
+  }
+
+  if (isSyncingData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4 min-h-[350px]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">
+          Loading your lesson plan...
+        </p>
+      </div>
     );
   }
 
