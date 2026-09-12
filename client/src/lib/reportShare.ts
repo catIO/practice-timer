@@ -349,3 +349,51 @@ export function restorePlanFromSnapshot(snapshot: ReportSnapshot): PlanItem[] {
 
   return snapshot.items.map(snapshotItemToPlanItem);
 }
+
+/**
+ * Generates a clean, URL-safe anchor slug for headings in reports.
+ * Strips markdown markup, removes non-alphanumeric chars, and collapses hyphens.
+ */
+export function slugifyHeader(text: string): string {
+  if (!text) return "";
+  const plain = text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // strip markdown links
+    .replace(/\*\*(.+?)\*\*/g, "$1")         // strip bold
+    .replace(/\*(.+?)\*/g, "$1")             // strip italic
+    .replace(/^#+\s*/, "")                   // strip leading markdown heading markers
+    .trim()
+    .toLowerCase();
+
+  return plain
+    .replace(/[^\w\s-]/g, "") // remove non-word chars
+    .replace(/\s+/g, "-")     // replace spaces with single hyphen
+    .replace(/-+/g, "-")      // collapse duplicate hyphens
+    .replace(/^-|-$/g, "");   // trim leading/trailing hyphens
+}
+
+/**
+ * Checks if a target heading slug exists within a hierarchical list of report items.
+ */
+export function findSlugInItems(items: ReportSnapshotItem[] | undefined, targetSlug: string): boolean {
+  if (!items || !items.length || !targetSlug) return false;
+  const cleanTarget = targetSlug.toLowerCase().replace(/-/g, "");
+  for (const item of items) {
+    const isHeader =
+      item.blockType === "heading1" ||
+      item.blockType === "heading2" ||
+      item.blockType === "heading3";
+    if (isHeader) {
+      const itemSlug = slugifyHeader(item.text);
+      if (itemSlug === targetSlug || itemSlug.replace(/-/g, "") === cleanTarget) {
+        return true;
+      }
+    }
+    if (item.children && item.children.length > 0) {
+      if (findSlugInItems(item.children, targetSlug)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+

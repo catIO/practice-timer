@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
-import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type ReportLogSummary } from "@/lib/reportShare";
+import { decodeReportToken, type ReportSnapshot, type ReportSnapshotItem, type ReportLogSummary, slugifyHeader, findSlugInItems } from "@/lib/reportShare";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextWithLinks } from "@/components/TextWithLinks";
@@ -70,6 +71,8 @@ function ReportItem({
   sharedToken?: string | null;
   planType?: "practice" | "lesson";
 }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
   const isDivider = item.blockType === "divider" || (item.text === "---" && !item.blockType);
   const isHeader =
     item.blockType === "heading1" ||
@@ -100,13 +103,54 @@ function ReportItem({
         : item.blockType === "heading2"
           ? "text-xl font-semibold"
           : "text-lg font-semibold";
+    const slug = slugifyHeader(item.text);
+
+    const handleCopySectionLink = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!slug) return;
+      const url = new URL(window.location.href);
+      url.hash = slug;
+      window.history.replaceState(null, '', url.toString());
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({
+          title: "Link copied",
+          description: `Direct link to "${stripMarkdown(item.text)}" copied to clipboard`,
+        });
+      }).catch(() => {});
+    };
+
     return (
       <>
         <Tag
-          className={`text-foreground mt-4 first:mt-0 ${headingSizeClass}`}
+          id={slug || undefined}
+          data-slug={slug || undefined}
+          className={`group/heading relative text-foreground mt-6 first:mt-0 scroll-mt-24 flex items-center justify-between gap-2 transition-all duration-300 ${headingSizeClass}`}
           style={{ paddingLeft: depth ? `${paddingLeft}px` : undefined }}
         >
-          <TextWithLinks text={item.text || "\u00A0"} />
+          <span className="flex-1">
+            <TextWithLinks text={item.text || "\u00A0"} />
+          </span>
+          {slug && (
+            <button
+              type="button"
+              onClick={handleCopySectionLink}
+              className={cn(
+                "p-1.5 rounded-lg transition-all cursor-pointer shrink-0 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                copied
+                  ? "opacity-100 text-emerald-500 bg-emerald-500/10"
+                  : "opacity-40 sm:opacity-0 group-hover/heading:opacity-100 focus-visible:opacity-100 hover:!opacity-100 text-muted-foreground hover:text-primary hover:bg-primary/10"
+              )}
+              title="Copy link to this section"
+              aria-label={`Copy link to section ${item.text}`}
+            >
+              <span className="material-icons text-base leading-none">
+                {copied ? "check" : "link"}
+              </span>
+            </button>
+          )}
         </Tag>
         {item.children.map((child, i, arr) => {
           const childNumberIndex = arr.slice(0, i).filter((c) => c.blockType === "number").length;
@@ -525,6 +569,48 @@ export default function Report() {
     return getLastWeekSummary(planItems, weekStartsOn);
   }, [id, snapshot, weekStartsOn]);
 
+  const [activeTab, setActiveTab] = useState<string>("practice");
+
+  useEffect(() => {
+    if (loading || !snapshot) return;
+
+    const handleHashNavigation = () => {
+      const hash = window.location.hash;
+      if (!hash) return;
+      const targetSlug = decodeURIComponent(hash.slice(1)).toLowerCase().trim();
+      if (!targetSlug) return;
+
+      const inLesson = snapshot.lessonPlanItems && findSlugInItems(snapshot.lessonPlanItems, targetSlug);
+      const inPractice = snapshot.items && findSlugInItems(snapshot.items, targetSlug);
+
+      if (inLesson && !inPractice) {
+        setActiveTab("lesson");
+      } else if (inPractice) {
+        setActiveTab("practice");
+      }
+
+      setTimeout(() => {
+        const cleanTarget = targetSlug.replace(/-/g, "");
+        const el =
+          document.getElementById(targetSlug) ||
+          document.querySelector(`[data-slug="${targetSlug}"]`) ||
+          document.querySelector(`[data-slug="${cleanTarget}"]`);
+
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          el.classList.add("ring-2", "ring-primary", "ring-offset-4", "ring-offset-background", "rounded-xl");
+          setTimeout(() => {
+            el.classList.remove("ring-2", "ring-primary", "ring-offset-4", "ring-offset-background", "rounded-xl");
+          }, 2500);
+        }
+      }, 200);
+    };
+
+    handleHashNavigation();
+    window.addEventListener("hashchange", handleHashNavigation);
+    return () => window.removeEventListener("hashchange", handleHashNavigation);
+  }, [loading, snapshot]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-foreground">
@@ -630,7 +716,7 @@ export default function Report() {
       </header>
       <main className="w-full space-y-8">
         {snapshot.lessonPlanItems && snapshot.lessonPlanItems.length > 0 ? (
-          <Tabs defaultValue="practice" className="w-full space-y-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-0">
             <div className="flex items-center w-full mb-0">
               <TabsList className="h-auto p-0 bg-transparent flex items-end gap-1.5 relative z-10 w-full justify-start border-b-0 rounded-none">
                 <TabsTrigger
