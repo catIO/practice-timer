@@ -1,4 +1,4 @@
-const CACHE_NAME = 'practice-timer-v4';
+const CACHE_NAME = 'practice-timer-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

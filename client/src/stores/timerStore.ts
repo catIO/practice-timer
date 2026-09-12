@@ -5,7 +5,7 @@ import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds, log
 import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
 import { scheduleUserDataPush } from '@/lib/userDataSync';
 import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
-import { playSound, resumeAudioContext, unlockAudioContext, startSilenceKeepAlive, stopSilenceKeepAlive } from '@/lib/soundEffects';
+import { playSound, resumeAudioContext, unlockAudioContext, startSilenceKeepAlive, stopSilenceKeepAlive, suspendAudioContext } from '@/lib/soundEffects';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
 if (typeof window !== 'undefined') {
@@ -568,13 +568,17 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                     const soundType = payload?.soundType ?? storeSettings.soundType;
                     if (vol > 0) {
                       await playSound('end', beeps, vol, soundType as any);
+                      return;
                     }
+                  }
+                  // If sound is disabled or muted, suspend AudioContext now to allow iOS display sleep
+                  if (!get().isRunning && !get().pieceOvertimeRunning) {
+                    suspendAudioContext();
                   }
                 } catch (e) {
                   console.error('[timerStore] Error playing PLAY_SOUND audio:', e);
-                } finally {
                   if (!get().isRunning && !get().pieceOvertimeRunning) {
-                    stopSilenceKeepAlive();
+                    suspendAudioContext();
                   }
                 }
               })();
@@ -587,6 +591,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   set({ lastMessageSequence: sequence });
                 }
               }
+              stopSilenceKeepAlive();
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('practice-complete', {
                   detail: {
@@ -606,12 +611,13 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                     vol = Math.min(100, Math.max(0, vol));
                     if (vol > 0) {
                       await playSound('end', storeSettings.numberOfBeeps, vol, storeSettings.soundType as any);
+                      return;
                     }
                   }
+                  suspendAudioContext();
                 } catch (e) {
                   console.error('[timerStore] Error playing PRACTICE_COMPLETE sound:', e);
-                } finally {
-                  stopSilenceKeepAlive();
+                  suspendAudioContext();
                 }
               })();
               set({ isPracticeComplete: true, isRunning: false });
@@ -836,6 +842,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
     pauseTimer: async () => {
       stopSilenceKeepAlive();
+      suspendAudioContext();
       const state = get();
       if (!worker || !state.isRunning) return;
 
@@ -845,6 +852,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
     resetTimer: async () => {
       stopSilenceKeepAlive();
+      suspendAudioContext();
       const state = get();
       if (!worker) return;
 
@@ -886,6 +894,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
       console.log('Store: Starting skip operation');
       stopSilenceKeepAlive();
+      suspendAudioContext();
       set({ isSkipping: true });
 
       // Clear any existing timeout first
@@ -1085,6 +1094,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       stopWorkerPieceTicks();
       set({ pieceOvertimeRunning: false });
       stopSilenceKeepAlive();
+      suspendAudioContext();
     },
 
     togglePausePiece: () => {

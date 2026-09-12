@@ -569,7 +569,6 @@ function PlanItem({
     linkPopoverOpenRef: isLinkPopoverOpenRef,
   } = useTextSelection();
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
-  const [dragMenuOpen, setDragMenuOpen] = useState(false);
 
   // Segment-specific editing state
   const [segmentGoalValue, setSegmentGoalValue] = useState(item.segmentGoal ?? "");
@@ -1247,7 +1246,9 @@ function PlanItem({
         }}
       >
         <div className={cn(
-          "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground z-10",
+          "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 text-muted-foreground",
+          "pointer-events-none group-hover:pointer-events-auto group-focus:pointer-events-auto group-focus-within:pointer-events-auto",
+          editing ? "opacity-100 pointer-events-auto z-20" : "z-0",
           "absolute -left-1 -translate-x-full pr-1",
           blockType === "segment" ? "top-1/2 -translate-y-1/2" : "top-0"
         )}>
@@ -1297,55 +1298,33 @@ function PlanItem({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="relative">
-            <DropdownMenu open={dragMenuOpen} onOpenChange={setDragMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <div className="absolute inset-0 pointer-events-none w-7 h-7" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    onDelete(item.id);
-                    setDragMenuOpen(false);
-                  }}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 cursor-pointer font-medium py-1.5"
-                >
-                  <span className="material-icons text-base">delete</span>
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing touch-manipulation relative after:absolute after:-inset-1.5 after:content-['']"
-              title="Drag to reorder / Menu"
-              {...attributes}
-              {...listeners}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDragMenuOpen((o) => !o);
-              }}
-              onPointerDown={(e) => {
-                listeners?.onPointerDown?.(e);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') return;
-                listeners?.onKeyDown?.(e);
-              }}
-            >
-              <span className="material-icons text-base">drag_indicator</span>
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing touch-manipulation"
+            title="Drag to reorder"
+            {...attributes}
+            {...listeners}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            onPointerDown={(e) => {
+              listeners?.onPointerDown?.(e);
+            }}
+            onKeyDown={(e) => {
+              listeners?.onKeyDown?.(e);
+            }}
+          >
+            <span className="material-icons text-base">drag_indicator</span>
+          </Button>
         </div>
         {showCheckbox ? (
           <button
             type="button"
             role="checkbox"
             aria-checked={item.checked}
-            className="relative shrink-0 -my-2 -ml-2.5 p-2.5 flex items-center justify-center touch-manipulation cursor-pointer select-none rounded focus:outline-none after:absolute after:-inset-1.5 after:content-['']"
+            className="relative z-10 shrink-0 -my-2 -ml-2.5 p-2.5 flex items-center justify-center touch-manipulation cursor-pointer select-none rounded focus:outline-none after:absolute after:-inset-1.5 after:content-['']"
             onClick={(e) => {
               e.stopPropagation();
               onToggle(item.id);

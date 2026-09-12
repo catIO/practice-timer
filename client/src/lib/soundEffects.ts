@@ -14,6 +14,7 @@ let audioContext: AudioContext | null = null;
 let lastPlaySoundTime = 0;
 let silentSource: AudioBufferSourceNode | null = null;
 let silentGain: GainNode | null = null;
+let activeSoundsCount = 0;
 
 export const detectIPad = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -27,6 +28,14 @@ export const detectIPad = (): boolean => {
 export const detectIOS = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || detectIPad();
+};
+
+export const _resetAudioForTesting = (): void => {
+  audioContext = null;
+  silentSource = null;
+  silentGain = null;
+  activeSoundsCount = 0;
+  lastPlaySoundTime = 0;
 };
 
 export const getAudioContext = (): AudioContext | null => {
@@ -94,6 +103,19 @@ export const resumeAudioContext = async (): Promise<boolean> => {
   }
 };
 
+// Suspend AudioContext to allow iOS display auto-lock when idle and not actively playing audio
+export const suspendAudioContext = async (): Promise<void> => {
+  try {
+    if (activeSoundsCount > 0 || silentSource) return;
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'running') {
+      await ctx.suspend();
+    }
+  } catch (e) {
+    console.warn('suspendAudioContext notice:', e);
+  }
+};
+
 // Keep Web Audio engine alive on iOS Safari during active timer countdown
 export const startSilenceKeepAlive = (): void => {
   try {
@@ -123,6 +145,7 @@ export const startSilenceKeepAlive = (): void => {
   }
 };
 
+// Stop silent keepalive loop when countdown ceases without interrupting active sound playback
 export const stopSilenceKeepAlive = (): void => {
   try {
     if (silentSource) {
@@ -133,10 +156,6 @@ export const stopSilenceKeepAlive = (): void => {
     if (silentGain) {
       silentGain.disconnect();
       silentGain = null;
-    }
-    const ctx = getAudioContext();
-    if (ctx && ctx.state === 'running') {
-      ctx.suspend().catch(() => {});
     }
   } catch (e) {
     console.warn('stopSilenceKeepAlive notice:', e);
@@ -174,129 +193,139 @@ const playSoundWebAudio = async (
     } catch {}
   }
 
-  if (effect === 'end') {
-    const count = Math.max(1, numberOfBeeps);
-    for (let i = 0; i < count; i++) {
+  activeSoundsCount++;
+  try {
+    if (effect === 'end') {
+      const count = Math.max(1, numberOfBeeps);
+      let lastDecayDuration = 1.2;
+      for (let i = 0; i < count; i++) {
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+
+        oscillator.type = 'sine';
+
+        switch (soundType) {
+          case 'bell':
+            oscillator.frequency.setValueAtTime(440, context.currentTime);
+            break;
+          case 'chime':
+            oscillator.frequency.setValueAtTime(523.25, context.currentTime);
+            break;
+          case 'digital':
+            oscillator.frequency.setValueAtTime(880, context.currentTime);
+            break;
+          case 'woodpecker':
+            oscillator.frequency.setValueAtTime(300, context.currentTime);
+            break;
+          case 'beep':
+          default:
+            oscillator.frequency.setValueAtTime(880, context.currentTime);
+            break;
+        }
+
+        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
+
+        let decayDuration = 1.2;
+        switch (soundType) {
+          case 'bell':
+            decayDuration = 1.5;
+            break;
+          case 'chime':
+            decayDuration = 1.3;
+            break;
+          case 'digital':
+            decayDuration = 0.8;
+            break;
+          case 'woodpecker':
+            decayDuration = 0.2;
+            break;
+          case 'beep':
+          default:
+            decayDuration = 1.2;
+            break;
+        }
+        lastDecayDuration = decayDuration;
+
+        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decayDuration);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + decayDuration + 0.1);
+
+        if (i < count - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+      }
+      // Wait for the final beep decay to complete before resolving
+      await new Promise((resolve) => setTimeout(resolve, Math.ceil((lastDecayDuration + 0.1) * 1000)));
+    } else {
+      // Single sound for start, reset, skip, or preview
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
-
       oscillator.type = 'sine';
 
-      switch (soundType) {
-        case 'bell':
-          oscillator.frequency.setValueAtTime(440, context.currentTime);
-          break;
-        case 'chime':
-          oscillator.frequency.setValueAtTime(523.25, context.currentTime);
-          break;
-        case 'digital':
-          oscillator.frequency.setValueAtTime(880, context.currentTime);
-          break;
-        case 'woodpecker':
-          oscillator.frequency.setValueAtTime(300, context.currentTime);
-          break;
-        case 'beep':
-        default:
-          oscillator.frequency.setValueAtTime(880, context.currentTime);
-          break;
+      let freq = 880;
+      let decay = 0.5;
+      if (effect === 'start') {
+        freq = 660;
+        decay = 0.4;
+      } else if (effect === 'reset') {
+        freq = 440;
+        decay = 0.4;
+      } else if (effect === 'skip') {
+        freq = 550;
+        decay = 0.4;
+      } else {
+        switch (soundType) {
+          case 'bell':
+            freq = 440;
+            decay = 1.5;
+            break;
+          case 'chime':
+            freq = 523.25;
+            decay = 1.3;
+            break;
+          case 'digital':
+            freq = 880;
+            decay = 0.8;
+            break;
+          case 'woodpecker':
+            freq = 300;
+            decay = 0.2;
+            break;
+          case 'beep':
+          default:
+            freq = 880;
+            decay = 0.5;
+            break;
+        }
       }
 
+      oscillator.frequency.setValueAtTime(freq, context.currentTime);
       gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-
-      let decayDuration = 1.2;
-      switch (soundType) {
-        case 'bell':
-          decayDuration = 1.5;
-          break;
-        case 'chime':
-          decayDuration = 1.3;
-          break;
-        case 'digital':
-          decayDuration = 0.8;
-          break;
-        case 'woodpecker':
-          decayDuration = 0.2;
-          break;
-        case 'beep':
-        default:
-          decayDuration = 1.2;
-          break;
-      }
-
-      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decayDuration);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decay);
 
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
 
       oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + decayDuration + 0.1);
+      oscillator.stop(context.currentTime + decay + 0.1);
 
-      if (i < count - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, Math.ceil((decay + 0.1) * 1000)));
+    }
+  } finally {
+    activeSoundsCount--;
+    if (activeSoundsCount <= 0) {
+      activeSoundsCount = 0;
+      // Suspend AudioContext after all sounds finish decaying so iOS / iPadOS does not
+      // treat the idle AudioContext as an active media session preventing screen sleep.
+      if (!silentSource && context && context.state === 'running') {
+        context.suspend().catch(() => {});
       }
     }
-  } else {
-    // Single sound for start, reset, skip, or preview
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-    oscillator.type = 'sine';
-
-    let freq = 880;
-    let decay = 0.5;
-    if (effect === 'start') {
-      freq = 660;
-      decay = 0.4;
-    } else if (effect === 'reset') {
-      freq = 440;
-      decay = 0.4;
-    } else if (effect === 'skip') {
-      freq = 550;
-      decay = 0.4;
-    } else {
-      switch (soundType) {
-        case 'bell':
-          freq = 440;
-          decay = 1.5;
-          break;
-        case 'chime':
-          freq = 523.25;
-          decay = 1.3;
-          break;
-        case 'digital':
-          freq = 880;
-          decay = 0.8;
-          break;
-        case 'woodpecker':
-          freq = 300;
-          decay = 0.2;
-          break;
-        case 'beep':
-        default:
-          freq = 880;
-          decay = 0.5;
-          break;
-      }
-    }
-
-    oscillator.frequency.setValueAtTime(freq, context.currentTime);
-    gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decay);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-
-    oscillator.start(context.currentTime);
-    oscillator.stop(context.currentTime + decay + 0.1);
   }
-
-  // Suspend AudioContext after sound finishes decaying so iOS / iPadOS does not
-  // treat the idle AudioContext as an active media session preventing screen sleep.
-  const remainingDecay = effect === 'end' ? 1.6 : 0.6;
-  setTimeout(() => {
-    if (!silentSource && context && context.state === 'running') {
-      context.suspend().catch(() => {});
-    }
-  }, Math.ceil((remainingDecay + 0.2) * 1000));
 };
 
 // Main entry point for sound playback
