@@ -169,6 +169,8 @@ class WakeLockManager {
     if (this.fallbackVideo) {
       try {
         this.fallbackVideo.pause();
+        this.fallbackVideo.removeAttribute('src');
+        this.fallbackVideo.load();
         if (this.fallbackVideo.parentNode) {
           this.fallbackVideo.parentNode.removeChild(this.fallbackVideo);
         }

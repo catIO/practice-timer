@@ -88,7 +88,8 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -502,6 +503,7 @@ function PlanItem({
   const isRunning = useTimerStore((state) => state.isRunning);
   const togglePausePiece = useTimerStore((state) => state.togglePausePiece);
   const startTimer = useTimerStore((state) => state.startTimer);
+  const pauseTimer = useTimerStore((state) => state.pauseTimer);
   const clearPiece = useTimerStore((state) => state.clearPiece);
   const isPieceOvertime = useTimerStore((state) => state.isPieceOvertime);
   const isPracticeComplete = useTimerStore((state) => state.isPracticeComplete);
@@ -1318,7 +1320,7 @@ function PlanItem({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing touch-manipulation"
+              className="h-7 w-7 shrink-0 rounded hover:bg-muted cursor-grab active:cursor-grabbing touch-manipulation relative after:absolute after:-inset-1.5 after:content-['']"
               title="Drag to reorder / Menu"
               {...attributes}
               {...listeners}
@@ -1343,12 +1345,13 @@ function PlanItem({
             type="button"
             role="checkbox"
             aria-checked={item.checked}
-            className="shrink-0 -my-1.5 -ml-2 p-2 flex items-center justify-center touch-manipulation cursor-pointer select-none rounded focus:outline-none"
+            className="relative shrink-0 -my-2 -ml-2.5 p-2.5 flex items-center justify-center touch-manipulation cursor-pointer select-none rounded focus:outline-none after:absolute after:-inset-1.5 after:content-['']"
             onClick={(e) => {
               e.stopPropagation();
               onToggle(item.id);
             }}
             onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
             tabIndex={0}
           >
             <div
@@ -1639,7 +1642,9 @@ function PlanItem({
                             e.stopPropagation();
                             onOpenAllocationDialog(item.id, item.text, item.allocatedTime, item.allocationPeriod);
                           }}
-                          className="inline-flex items-center h-[22px] px-2 text-xs font-mono font-medium rounded-full bg-muted/60 border border-muted-foreground/20 text-muted-foreground hover:bg-muted/80 transition-colors shrink-0 select-none cursor-pointer"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          className="inline-flex items-center h-[22px] px-2 text-xs font-mono font-medium rounded-full bg-muted/60 border border-muted-foreground/20 text-muted-foreground hover:bg-muted/80 transition-colors shrink-0 select-none cursor-pointer touch-manipulation relative after:absolute after:-inset-1 after:content-['']"
                           title="Click to edit target time box"
                         >
                           Time Box: {item.allocatedTime}m
@@ -1649,7 +1654,12 @@ function PlanItem({
                   </div>
 
                   {/* Timer controls */}
-                  <div className="flex items-center gap-1 shrink-0 -mt-1" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-1 shrink-0 -mt-1"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
                     {isActivePiece ? (
                       <>
                         <span className={cn(
@@ -1661,8 +1671,10 @@ function PlanItem({
                           {formatTime(pieceTimeRemaining)}
                         </span>
                         <Button
-                          variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-                          onClick={() => {
+                          variant="ghost" size="icon"
+                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted relative touch-manipulation after:absolute after:-inset-2 after:content-['']"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (isPieceOvertime || isPracticeComplete) {
                               if (pieceOvertimeRunning) {
                                 stopPieceOvertime();
@@ -1670,10 +1682,17 @@ function PlanItem({
                                 startPieceOvertime();
                               }
                             } else {
-                              if (!isRunning) { startTimer(); if (isPiecePaused) togglePausePiece(); }
-                              else { togglePausePiece(); }
+                              if (!isRunning) {
+                                startTimer();
+                                if (isPiecePaused) togglePausePiece();
+                              } else {
+                                togglePausePiece();
+                                pauseTimer();
+                              }
                             }
                           }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           title={(isPieceOvertime || isPracticeComplete) ? (pieceOvertimeRunning ? 'Pause' : 'Resume') : ((isPiecePaused || !isRunning) ? 'Resume' : 'Pause')}
                         >
                           <span className="material-icons text-sm">
@@ -1683,8 +1702,15 @@ function PlanItem({
                           </span>
                         </Button>
                         <Button
-                          variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-                          onClick={clearPiece} title="Stop"
+                          variant="ghost" size="icon"
+                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted relative touch-manipulation after:absolute after:-inset-2 after:content-['']"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearPiece();
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          title="Stop"
                         >
                           <span className="material-icons text-sm">close</span>
                         </Button>
@@ -1722,8 +1748,13 @@ function PlanItem({
                             {hasTimeBox ? (
                               <Button
                                 variant="ghost" size="icon"
-                                className="h-7 w-7 rounded-full border border-primary/40 text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150"
-                                onClick={() => onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day')}
+                                className="h-7 w-7 rounded-full border border-primary/40 text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150 relative touch-manipulation after:absolute after:-inset-2 after:content-['']"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onPlayPiece(item.id, item.text, item.allocatedTime || 15, 'day');
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
                                 title="Start segment time box"
                               >
                                 <span className="material-icons text-base">play_arrow</span>
@@ -1732,12 +1763,13 @@ function PlanItem({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 rounded-full border border-primary/40 text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150 shrink-0 group/checkbtn"
+                                className="h-7 w-7 rounded-full border border-primary/40 text-primary hover:text-primary-foreground hover:bg-primary transition-all duration-150 shrink-0 group/checkbtn relative touch-manipulation after:absolute after:-inset-2 after:content-['']"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onToggle(item.id);
                                 }}
                                 onPointerDown={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
                                 title={isCompletedToday ? "Uncheck segment" : "Mark as completed"}
                               >
                                 {isCompletedToday ? (
@@ -2485,9 +2517,15 @@ export function PlanEditorPane({
   }, [applyChange, planApi]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts to prevent accidental drags on click
+        distance: 8, // Require 8px movement before drag starts on desktop mouse
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // Require 200ms hold before drag starts on touch devices
+        tolerance: 6, // Allow 6px movement during hold
       },
     }),
     useSensor(KeyboardSensor, {

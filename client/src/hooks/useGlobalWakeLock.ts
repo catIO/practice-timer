@@ -11,8 +11,10 @@ export function useGlobalWakeLock(): void {
   const keepScreenAwake = useTimerStore((state) => state.settings?.keepScreenAwake ?? true);
   const isRunning = useTimerStore((state) => state.isRunning);
   const pieceOvertimeRunning = useTimerStore((state) => state.pieceOvertimeRunning);
+  const isPiecePaused = useTimerStore((state) => state.isPiecePaused);
+  const activePieceId = useTimerStore((state) => state.activePieceId);
 
-  const shouldKeepAwake = keepScreenAwake && (isRunning || pieceOvertimeRunning);
+  const shouldKeepAwake = keepScreenAwake && ((isRunning && !(activePieceId && isPiecePaused)) || pieceOvertimeRunning);
 
   useEffect(() => {
     if (shouldKeepAwake) {

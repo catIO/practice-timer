@@ -15,6 +15,8 @@ describe('useGlobalWakeLock', () => {
     useTimerStore.setState({
       isRunning: false,
       pieceOvertimeRunning: false,
+      activePieceId: null,
+      isPiecePaused: false,
       settings: {
         ...useTimerStore.getState().settings,
         keepScreenAwake: true
@@ -176,6 +178,22 @@ describe('useGlobalWakeLock', () => {
     });
 
     expect(requestSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not request wake lock when activePieceId is set and isPiecePaused is true', () => {
+    useTimerStore.setState({
+      isRunning: true,
+      activePieceId: 'piece-1',
+      isPiecePaused: true,
+      settings: {
+        ...useTimerStore.getState().settings,
+        keepScreenAwake: true
+      }
+    });
+
+    renderHook(() => useGlobalWakeLock());
+    expect(requestSpy).not.toHaveBeenCalled();
+    expect(releaseSpy).toHaveBeenCalled();
   });
 
   it('releases wake lock on unmount', () => {

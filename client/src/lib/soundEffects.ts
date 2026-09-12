@@ -134,6 +134,10 @@ export const stopSilenceKeepAlive = (): void => {
       silentGain.disconnect();
       silentGain = null;
     }
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'running') {
+      ctx.suspend().catch(() => {});
+    }
   } catch (e) {
     console.warn('stopSilenceKeepAlive notice:', e);
   }
