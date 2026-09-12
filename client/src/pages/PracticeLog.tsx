@@ -26,6 +26,13 @@ export default function PracticeLog() {
   // Subscribe to timeRemaining to seamlessly trigger re-renders every second
   // while the timer runs, dynamically refreshing the localStorage readouts below.
   const timeRemaining = useTimerStore((state) => state.timeRemaining);
+  const [syncCount, setSyncCount] = useState(0);
+
+  useEffect(() => {
+    const handleSync = () => setSyncCount((c) => c + 1);
+    window.addEventListener('plan-data-synced', handleSync);
+    return () => window.removeEventListener('plan-data-synced', handleSync);
+  }, []);
 
   const settings = getSettings();
   const weekStartsOn = settings?.weekStartsOn ?? "monday";
@@ -53,7 +60,7 @@ export default function PracticeLog() {
     });
 
     setPieceSummaries(summaries);
-  }, [weekStartsOn, timeRemaining]);
+  }, [weekStartsOn, timeRemaining, syncCount]);
 
   return (
     <div className="space-y-6">

@@ -9,6 +9,7 @@ import { updatePassword, updateDisplayName } from '@/lib/authService';
 import { supabase } from '@/lib/supabaseClient';
 import { restorePlanFromSnapshot, type ReportSnapshot } from '@/lib/reportShare';
 import { practicePlanApi } from '@/lib/practicePlan';
+import { pushUserDataToCloud, pullUserDataFromCloud } from '@/lib/userDataSync';
 import { SettingCard } from './SettingCard';
 import { SettingRow } from './SettingRow';
 
@@ -50,6 +51,7 @@ export function AccountSettingsTab({
   // Cache & update state
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [isRestoringPlan, setIsRestoringPlan] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
 
   const formatErrorMessage = (msg?: string | null): string => {
     if (!msg) return 'An unexpected error occurred';
@@ -191,6 +193,35 @@ export function AccountSettingsTab({
       });
     } finally {
       setIsRestoringPlan(false);
+    }
+  };
+
+  const handleSyncCloud = async () => {
+    setIsSyncingCloud(true);
+    try {
+      const pushed = await pushUserDataToCloud();
+      const pulled = await pullUserDataFromCloud();
+      if (pushed || pulled) {
+        toast({
+          title: 'Cloud sync complete',
+          description: 'Practice logs, plans, and timer data are synced.',
+        });
+      } else {
+        toast({
+          title: 'Sync not available',
+          description: 'Check your internet connection or login status.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+      toast({
+        title: 'Sync failed',
+        description: 'An error occurred during synchronization.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncingCloud(false);
     }
   };
 
@@ -350,6 +381,25 @@ export function AccountSettingsTab({
         description="Recovery and offline cache maintenance"
         icon="cloud_sync"
       >
+        <SettingRow
+          label="Cloud Sync"
+          description="Push local practice logs and fetch the latest timer data from your other devices"
+          icon="sync"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/10"
+            onClick={handleSyncCloud}
+            disabled={isSyncingCloud}
+          >
+            <span className={`material-icons text-sm mr-1.5 ${isSyncingCloud ? 'animate-spin' : ''}`}>
+              sync
+            </span>
+            {isSyncingCloud ? 'Syncing...' : 'Sync Now'}
+          </Button>
+        </SettingRow>
+
         <SettingRow
           label="Data Recovery"
           description="Restore your current practice plan from your most recently published report"

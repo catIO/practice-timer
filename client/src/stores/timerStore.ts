@@ -198,11 +198,13 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
     if (!s.activePieceId) {
       addPracticeTime(diff);
+      scheduleUserDataPush(5000);
       return;
     }
 
     if (s.isPiecePaused) {
       addPracticeTime(diff);
+      scheduleUserDataPush(5000);
       return;
     }
 
@@ -210,6 +212,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
     // Records to piece detail AND general practice time (see addDetailedPracticeTime)
     addDetailedPracticeTime(s.activePieceId, pieceName, diff);
+    scheduleUserDataPush(5000);
 
     if (s.pieceTimeRemaining <= 0) return;
 
@@ -219,7 +222,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     if (nextPieceTime === 0) {
       logSegmentCompletion(s.activePieceId);
       practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
-      scheduleUserDataPush();
+      scheduleUserDataPush(0);
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('piece-timer-complete', {
@@ -534,6 +537,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                 totalIterations: payload.totalIterations,
                 isPracticeComplete: get().isPracticeComplete,
               });
+              scheduleUserDataPush(0);
 
               // Trigger completion callback via custom event
               if (typeof window !== 'undefined') {
@@ -629,6 +633,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                 totalIterations: get().totalIterations,
                 isPracticeComplete: true,
               });
+              scheduleUserDataPush(0);
               break;
 
             case 'PIECE_TICK':
@@ -843,6 +848,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     pauseTimer: async () => {
       stopSilenceKeepAlive();
       suspendAudioContext();
+      scheduleUserDataPush(0);
       const state = get();
       if (!worker || !state.isRunning) return;
 
@@ -853,6 +859,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     resetTimer: async () => {
       stopSilenceKeepAlive();
       suspendAudioContext();
+      scheduleUserDataPush(0);
       const state = get();
       if (!worker) return;
 
@@ -1053,6 +1060,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
     clearPiece: () => {
       // Stop overtime ticker if running
       stopWorkerPieceTicks();
+      scheduleUserDataPush(0);
       set({
         activePieceId: null,
         activePieceName: null,
@@ -1095,9 +1103,11 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       set({ pieceOvertimeRunning: false });
       stopSilenceKeepAlive();
       suspendAudioContext();
+      scheduleUserDataPush(0);
     },
 
     togglePausePiece: () => {
+      scheduleUserDataPush(0);
       set((state) => ({ isPiecePaused: !state.isPiecePaused }));
     },
 

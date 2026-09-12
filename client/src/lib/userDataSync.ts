@@ -110,14 +110,22 @@ export async function pushUserDataToCloud(): Promise<boolean> {
 export function scheduleUserDataPush(delayMs: number = 2000): void {
   if (pushTimeout) {
     clearTimeout(pushTimeout);
+    pushTimeout = null;
+  }
+  if (delayMs === 0) {
+    pushUserDataToCloud();
+    return;
   }
   pushTimeout = setTimeout(() => {
+    pushTimeout = null;
     pushUserDataToCloud();
   }, delayMs);
 }
 
+let lastPullTime = 0;
+
 /**
- * Initialize sync listener for auth changes
+ * Initialize sync listener for auth changes, tab focus, and page backgrounding
  */
 export function initUserDataSync(): void {
   if (!supabase) return;
@@ -130,8 +138,41 @@ export function initUserDataSync(): void {
 
   // Initial pull if session exists
   pullUserDataFromCloud();
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        // Automatically pull fresh data from cloud if at least 10s since last pull
+        if (now - lastPullTime > 10000) {
+          lastPullTime = now;
+          pullUserDataFromCloud();
+        }
+      } else if (document.visibilityState === 'hidden') {
+        // App backgrounded on iPad or tab switched - flush pending push immediately
+        pushUserDataToCloud();
+      }
+    };
+
+    const handleFocus = () => {
+      const now = Date.now();
+      if (now - lastPullTime > 10000) {
+        lastPullTime = now;
+        pullUserDataFromCloud();
+      }
+    };
+
+    const handlePageHide = () => {
+      pushUserDataToCloud();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pagehide', handlePageHide);
+  }
 }
 
 if (typeof window !== 'undefined') {
   (window as any).pushUserDataToCloud = pushUserDataToCloud;
+  (window as any).pullUserDataFromCloud = pullUserDataFromCloud;
 }
