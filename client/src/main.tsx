@@ -24,9 +24,6 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
     if (refreshing) return;
     // Only reload if the user explicitly clicked the Update action in the toast
     if (!(window as any).__userInitiatedSWUpdate) return;
-    // Don't reload if timer is running - avoid interrupting an active session
-    const isRunning = useTimerStore.getState().isRunning;
-    if (isRunning) return;
     refreshing = true;
     window.location.reload();
   });

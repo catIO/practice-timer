@@ -85,8 +85,6 @@ function AppContent() {
 
     const triggerReload = () => {
       if (reloaded) return;
-      const isRunning = useTimerStore.getState().isRunning;
-      if (isRunning) return;
       reloaded = true;
       window.location.reload();
     };
