@@ -224,10 +224,25 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       practicePlanApi.checkItem(getPracticePlan(), s.activePieceId);
       scheduleUserDataPush(0);
 
+      // Play piece completion tone directly from store across all views
+      if (s.settings.soundEnabled) {
+        let vol = s.settings.volume;
+        if (vol <= 1) vol = vol * 100;
+        vol = Math.min(100, Math.max(0, vol));
+        if (vol > 0) {
+          playSound('end', 1, vol, s.settings.soundType as any).catch(console.error);
+        }
+      }
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('piece-timer-complete', {
           detail: { name: s.activePieceName, id: s.activePieceId }
         }));
+      }
+
+      // If main timer is not running, stop keepalive (safely deferred until sound decays)
+      if (!s.isRunning) {
+        stopSilenceKeepAlive();
       }
 
       set({
@@ -511,8 +526,13 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                 }
               }
 
-              // Stop running state & transition to completed mode from worker payload
-              stopSilenceKeepAlive();
+              // Only stop keepalive immediately if sound is disabled and no overtime pending
+              const hasOvertimePending = get().pieceTimeRemaining > 0 && !!get().activePieceId;
+              if (!get().settings.soundEnabled && !hasOvertimePending) {
+                stopSilenceKeepAlive();
+                suspendAudioContext();
+              }
+
               const completeTimeRemaining = payload.timeRemaining || (
                 payload.mode === 'work'
                   ? get().settings.workDuration * 60
@@ -548,7 +568,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
               // If a piece segment still has time remaining after the work session
               // ended, activate overtime mode so the user can continue the segment.
-              if (get().pieceTimeRemaining > 0 && get().activePieceId) {
+              if (hasOvertimePending) {
                 set({ isPieceOvertime: true });
               }
               break;
@@ -572,16 +592,13 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                     const soundType = payload?.soundType ?? storeSettings.soundType;
                     if (vol > 0) {
                       await playSound('end', beeps, vol, soundType as any);
-                      return;
                     }
-                  }
-                  // If sound is disabled or muted, suspend AudioContext now to allow iOS display sleep
-                  if (!get().isRunning && !get().pieceOvertimeRunning) {
-                    suspendAudioContext();
                   }
                 } catch (e) {
                   console.error('[timerStore] Error playing PLAY_SOUND audio:', e);
-                  if (!get().isRunning && !get().pieceOvertimeRunning) {
+                } finally {
+                  if (!get().isRunning && !get().pieceOvertimeRunning && !(get().pieceTimeRemaining > 0 && get().activePieceId)) {
+                    stopSilenceKeepAlive();
                     suspendAudioContext();
                   }
                 }
@@ -595,7 +612,6 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                   set({ lastMessageSequence: sequence });
                 }
               }
-              stopSilenceKeepAlive();
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('practice-complete', {
                   detail: {
@@ -615,13 +631,15 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
                     vol = Math.min(100, Math.max(0, vol));
                     if (vol > 0) {
                       await playSound('end', storeSettings.numberOfBeeps, vol, storeSettings.soundType as any);
-                      return;
                     }
                   }
-                  suspendAudioContext();
                 } catch (e) {
                   console.error('[timerStore] Error playing PRACTICE_COMPLETE sound:', e);
-                  suspendAudioContext();
+                } finally {
+                  if (!get().pieceOvertimeRunning) {
+                    stopSilenceKeepAlive();
+                    suspendAudioContext();
+                  }
                 }
               })();
               set({ isPracticeComplete: true, isRunning: false });
@@ -1084,6 +1102,8 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
       if (typeof window !== 'undefined') {
         try {
+          unlockAudioContext();
+          startSilenceKeepAlive();
           await resumeAudioContext();
         } catch (e) {
           console.error('[timerStore] Error resuming AudioContext in startPieceOvertime:', e);

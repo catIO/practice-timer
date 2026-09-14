@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { useToast } from '@/hooks/use-toast';
-import { resumeAudioContext, playSound } from '@/lib/soundEffects';
+import { resumeAudioContext } from '@/lib/soundEffects';
 import { useTimerStore } from '@/stores/timerStore';
 import { saveTimerProgress } from '@/lib/localStorage';
 import { initializeIOSBackgroundTimer, getIOSBackgroundTimer, cleanupIOSBackgroundTimer } from '@/lib/iOSBackgroundTimer';
@@ -170,44 +170,9 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
     }
   }, []);
 
-  // Handle timer completion with notifications and sounds
+  // Handle timer completion with notifications
   useEffect(() => {
     if (!workerReady) return;
-
-    // Track last sound play time to prevent rapid duplicates (within 200ms)
-    let lastSoundPlayTime = 0;
-
-    const handlePlaySound = async (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { numberOfBeeps, volume, soundType } = customEvent.detail;
-
-      // Prevent duplicate sound playback within 200ms window
-      const now = Date.now();
-      if (now - lastSoundPlayTime < 200) {
-        console.log('Sound played too recently, ignoring duplicate play-sound event');
-        return;
-      }
-      lastSoundPlayTime = now;
-
-      try {
-        console.log('Handling play-sound event:', { numberOfBeeps, volume, soundType });
-        // Ensure audio context is ready
-        await resumeAudioContext();
-        // Ensure volume is in 0-100 range
-        let normalizedVolume = volume;
-        if (volume <= 1) {
-          normalizedVolume = volume * 100;
-        }
-        normalizedVolume = Math.min(100, Math.max(0, normalizedVolume));
-
-        // Only play if volume is greater than 0
-        if (normalizedVolume > 0) {
-          await playSound('end', numberOfBeeps, normalizedVolume, soundType);
-        }
-      } catch (error) {
-        console.error('Error playing sound from play-sound event:', error);
-      }
-    };
 
     const handleTimerComplete = async (_event: Event) => {
       showNotification(
@@ -234,26 +199,7 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
 
       console.log('handlePracticeComplete called with detail:', detail);
 
-      // Play sound first if enabled (before showing completion screen)
       const store = useTimerStore.getState();
-      if (store.settings.soundEnabled) {
-        try {
-          await resumeAudioContext();
-          let volume = store.settings.volume;
-          if (volume <= 1) {
-            volume = volume * 100;
-          }
-          volume = Math.min(100, Math.max(0, volume));
-
-          if (volume > 0) {
-            await playSound('end', store.settings.numberOfBeeps, volume, store.settings.soundType as any);
-          }
-        } catch (error) {
-          console.error('Error playing completion sound:', error);
-        }
-      }
-
-      // Now set practice complete (this will show the completion screen)
       store.setIsPracticeComplete(true);
       store.setIsRunning(false);
       saveTimerProgress({
@@ -275,35 +221,12 @@ export function useTimer({ initialSettings: _initialSettings, onComplete }: UseT
       );
     };
 
-    const handlePieceComplete = async (_event: Event) => {
-      try {
-        const store = useTimerStore.getState();
-        if (store.settings.soundEnabled) {
-          await resumeAudioContext();
-          let volume = store.settings.volume;
-          if (volume <= 1) {
-            volume = volume * 100;
-          }
-          volume = Math.min(100, Math.max(0, volume));
-          if (volume > 0) {
-            await playSound('end', 1, volume, store.settings.soundType as any);
-          }
-        }
-      } catch (error) {
-        console.error('Error playing piece completion sound:', error);
-      }
-    };
-
-    window.addEventListener('play-sound', handlePlaySound);
     window.addEventListener('timer-complete', handleTimerComplete);
     window.addEventListener('practice-complete', handlePracticeComplete);
-    window.addEventListener('piece-timer-complete', handlePieceComplete);
 
     return () => {
-      window.removeEventListener('play-sound', handlePlaySound);
       window.removeEventListener('timer-complete', handleTimerComplete);
       window.removeEventListener('practice-complete', handlePracticeComplete);
-      window.removeEventListener('piece-timer-complete', handlePieceComplete);
     };
   }, [workerReady, onComplete, showNotification, toast]);
 

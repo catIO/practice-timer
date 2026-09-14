@@ -15,6 +15,7 @@ let lastPlaySoundTime = 0;
 let silentSource: AudioBufferSourceNode | null = null;
 let silentGain: GainNode | null = null;
 let activeSoundsCount = 0;
+let keepAlivePendingStop = false;
 
 export const detectIPad = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -36,6 +37,7 @@ export const _resetAudioForTesting = (): void => {
   silentGain = null;
   activeSoundsCount = 0;
   lastPlaySoundTime = 0;
+  keepAlivePendingStop = false;
 };
 
 export const getAudioContext = (): AudioContext | null => {
@@ -116,11 +118,29 @@ export const suspendAudioContext = async (): Promise<void> => {
   }
 };
 
+const teardownSilenceKeepAlive = (): void => {
+  if (silentSource) {
+    try {
+      silentSource.stop();
+      silentSource.disconnect();
+    } catch {}
+    silentSource = null;
+  }
+  if (silentGain) {
+    try {
+      silentGain.disconnect();
+    } catch {}
+    silentGain = null;
+  }
+};
+
 // Keep Web Audio engine alive on iOS Safari during active timer countdown
 export const startSilenceKeepAlive = (): void => {
   try {
     const ctx = getAudioContext();
     if (!ctx || silentSource) return;
+
+    keepAlivePendingStop = false;
 
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
@@ -145,18 +165,16 @@ export const startSilenceKeepAlive = (): void => {
   }
 };
 
-// Stop silent keepalive loop when countdown ceases without interrupting active sound playback
+// Stop silent keepalive loop when countdown ceases without interrupting active sound playback.
+// If sounds are currently playing/decaying, teardown is deferred until all beeps complete.
 export const stopSilenceKeepAlive = (): void => {
   try {
-    if (silentSource) {
-      silentSource.stop();
-      silentSource.disconnect();
-      silentSource = null;
+    if (activeSoundsCount > 0) {
+      keepAlivePendingStop = true;
+      return;
     }
-    if (silentGain) {
-      silentGain.disconnect();
-      silentGain = null;
-    }
+    keepAlivePendingStop = false;
+    teardownSilenceKeepAlive();
   } catch (e) {
     console.warn('stopSilenceKeepAlive notice:', e);
   }
@@ -176,7 +194,38 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   });
 }
 
-// Web Audio oscillator sound playback with smooth decay
+const getSoundParams = (
+  soundType: SoundType,
+  effect: SoundEffect
+): { freq: number; decay: number; interval: number } => {
+  if (effect === 'start') {
+    return { freq: 660, decay: 0.4, interval: 0.5 };
+  }
+  if (effect === 'reset') {
+    return { freq: 440, decay: 0.4, interval: 0.5 };
+  }
+  if (effect === 'skip') {
+    return { freq: 550, decay: 0.4, interval: 0.5 };
+  }
+
+  switch (soundType) {
+    case 'bell':
+      return { freq: 440, decay: 1.5, interval: 1.2 };
+    case 'chime':
+      return { freq: 523.25, decay: 1.3, interval: 1.2 };
+    case 'digital':
+      return { freq: 880, decay: 0.8, interval: 1.0 };
+    case 'woodpecker':
+      return { freq: 300, decay: 0.2, interval: 0.25 };
+    case 'beep':
+    default:
+      return { freq: 880, decay: 1.2, interval: 1.2 };
+  }
+};
+
+// Web Audio oscillator sound playback with hardware timeline scheduling.
+// Pre-schedules all beeps directly on AudioContext timeline so background throttling
+// or suspended JS setTimeout cannot cut off or delay subsequent beeps.
 const playSoundWebAudio = async (
   effect: SoundEffect,
   numberOfBeeps: number = 3,
@@ -187,138 +236,55 @@ const playSoundWebAudio = async (
   const context = getAudioContext();
   if (!context) return;
 
-  if (context.state === 'suspended') {
-    try {
-      await context.resume();
-    } catch {}
-  }
-
   activeSoundsCount++;
   try {
-    if (effect === 'end') {
-      const count = Math.max(1, numberOfBeeps);
-      let lastDecayDuration = 1.2;
-      for (let i = 0; i < count; i++) {
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-
-        oscillator.type = 'sine';
-
-        switch (soundType) {
-          case 'bell':
-            oscillator.frequency.setValueAtTime(440, context.currentTime);
-            break;
-          case 'chime':
-            oscillator.frequency.setValueAtTime(523.25, context.currentTime);
-            break;
-          case 'digital':
-            oscillator.frequency.setValueAtTime(880, context.currentTime);
-            break;
-          case 'woodpecker':
-            oscillator.frequency.setValueAtTime(300, context.currentTime);
-            break;
-          case 'beep':
-          default:
-            oscillator.frequency.setValueAtTime(880, context.currentTime);
-            break;
-        }
-
-        gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-
-        let decayDuration = 1.2;
-        switch (soundType) {
-          case 'bell':
-            decayDuration = 1.5;
-            break;
-          case 'chime':
-            decayDuration = 1.3;
-            break;
-          case 'digital':
-            decayDuration = 0.8;
-            break;
-          case 'woodpecker':
-            decayDuration = 0.2;
-            break;
-          case 'beep':
-          default:
-            decayDuration = 1.2;
-            break;
-        }
-        lastDecayDuration = decayDuration;
-
-        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decayDuration);
-
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + decayDuration + 0.1);
-
-        if (i < count - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1200));
-        }
+    if (context.state === 'suspended') {
+      try {
+        await context.resume();
+      } catch (e) {
+        console.warn('[soundEffects] resume failed:', e);
       }
-      // Wait for the final beep decay to complete before resolving
-      await new Promise((resolve) => setTimeout(resolve, Math.ceil((lastDecayDuration + 0.1) * 1000)));
-    } else {
-      // Single sound for start, reset, skip, or preview
+    }
+
+    const { freq, decay, interval } = getSoundParams(soundType, effect);
+    const count = effect === 'end' ? Math.max(1, numberOfBeeps) : 1;
+    const startGain = Math.max(0.0001, normalizedVolume);
+    const minGain = 0.0001;
+
+    const baseStartTime = Math.max(context.currentTime, 0) + 0.02;
+
+    for (let i = 0; i < count; i++) {
+      const beepStartTime = baseStartTime + i * interval;
+      const beepDecayEnd = beepStartTime + decay;
+      const beepStopTime = beepDecayEnd + 0.05;
+
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
+
       oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, beepStartTime);
 
-      let freq = 880;
-      let decay = 0.5;
-      if (effect === 'start') {
-        freq = 660;
-        decay = 0.4;
-      } else if (effect === 'reset') {
-        freq = 440;
-        decay = 0.4;
-      } else if (effect === 'skip') {
-        freq = 550;
-        decay = 0.4;
-      } else {
-        switch (soundType) {
-          case 'bell':
-            freq = 440;
-            decay = 1.5;
-            break;
-          case 'chime':
-            freq = 523.25;
-            decay = 1.3;
-            break;
-          case 'digital':
-            freq = 880;
-            decay = 0.8;
-            break;
-          case 'woodpecker':
-            freq = 300;
-            decay = 0.2;
-            break;
-          case 'beep':
-          default:
-            freq = 880;
-            decay = 0.5;
-            break;
-        }
-      }
-
-      oscillator.frequency.setValueAtTime(freq, context.currentTime);
-      gainNode.gain.setValueAtTime(normalizedVolume, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + decay);
+      gainNode.gain.setValueAtTime(startGain, beepStartTime);
+      gainNode.gain.exponentialRampToValueAtTime(minGain, beepDecayEnd);
 
       oscillator.connect(gainNode);
       gainNode.connect(context.destination);
 
-      oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + decay + 0.1);
-
-      await new Promise((resolve) => setTimeout(resolve, Math.ceil((decay + 0.1) * 1000)));
+      oscillator.start(beepStartTime);
+      oscillator.stop(beepStopTime);
     }
+
+    // Wait until all scheduled beeps and decays have completed before resolving
+    const totalDurationSeconds = (count - 1) * interval + decay + 0.1;
+    await new Promise((resolve) => setTimeout(resolve, Math.ceil(totalDurationSeconds * 1000)));
   } finally {
     activeSoundsCount--;
     if (activeSoundsCount <= 0) {
       activeSoundsCount = 0;
+      if (keepAlivePendingStop) {
+        keepAlivePendingStop = false;
+        teardownSilenceKeepAlive();
+      }
       // Suspend AudioContext after all sounds finish decaying so iOS / iPadOS does not
       // treat the idle AudioContext as an active media session preventing screen sleep.
       if (!silentSource && context && context.state === 'running') {

@@ -71,7 +71,7 @@ import { repertoireService } from "@/lib/repertoireService";
 import { useAuth } from "@/contexts/AuthContext";
 import type { RepertoirePiece } from "@/lib/repertoire.types";
 import { cn } from "@/lib/utils";
-import { playSound, resumeAudioContext } from "@/lib/soundEffects";
+import { resumeAudioContext } from "@/lib/soundEffects";
 import { TextWithLinks } from "./TextWithLinks";
 import { RichLink } from "./RichLink";
 import { InlineToolbar, type InlineToolbarProps } from "./InlineToolbar";
@@ -2527,25 +2527,11 @@ export function PlanEditorPane({
   }, [open, planApi]);
 
   useEffect(() => {
-    const handlePieceComplete = async (event: Event) => {
+    const handlePieceComplete = (event: Event) => {
       const { id } = (event as CustomEvent).detail;
       // Auto-check the piece item when its goal time is met
       if (id) {
         applyChange((prev) => practicePlanApi.checkItem(prev, id));
-      }
-      const store = useTimerStore.getState();
-      if (store.settings.soundEnabled) {
-        try {
-          await resumeAudioContext();
-          let volume = store.settings.volume;
-          if (volume <= 1) volume = volume * 100;
-          volume = Math.min(100, Math.max(0, volume));
-          if (volume > 0) {
-            await playSound('end', 1, volume, store.settings.soundType as any);
-          }
-        } catch (e) {
-          console.error('Error playing piece completion sound:', e);
-        }
       }
     };
 

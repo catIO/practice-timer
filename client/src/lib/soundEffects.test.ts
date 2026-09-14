@@ -191,5 +191,26 @@ describe('soundEffects', () => {
       expect(mockAudioContext.suspend).not.toHaveBeenCalled();
       expect(mockAudioContext.state).toBe('running');
     });
+
+    it('defers keepalive teardown and suspension when stopSilenceKeepAlive is called during sound playback', async () => {
+      startSilenceKeepAlive();
+
+      const playPromise = playSound('end', 3, 50, 'beep');
+
+      // Timer finishes and calls stopSilenceKeepAlive while sound is actively playing
+      stopSilenceKeepAlive();
+
+      // AudioContext must not be suspended yet while sound is playing
+      expect(mockAudioContext.suspend).not.toHaveBeenCalled();
+      expect(mockAudioContext.state).toBe('running');
+
+      // Fast forward time through beeps
+      await vi.advanceTimersByTimeAsync(3700);
+      await playPromise;
+
+      // Once beeps finish, deferred teardown should suspend the context
+      expect(mockAudioContext.suspend).toHaveBeenCalled();
+      expect(mockAudioContext.state).toBe('suspended');
+    });
   });
 });
