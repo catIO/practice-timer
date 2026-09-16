@@ -6,10 +6,6 @@ import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { updatePassword, updateDisplayName } from '@/lib/authService';
-import { supabase } from '@/lib/supabaseClient';
-import { restorePlanFromSnapshot, type ReportSnapshot } from '@/lib/reportShare';
-import { practicePlanApi } from '@/lib/practicePlan';
-import { pushUserDataToCloud, pullUserDataFromCloud } from '@/lib/userDataSync';
 import { SettingCard } from './SettingCard';
 import { SettingRow } from './SettingRow';
 
@@ -47,11 +43,6 @@ export function AccountSettingsTab({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-
-  // Cache & update state
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [isRestoringPlan, setIsRestoringPlan] = useState(false);
-  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
 
   const formatErrorMessage = (msg?: string | null): string => {
     if (!msg) return 'An unexpected error occurred';
@@ -137,126 +128,6 @@ export function AccountSettingsTab({
     }
   };
 
-  const handleRestorePlan = async () => {
-    if (!supabase) {
-      toast({
-        title: 'Not available',
-        description: 'Database connection not configured.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsRestoringPlan(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (!userId) {
-        toast({
-          title: 'Not logged in',
-          description: 'Please log in to restore.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('shared_reports')
-        .select('data')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error || !data) {
-        toast({
-          title: 'No report found',
-          description: 'No published report found for your account.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const snapshot = data.data as ReportSnapshot;
-      const restoredPlan = restorePlanFromSnapshot(snapshot);
-      practicePlanApi.save(restoredPlan);
-      toast({
-        title: 'Plan restored',
-        description: 'Your practice plan has been restored. Reload to see changes.',
-      });
-    } catch (e) {
-      console.error('[Settings] Restore failed:', e);
-      toast({
-        title: 'Restore failed',
-        description: 'An error occurred while restoring.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRestoringPlan(false);
-    }
-  };
-
-  const handleSyncCloud = async () => {
-    setIsSyncingCloud(true);
-    try {
-      const pushed = await pushUserDataToCloud();
-      const pulled = await pullUserDataFromCloud();
-      if (pushed || pulled) {
-        toast({
-          title: 'Cloud sync complete',
-          description: 'Practice logs, plans, and timer data are synced.',
-        });
-      } else {
-        toast({
-          title: 'Sync not available',
-          description: 'Check your internet connection or login status.',
-          variant: 'destructive',
-        });
-      }
-    } catch (err) {
-      console.error('Manual sync failed:', err);
-      toast({
-        title: 'Sync failed',
-        description: 'An error occurred during synchronization.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSyncingCloud(false);
-    }
-  };
-
-  const handleCheckUpdatesAndReload = async () => {
-    setIsCheckingUpdate(true);
-    try {
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((name) => caches.delete(name)));
-      }
-
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const reg of regs) {
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-          await reg.update().catch(() => {});
-        }
-      }
-
-      toast({
-        title: 'Cache cleared',
-        description: 'Reloading latest version...',
-      });
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    } catch (err) {
-      console.error('Update check failed:', err);
-      window.location.reload();
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Account Profile Card */}
@@ -268,7 +139,6 @@ export function AccountSettingsTab({
         <SettingRow
           label="Email Address"
           description="Your verified login identifier"
-          icon="alternate_email"
         >
           <span className="text-xs font-mono bg-slate-900/60 border border-white/10 px-3 py-1.5 rounded-lg text-foreground">
             {user?.email || 'Not logged in'}
@@ -373,65 +243,6 @@ export function AccountSettingsTab({
             {isUpdatingPassword ? 'Updating...' : 'Update Password'}
           </Button>
         </form>
-      </SettingCard>
-
-      {/* Cloud & Device Utilities */}
-      <SettingCard
-        title="Data & Device Utilities"
-        description="Recovery and offline cache maintenance"
-        icon="cloud_sync"
-      >
-        <SettingRow
-          label="Cloud Sync"
-          description="Push local practice logs and fetch the latest timer data from your other devices"
-          icon="sync"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-white/10"
-            onClick={handleSyncCloud}
-            disabled={isSyncingCloud}
-          >
-            <span className={`material-icons text-sm mr-1.5 ${isSyncingCloud ? 'animate-spin' : ''}`}>
-              sync
-            </span>
-            {isSyncingCloud ? 'Syncing...' : 'Sync Now'}
-          </Button>
-        </SettingRow>
-
-        <SettingRow
-          label="Data Recovery"
-          description="Restore your current practice plan from your most recently published report"
-          icon="history"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-white/10"
-            onClick={handleRestorePlan}
-            disabled={isRestoringPlan}
-          >
-            {isRestoringPlan ? 'Restoring...' : 'Restore plan from report'}
-          </Button>
-        </SettingRow>
-
-        <SettingRow
-          label="App Updates & Cache"
-          description="Clear local PWA cache and reload to fetch the latest application build (useful on iPads and mobile homescreens)"
-          icon="cached"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-white/10"
-            onClick={handleCheckUpdatesAndReload}
-            disabled={isCheckingUpdate}
-          >
-            <span className="material-icons text-sm mr-1.5">refresh</span>
-            {isCheckingUpdate ? 'Updating...' : 'Check for Updates & Reload'}
-          </Button>
-        </SettingRow>
       </SettingCard>
 
       {/* Session Card */}

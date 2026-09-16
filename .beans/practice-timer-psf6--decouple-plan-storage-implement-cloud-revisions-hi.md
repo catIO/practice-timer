@@ -5,7 +5,7 @@ status: in-progress
 type: epic
 priority: high
 created_at: 2026-09-16T12:11:06Z
-updated_at: 2026-09-16T14:03:35Z
+updated_at: 2026-09-16T17:33:36Z
 ---
 
 ## Objective
@@ -68,3 +68,6 @@ Start with phase 1 scheduling/hydration boundaries and timer regression protecti
 - Baseline 239 tests / 27 files; final 271 tests / 29 files pass. TypeScript, scoped zero-warning lint, production build, and whitespace checks pass. Build emits a >500 kB chunk warning.
 - `practice-timer-18ly`: high-priority release blocker for app-wide timer lifecycle, authoritative wall-clock recovery, segment runtime persistence, integration tests, and real-device checks. Home currently owns iOS lifecycle; worker ticks alone do not compensate for suspended callbacks.
 - See `docs/PLAN-storage-reliability-validation.md` for precise verified coverage and remaining gates. No production migration, browser/device verification, or claim of complete all-surface background correctness.
+
+## Second slice (2026-09-16)
+practice-timer-9lni completed: removed user-facing Account maintenance workarounds and hardened single-tab automatic sync/auth lifecycle. 291 tests/31 files, TypeScript and build pass. In-memory pending revisions guard dirty pulls and retry on reconnect/focus; queued/stale request handling and empty-plan propagation covered. Full account-scoped persistence, durable outbox/reload recovery, conflict-safe versioned writes, incremental activity and recovery operations remain unfinished. Next implementation gate remains phases 2-3; do not interpret this slice as full cross-device reliability.

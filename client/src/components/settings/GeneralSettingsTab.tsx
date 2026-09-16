@@ -70,7 +70,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Volume"
           description="Adjust notification chime and alert loudness"
-          icon="graphic_eq"
         >
           <div className="flex items-center gap-3 w-48 sm:w-56">
             <Slider
@@ -93,7 +92,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Sound Type"
           description="Choose the tone played when a session finishes"
-          icon="music_note"
           htmlFor="sound-type-select"
         >
           <div className="flex items-center gap-2">
@@ -142,7 +140,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Number of Beeps"
           description="How many times the completion alert repeats"
-          icon="notifications"
         >
           <NumberStepper
             value={settings.numberOfBeeps}
@@ -164,7 +161,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Work Duration"
           description="Length of each focused practice session"
-          icon="alarm"
         >
           <NumberStepper
             value={settings.workDuration}
@@ -180,7 +176,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Break Duration"
           description="Length of rest between practice sessions"
-          icon="coffee"
         >
           <NumberStepper
             value={settings.breakDuration}
@@ -196,7 +191,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Cycles / Iterations"
           description="Number of work-break cycles before a session resets"
-          icon="repeat"
         >
           <NumberStepper
             value={settings.iterations}
@@ -218,7 +212,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Theme"
           description="Choose between dark, light, or system appearance"
-          icon="brightness_medium"
           htmlFor="theme-select"
         >
           <div className="w-36 sm:w-40">
@@ -243,7 +236,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Week Starts On"
           description="Determines how practice activity is grouped by week in reports"
-          icon="calendar_view_week"
           htmlFor="week-starts-select"
         >
           <div className="w-36 sm:w-40">
@@ -267,7 +259,6 @@ export function GeneralSettingsTab({
         <SettingRow
           label="Keep Screen Awake"
           description="Prevent your screen or device from locking while a timer is active"
-          icon="screen_lock_portrait"
           htmlFor="keep-screen-awake"
         >
           <Switch

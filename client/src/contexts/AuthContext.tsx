@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
@@ -9,7 +9,7 @@ import {
     getCurrentUser,
     onAuthStateChange,
 } from '../lib/authService';
-import { pullUserDataFromCloud, initUserDataSync } from '../lib/userDataSync';
+import { pullUserDataFromCloud, initUserDataSync, cancelUserDataSync } from '../lib/userDataSync';
 
 interface AuthContextType {
     user: User | null;
@@ -45,6 +45,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isSyncingData, setIsSyncingData] = useState<boolean>(false);
     const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
+    const deferredSignIn = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const authGeneration = useRef(0);
 
     const clearPasswordRecovery = () => setIsPasswordRecovery(false);
 
@@ -81,9 +83,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         const initializeAuth = async () => {
+            const generation = authGeneration.current;
             try {
                 const currentSession = await getCurrentSession();
-                if (mounted) {
+                if (mounted && generation === authGeneration.current) {
                     setSession(currentSession);
                     setUser(currentSession?.user ?? null);
                     if (currentSession?.user) {
@@ -95,28 +98,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             } catch (error) {
                 console.error('Error initializing auth:', error);
             } finally {
-                if (mounted) {
+                if (mounted && generation === authGeneration.current) {
                     setIsLoading(false);
                     setIsSyncingData(false);
                 }
             }
         };
 
+        const stopSync = initUserDataSync();
         initializeAuth();
-        initUserDataSync();
 
-        const { data: { subscription } } = onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = onAuthStateChange((_event, session) => {
             if (mounted) {
                 setSession(session);
                 setUser(session?.user ?? null);
-                if (session?.user && _event === 'SIGNED_IN') {
-                    setIsSyncingData(true);
-                    migrateLocalReports(session.user.id);
-                    await pullUserDataFromCloud();
-                    if (mounted) {
-                        setIsSyncingData(false);
-                    }
+                setIsLoading(false);
+                const shouldHydrate = _event === 'SIGNED_IN' || _event === 'INITIAL_SESSION';
+                if (shouldHydrate || !session?.user) {
+                    clearTimeout(deferredSignIn.current);
+                    authGeneration.current++;
                 }
+                if (session?.user && shouldHydrate) {
+                    const generation = authGeneration.current;
+                    setIsSyncingData(true);
+                    // Supabase auth notifications can run under its auth lock.
+                    // Re-entering getSession/query APIs here can deadlock login.
+                    deferredSignIn.current = setTimeout(() => {
+                        if (!mounted || generation !== authGeneration.current) return;
+                        void migrateLocalReports(session.user.id);
+                        void pullUserDataFromCloud().finally(() => {
+                            if (mounted && generation === authGeneration.current) setIsSyncingData(false);
+                        });
+                    }, 0);
+                }
+                if (!session?.user) setIsSyncingData(false);
                 if (_event === 'PASSWORD_RECOVERY') {
                     setIsPasswordRecovery(true);
                 }
@@ -125,7 +140,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         return () => {
             mounted = false;
+            clearTimeout(deferredSignIn.current);
             subscription.unsubscribe();
+            stopSync();
         };
     }, []);
 
@@ -150,15 +167,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setIsSyncingData(false);
                 return { error: new Error(result.error.message) };
             }
-            if (result.user) {
-                migrateLocalReports(result.user.id);
-                try {
-                    await pullUserDataFromCloud();
-                } catch (e) {
-                    console.warn('[AuthContext] Failed to pull cloud data on sign-in:', e);
-                }
-            }
-            setIsSyncingData(false);
+            // SIGNED_IN owns hydration (including OAuth/magic-link sign-ins).
+            // Starting it here as well duplicates requests and loading updates.
             return { error: null };
         } catch (error) {
             setIsSyncingData(false);
@@ -167,7 +177,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     const signOut = async () => {
+        clearTimeout(deferredSignIn.current);
+        authGeneration.current++;
         setIsSyncingData(false);
+        cancelUserDataSync();
         try {
             await authSignOut();
         } catch (error) {
