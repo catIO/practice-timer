@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { SettingsType, DEFAULT_SETTINGS } from '@/lib/timerService';
+import { SettingsType } from '@/lib/timerService';
 import { getSettings, getTimerProgress, saveTimerProgress, clearTimerProgress } from '@/lib/localStorage';
-import { addPracticeTime, addDetailedPracticeTime, getPiecePracticedSeconds, logSegmentCompletion } from '@/lib/practiceLog';
+import { addPracticeTime, addDetailedPracticeTime, logSegmentCompletion } from '@/lib/practiceLog';
 import { getPracticePlan, practicePlanApi } from '@/lib/practicePlan';
 import { scheduleUserDataPush } from '@/lib/userDataSync';
-import { getTimerWorker, addMessageHandler, removeMessageHandler } from '@/lib/timerWorkerSingleton';
+import { getTimerWorker, addMessageHandler } from '@/lib/timerWorkerSingleton';
 import { playSound, resumeAudioContext, unlockAudioContext, startSilenceKeepAlive, stopSilenceKeepAlive, suspendAudioContext } from '@/lib/soundEffects';
 
 // Clean up stale pending messages (older than 5 seconds) - global cleanup
@@ -147,7 +147,6 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
       const newMode = nextState.mode !== undefined ? nextState.mode : state.mode;
       const newActivePieceId = nextState.activePieceId !== undefined ? nextState.activePieceId : state.activePieceId;
-      const newIsRunning = nextState.isRunning !== undefined ? nextState.isRunning : state.isRunning;
       const nextIsPracticeComplete = nextState.isPracticeComplete !== undefined ? nextState.isPracticeComplete : state.isPracticeComplete;
 
       // Calculate isPieceOvertime: true if we are on a break (or practice is fully complete)
@@ -256,7 +255,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
   };
 
   // Send message to worker with sequence number
-  const sendMessage = (type: string, payload?: any, retryOnStale = false): Promise<void> => {
+  const sendMessage = (type: string, payload?: any, _retryOnStale = false): Promise<void> => {
     return new Promise((resolve) => {
       if (!worker) {
         resolve();
@@ -824,18 +823,15 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
 
       // Defensive check: ensure mode and timeRemaining are consistent before starting worker
       let effectiveMode = state.mode;
-      const workSec = state.settings.workDuration * 60;
       const breakSec = state.settings.breakDuration * 60;
 
       if (state.mode === 'break' && state.timeRemaining > breakSec) {
         console.warn('Store startTimer: mode was break but timeRemaining exceeds break duration. Correcting mode to work.');
         effectiveMode = 'work';
         set({ mode: 'work' });
-      } else if (state.mode === 'work' && state.timeRemaining <= breakSec && breakSec < workSec && state.timeRemaining === breakSec) {
-        console.warn('Store startTimer: mode was work but timeRemaining matches break duration. Correcting mode to break.');
-        effectiveMode = 'break';
-        set({ mode: 'break' });
       }
+      // A partially elapsed work session can legitimately have exactly the
+      // break duration remaining. Never infer a break from that equality.
 
       console.log('Store: Starting timer with state:', {
         timeRemaining: state.timeRemaining,

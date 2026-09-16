@@ -33,6 +33,13 @@ class iOSBackgroundTimer {
   private audioContext: AudioContext | null = null;
   private silentOscillator: OscillatorNode | null = null;
   private gainNode: GainNode | null = null;
+  private readonly onVisibilityChange = () => {
+    if (document.hidden) this.handleBackground();
+    else this.handleForeground();
+  };
+  private readonly onBlur = () => this.handleBackground();
+  private readonly onFocus = () => this.handleForeground();
+  private readonly onBeforeUnload = () => this.persistState();
 
   constructor(initialState: Partial<iOSBackgroundTimerState>, callbacks: iOSBackgroundTimerCallbacks = {}) {
     this.state = {
@@ -79,22 +86,10 @@ class iOSBackgroundTimer {
 
   // Setup visibility change listeners
   private setupVisibilityListeners(): void {
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.handleBackground();
-      } else {
-        this.handleForeground();
-      }
-    });
-
-    // Listen for page focus/blur events
-    window.addEventListener('blur', () => this.handleBackground());
-    window.addEventListener('focus', () => this.handleForeground());
-
-    // Listen for beforeunload to save state
-    window.addEventListener('beforeunload', () => {
-      this.persistState();
-    });
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    window.addEventListener('blur', this.onBlur);
+    window.addEventListener('focus', this.onFocus);
+    window.addEventListener('beforeunload', this.onBeforeUnload);
   }
 
   // Handle app going to background
@@ -179,6 +174,7 @@ class iOSBackgroundTimer {
 
   // Pause the background timer
   pause(): void {
+    this.state.timeRemaining = this.calculateTimeRemaining();
     this.state.isRunning = false;
     this.isActive = false;
     
@@ -193,11 +189,18 @@ class iOSBackgroundTimer {
 
   // Resume the background timer
   resume(): void {
-    if (!this.state.startTime) return;
-    
+    if (this.state.startTime === null || this.state.isRunning || this.state.timeRemaining <= 0) return;
+
+    // Preserve the elapsed active time, but move the clock origin past the
+    // paused interval. Reusing the original startTime counts paused time.
+    const now = Date.now();
+    this.state.startTime = now - (this.state.duration - this.state.timeRemaining) * 1000;
+    this.state.lastUpdateTime = now;
+    this.state.lastSyncTime = now;
     this.state.isRunning = true;
     this.isActive = true;
     this.startInterval();
+    if (this.isBackgrounded) this.startBackgroundInterval();
     
     this.persistState();
     this.callbacks.onResume?.();
@@ -311,17 +314,16 @@ class iOSBackgroundTimer {
       const elapsed = Math.floor((now - this.state.startTime!) / 1000);
       const newTimeRemaining = Math.max(0, this.state.duration - elapsed);
       
-      // Apply drift correction
-      const correctedTimeRemaining = Math.max(0, newTimeRemaining - this.state.driftCorrection);
-      
-      this.state.timeRemaining = correctedTimeRemaining;
+      // Wall-clock elapsed time already includes suspended intervals. Drift is
+      // diagnostic only; subtracting it again can add recovered seconds back.
+      this.state.timeRemaining = newTimeRemaining;
       this.state.lastUpdateTime = now;
       
       // Call onTick callback
-      this.callbacks.onTick?.(correctedTimeRemaining);
+      this.callbacks.onTick?.(newTimeRemaining);
       
       // Check if timer should be complete
-      if (correctedTimeRemaining <= 0) {
+      if (newTimeRemaining <= 0) {
         this.complete();
       }
     }, 1000); // Update every second when backgrounded
@@ -403,6 +405,10 @@ class iOSBackgroundTimer {
 
   // Cleanup resources
   cleanup(): void {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('focus', this.onFocus);
+    window.removeEventListener('beforeunload', this.onBeforeUnload);
     this.stop();
     
     if (this.audioContext) {

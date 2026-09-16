@@ -1,14 +1,15 @@
 import { supabase } from './supabaseClient';
-import { getPracticePlan, practicePlanApi } from './practicePlan';
-import { getLessonPlan, lessonPlanApi } from './lessonPlan';
+import { getPracticePlan, savePracticePlan } from './practicePlan';
+import { getLessonPlan, saveLessonPlan } from './lessonPlan';
 import {
   getPracticeLogStateForSync,
   restorePracticeLogStateFromSync,
 } from './practiceLog';
 import { onAuthStateChange } from './authService';
+import { createSyncScheduler } from './syncScheduler';
 
-let pushTimeout: ReturnType<typeof setTimeout> | null = null;
 let isSyncing = false;
+const pushScheduler = createSyncScheduler(() => { void pushUserDataToCloud(); });
 
 /**
  * Pull practice plan, lesson plan, logs, and completion history from Supabase for the logged in user
@@ -36,10 +37,12 @@ export async function pullUserDataFromCloud(): Promise<boolean> {
 
     if (data) {
       if (data.plan_data && Array.isArray(data.plan_data) && data.plan_data.length > 0) {
-        practicePlanApi.save(data.plan_data);
+        // Hydration is not a local edit: do not echo the entire user row back
+        // to the server (including potentially stale logs or the other plan).
+        savePracticePlan(data.plan_data);
       }
       if (data.lesson_plan_data && Array.isArray(data.lesson_plan_data) && data.lesson_plan_data.length > 0) {
-        lessonPlanApi.save(data.lesson_plan_data);
+        saveLessonPlan(data.lesson_plan_data);
       }
       restorePracticeLogStateFromSync({
         log: data.logs_data?.overallLog,
@@ -47,8 +50,13 @@ export async function pullUserDataFromCloud(): Promise<boolean> {
         completions: data.completions_data,
       });
     } else {
-      // First sync for this user — push current local data to cloud
-      await pushUserDataToCloud();
+      // Use the already authenticated user and bypass the public pull guard.
+      // Do not report initial sync as successful when the upload failed.
+      const uploaded = await pushCurrentUserData(userId, true);
+      if (!uploaded) {
+        isSyncing = false;
+        return false;
+      }
     }
 
     if (typeof window !== 'undefined') {
@@ -75,6 +83,18 @@ export async function pushUserDataToCloud(): Promise<boolean> {
     const userId = sessionData.session?.user?.id;
     if (!userId) return false;
 
+    return await pushCurrentUserData(userId);
+  } catch (err) {
+    console.error('[userDataSync] Error during push:', err);
+    return false;
+  }
+}
+
+/** Legacy transport retained until versioned plan rows and account isolation ship. */
+async function pushCurrentUserData(userId: string, createOnly = false): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
     const planData = getPracticePlan();
     const lessonPlanData = getLessonPlan();
     const { log, detailedLog, completions } = getPracticeLogStateForSync();
@@ -99,9 +119,12 @@ export async function pushUserDataToCloud(): Promise<boolean> {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from('user_practice_data')
-      .upsert(payload, { onConflict: 'user_id' });
+    const table = supabase.from('user_practice_data');
+    // Another device may create the row after our no-row read. Initial sync
+    // must fail safely on that conflict rather than overwrite its first write.
+    const { error } = createOnly
+      ? await table.insert(payload)
+      : await table.upsert(payload, { onConflict: 'user_id' });
 
     if (error) {
       console.warn('[userDataSync] Failed to push practice data:', error);
@@ -116,21 +139,11 @@ export async function pushUserDataToCloud(): Promise<boolean> {
 }
 
 /**
- * Schedule a debounced push of local user practice data to Supabase
+ * Debounce local edits, with a five-second maximum scheduling delay while
+ * JavaScript is running. Browser suspension and network delivery are separate.
  */
 export function scheduleUserDataPush(delayMs: number = 2000): void {
-  if (pushTimeout) {
-    clearTimeout(pushTimeout);
-    pushTimeout = null;
-  }
-  if (delayMs === 0) {
-    pushUserDataToCloud();
-    return;
-  }
-  pushTimeout = setTimeout(() => {
-    pushTimeout = null;
-    pushUserDataToCloud();
-  }, delayMs);
+  pushScheduler.schedule(delayMs);
 }
 
 let lastPullTime = 0;
@@ -161,7 +174,7 @@ export function initUserDataSync(): void {
         }
       } else if (document.visibilityState === 'hidden') {
         // App backgrounded on iPad or tab switched - flush pending push immediately
-        pushUserDataToCloud();
+        scheduleUserDataPush(0);
       }
     };
 
@@ -174,7 +187,7 @@ export function initUserDataSync(): void {
     };
 
     const handlePageHide = () => {
-      pushUserDataToCloud();
+      scheduleUserDataPush(0);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);

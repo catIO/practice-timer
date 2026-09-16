@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { pullUserDataFromCloud, pushUserDataToCloud } from './userDataSync';
 import { getLessonPlan, saveLessonPlan } from './lessonPlan';
 import { getPracticePlan, savePracticePlan } from './practicePlan';
@@ -37,6 +37,12 @@ describe('userDataSync cross-device sync', () => {
   beforeEach(() => {
     localStorageMock.clear();
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('pullUserDataFromCloud restores practice plan AND lesson plan data from Supabase', async () => {
@@ -73,6 +79,70 @@ describe('userDataSync cross-device sync', () => {
 
     const restoredPracticePlan = getPracticePlan();
     expect(restoredPracticePlan).toEqual(cloudPracticePlan);
+    // Remote hydration must not schedule a write of stale local domains.
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('uploads local data when the user has no cloud row', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    (supabase as any).from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      insert,
+    });
+
+    expect(await pullUserDataFromCloud()).toBe(true);
+    expect(insert).toHaveBeenCalledTimes(1);
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 'test-user-123',
+      plan_data: expect.any(Array),
+      lesson_plan_data: expect.any(Array),
+    }));
+  });
+
+  it('reports first-upload failure and permits a subsequent retry', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { message: 'Offline' } });
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    (supabase as any).from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      insert,
+      upsert,
+    });
+    const onSynced = vi.fn();
+    window.addEventListener('plan-data-synced', onSynced);
+    try {
+      expect(await pullUserDataFromCloud()).toBe(false);
+      expect(onSynced).not.toHaveBeenCalled();
+      expect(await pushUserDataToCloud()).toBe(true);
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('plan-data-synced', onSynced);
+    }
+  });
+
+  it('does not overwrite a row created by another device during initial sync', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { code: '23505', message: 'Duplicate user' } });
+    const upsert = vi.fn();
+    (supabase as any).from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      insert,
+      upsert,
+    });
+    expect(await pullUserDataFromCloud()).toBe(false);
+    expect(insert).toHaveBeenCalledTimes(1);
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it('pushUserDataToCloud includes both practice plan and lesson plan data', async () => {
