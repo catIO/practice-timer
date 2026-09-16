@@ -244,7 +244,7 @@ let stopSyncListeners: (() => void) | null = null;
  * Install one set of listeners. AuthProvider owns initial/sign-in hydration.
  */
 export function initUserDataSync(): () => void {
-  if (!supabase || typeof window === 'undefined' || typeof document === 'undefined') return () => {};
+  if (!supabase || typeof window === 'undefined' || typeof document === 'undefined') return () => { };
   if (stopSyncListeners) return stopSyncListeners;
 
   const { data: { subscription } } = onAuthStateChange((_event, session) => {
