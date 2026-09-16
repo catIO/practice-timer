@@ -420,8 +420,10 @@ describe('timerStore', () => {
             const initialTime = useTimerStore.getState().timeRemaining;
             emitState('TICK', initialTime - 60);
             // Duplicate sequenced delivery cannot attribute or complete twice.
-            emitMessage('TICK', { timeRemaining: initialTime - 60, mode: 'work', currentIteration: 1,
-                totalIterations: DEFAULT_SETTINGS.iterations }, incomingSequence);
+            emitMessage('TICK', {
+                timeRemaining: initialTime - 60, mode: 'work', currentIteration: 1,
+                totalIterations: DEFAULT_SETTINGS.iterations
+            }, incomingSequence);
             emitState('TICK', initialTime - 61);
             expect(logSegmentCompletion).toHaveBeenCalledExactlyOnceWith('segment');
             expect(practicePlanApi.checkItem).toHaveBeenCalledExactlyOnceWith([], 'segment');

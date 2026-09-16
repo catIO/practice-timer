@@ -204,7 +204,7 @@ describe('iOSBackgroundTimer elapsed-time recovery (simulated clock, not OS susp
         const initial = timer.getState();
         expect(timer.loadPersistedState()).toBe(false);
         localStorage.setItem(STORAGE_KEY, '{invalid JSON');
-        const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const error = vi.spyOn(console, 'error').mockImplementation(() => { });
         expect(timer.loadPersistedState()).toBe(false);
         expect(error).toHaveBeenCalledTimes(1);
         expect(timer.getState()).toEqual(initial);

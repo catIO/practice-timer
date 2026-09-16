@@ -66,17 +66,17 @@ class iOSBackgroundTimer {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass) {
         this.audioContext = new AudioContextClass();
-        
+
         // Create silent oscillator to keep audio context alive
         this.silentOscillator = this.audioContext.createOscillator();
         this.gainNode = this.audioContext.createGain();
-        
+
         this.silentOscillator.connect(this.gainNode);
         this.gainNode.connect(this.audioContext.destination);
-        
+
         // Set volume to 0 (completely silent)
         this.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-        
+
         console.log('Audio context initialized for background operation');
       }
     } catch (error) {
@@ -95,32 +95,32 @@ class iOSBackgroundTimer {
   // Handle app going to background
   private handleBackground(): void {
     if (this.isBackgrounded) return;
-    
+
     this.isBackgrounded = true;
     console.log('App going to background, switching to background mode');
-    
+
     // Start background interval for more frequent updates
     this.startBackgroundInterval();
-    
+
     // Keep audio context alive
     this.keepAudioContextAlive();
-    
+
     this.callbacks.onBackground?.();
   }
 
   // Handle app coming to foreground
   private handleForeground(): void {
     if (!this.isBackgrounded) return;
-    
+
     this.isBackgrounded = false;
     console.log('App coming to foreground, syncing timer state');
-    
+
     // Stop background interval
     this.stopBackgroundInterval();
-    
+
     // Sync timer state with actual elapsed time
     this.syncWithRealTime();
-    
+
     this.callbacks.onForeground?.();
   }
 
@@ -165,10 +165,10 @@ class iOSBackgroundTimer {
 
     this.isActive = true;
     this.startInterval();
-    
+
     // Store state in localStorage for persistence
     this.persistState();
-    
+
     console.log('iOS Background timer started:', this.state);
   }
 
@@ -177,13 +177,13 @@ class iOSBackgroundTimer {
     this.state.timeRemaining = this.calculateTimeRemaining();
     this.state.isRunning = false;
     this.isActive = false;
-    
+
     this.stopInterval();
     this.stopBackgroundInterval();
-    
+
     this.persistState();
     this.callbacks.onPause?.();
-    
+
     console.log('iOS Background timer paused:', this.state);
   }
 
@@ -201,10 +201,10 @@ class iOSBackgroundTimer {
     this.isActive = true;
     this.startInterval();
     if (this.isBackgrounded) this.startBackgroundInterval();
-    
+
     this.persistState();
     this.callbacks.onResume?.();
-    
+
     console.log('iOS Background timer resumed:', this.state);
   }
 
@@ -212,12 +212,12 @@ class iOSBackgroundTimer {
   stop(): void {
     this.state.isRunning = false;
     this.isActive = false;
-    
+
     this.stopInterval();
     this.stopBackgroundInterval();
-    
+
     this.clearPersistedState();
-    
+
     console.log('iOS Background timer stopped');
   }
 
@@ -241,7 +241,7 @@ class iOSBackgroundTimer {
     const now = Date.now();
     const elapsed = Math.floor((now - this.state.startTime) / 1000);
     const remaining = Math.max(0, this.state.duration - elapsed);
-    
+
     return remaining;
   }
 
@@ -250,22 +250,22 @@ class iOSBackgroundTimer {
     if (this.state.isRunning && this.state.startTime) {
       const actualTimeRemaining = this.calculateTimeRemaining();
       const previousTimeRemaining = this.state.timeRemaining;
-      
+
       // Calculate drift correction
       const drift = actualTimeRemaining - previousTimeRemaining;
       this.state.driftCorrection += drift;
-      
+
       this.state.timeRemaining = actualTimeRemaining;
       this.state.lastUpdateTime = Date.now();
       this.state.lastSyncTime = Date.now();
-      
+
       console.log('Timer synced with real time:', {
         actualTimeRemaining,
         previousTimeRemaining,
         drift,
         totalDriftCorrection: this.state.driftCorrection
       });
-      
+
       // Check if timer should be complete
       if (actualTimeRemaining <= 0) {
         this.complete();
@@ -285,13 +285,13 @@ class iOSBackgroundTimer {
       const now = Date.now();
       const elapsed = Math.floor((now - this.state.startTime!) / 1000);
       const newTimeRemaining = Math.max(0, this.state.duration - elapsed);
-      
+
       this.state.timeRemaining = newTimeRemaining;
       this.state.lastUpdateTime = now;
-      
+
       // Call tick callback
       this.callbacks.onTick?.(newTimeRemaining);
-      
+
       // Check if timer is complete
       if (newTimeRemaining <= 0) {
         this.complete();
@@ -313,15 +313,15 @@ class iOSBackgroundTimer {
       const now = Date.now();
       const elapsed = Math.floor((now - this.state.startTime!) / 1000);
       const newTimeRemaining = Math.max(0, this.state.duration - elapsed);
-      
+
       // Wall-clock elapsed time already includes suspended intervals. Drift is
       // diagnostic only; subtracting it again can add recovered seconds back.
       this.state.timeRemaining = newTimeRemaining;
       this.state.lastUpdateTime = now;
-      
+
       // Call onTick callback
       this.callbacks.onTick?.(newTimeRemaining);
-      
+
       // Check if timer should be complete
       if (newTimeRemaining <= 0) {
         this.complete();
@@ -349,13 +349,13 @@ class iOSBackgroundTimer {
   private complete(): void {
     this.state.isRunning = false;
     this.state.timeRemaining = 0;
-    
+
     this.stopInterval();
     this.stopBackgroundInterval();
-    
+
     this.persistState();
     this.callbacks.onComplete?.(this.state);
-    
+
     console.log('iOS Background timer completed:', this.state);
   }
 
@@ -380,12 +380,12 @@ class iOSBackgroundTimer {
         const parsedState = JSON.parse(persisted);
         delete parsedState.persistedAt; // Remove timestamp
         this.state = { ...this.state, ...parsedState };
-        
+
         // Sync with real time if timer was running
         if (this.state.isRunning) {
           this.syncWithRealTime();
         }
-        
+
         return true;
       }
     } catch (error) {
@@ -410,12 +410,12 @@ class iOSBackgroundTimer {
     window.removeEventListener('focus', this.onFocus);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     this.stop();
-    
+
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
     }
-    
+
     this.silentOscillator = null;
     this.gainNode = null;
   }
@@ -428,11 +428,11 @@ let globalIOSBackgroundTimer: iOSBackgroundTimer | null = null;
 export function initializeIOSBackgroundTimer(callbacks: iOSBackgroundTimerCallbacks = {}): iOSBackgroundTimer {
   if (!globalIOSBackgroundTimer) {
     globalIOSBackgroundTimer = new iOSBackgroundTimer({}, callbacks);
-    
+
     // Load any persisted state
     globalIOSBackgroundTimer.loadPersistedState();
   }
-  
+
   return globalIOSBackgroundTimer;
 }
 

@@ -766,7 +766,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
       });
 
       if (worker) {
-        sendMessage('UPDATE_SETTINGS', settings).catch(() => {});
+        sendMessage('UPDATE_SETTINGS', settings).catch(() => { });
         if (!freshState.isRunning) {
           sendMessage('UPDATE_MODE', {
             mode: freshState.mode,
@@ -774,7 +774,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
             currentIteration: freshState.currentIteration,
             totalIterations: freshState.totalIterations,
             isRunning: false
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
     },
