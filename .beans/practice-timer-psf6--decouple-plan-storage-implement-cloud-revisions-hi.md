@@ -31,7 +31,7 @@ Scale Practice Mate without silently losing edits or practice history. Keep Reac
 - [x] Extract bounded upload scheduling so continuous timer ticks cannot indefinitely defer a pending upload; retain immediate pause/background flush behavior.
 - [x] Separate cloud hydration from local edits so pulling a plan does not schedule an upload of unrelated stale state.
 - [x] Fix first-user upload suppression and propagate initialization failures truthfully.
-- [ ] Protect dirty drafts from pulls, support intentional empty plans, and isolate accounts/in-flight requests before cloud cutover.
+- [x] Protect dirty drafts from pulls, support intentional empty plans, and isolate accounts/in-flight requests before cloud cutover (`practice-timer-9lni`).
 
 ### 2. Durable local state and sync status
 - [ ] Add transactional user-scoped local documents/outbox, resumable migration from legacy localStorage, and explicit guest import consent.
@@ -55,8 +55,9 @@ Scale Practice Mate without silently losing edits or practice history. Keep Reac
 - [ ] Monitor sync failures, oldest pending operation age, conflicts, and persistence failures without logging private plan contents.
 
 ### 6. History UI and editor maintainability
-- [ ] Add version history with conflict-safe restore and clear pending/success/failure states.
+- [ ] Add in-editor Version History modal/drawer with conflict-safe restore and clear pending/success/failure states.
 - [ ] Refactor PlanEditorPane into shared BlockEditor plus domain wrappers, preserving keyboard/touch behavior and segment timer integration.
+- [ ] Address `practice-timer-18ly`: make background timer recovery route-independent, wall-clock based, and hosted at app-level provider.
 - [ ] Complete full automated regression/build checks and the real-device foreground/background matrix before declaring the epic complete.
 
 ## Initial implementation scope (2026-09-16)
@@ -65,9 +66,10 @@ Start with phase 1 scheduling/hydration boundaries and timer regression protecti
 ## Progress and verification (2026-09-16)
 - `practice-timer-14i6`: initial scheduling/hydration refactor, with insert-only first-user initialization and race/failure tests.
 - `practice-timer-w2du`: targeted pre-existing timer fixes discovered by regression tests (work-mode preservation, paused iOS time, repeated background drift, lifecycle cleanup).
-- Baseline 239 tests / 27 files; final 271 tests / 29 files pass. TypeScript, scoped zero-warning lint, production build, and whitespace checks pass. Build emits a >500 kB chunk warning.
+- Baseline 239 tests / 27 files; updated 291 tests / 31 files pass. TypeScript, scoped zero-warning lint, production build, and whitespace checks pass.
+- Global `test-setup.ts` polyfilled with standard `localStorage` mock to guarantee isolated test execution in Node 22 / jsdom across parallel workers.
 - `practice-timer-18ly`: high-priority release blocker for app-wide timer lifecycle, authoritative wall-clock recovery, segment runtime persistence, integration tests, and real-device checks. Home currently owns iOS lifecycle; worker ticks alone do not compensate for suspended callbacks.
 - See `docs/PLAN-storage-reliability-validation.md` for precise verified coverage and remaining gates. No production migration, browser/device verification, or claim of complete all-surface background correctness.
 
 ## Second slice (2026-09-16)
-practice-timer-9lni completed: removed user-facing Account maintenance workarounds and hardened single-tab automatic sync/auth lifecycle. 291 tests/31 files, TypeScript and build pass. In-memory pending revisions guard dirty pulls and retry on reconnect/focus; queued/stale request handling and empty-plan propagation covered. Full account-scoped persistence, durable outbox/reload recovery, conflict-safe versioned writes, incremental activity and recovery operations remain unfinished. Next implementation gate remains phases 2-3; do not interpret this slice as full cross-device reliability.
+`practice-timer-9lni` completed: removed user-facing Account maintenance workarounds and hardened single-tab automatic sync/auth lifecycle. 291 tests/31 files, TypeScript and build pass. In-memory pending revisions guard dirty pulls and retry on reconnect/focus; queued/stale request handling and empty-plan propagation covered. Full account-scoped persistence, durable outbox/reload recovery, conflict-safe versioned writes, incremental activity and recovery operations remain unfinished. Next implementation gate remains phases 2-3; do not interpret this slice as full cross-device reliability.
