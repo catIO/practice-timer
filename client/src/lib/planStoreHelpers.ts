@@ -2,7 +2,7 @@ import { BlockType, PlanItem, PlanSnapshot, generateId } from "./planTypes";
 import { logSegmentCompletion, removeSegmentCompletionToday } from "./practiceLog";
 import { scheduleUserDataPush } from "./userDataSync";
 
-const MAX_SNAPSHOTS = 5;
+const MAX_SNAPSHOTS = 30;
 
 export function cloneItem(item: PlanItem): PlanItem {
   return {

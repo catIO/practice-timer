@@ -79,6 +79,17 @@ export async function pushUserDataToCloud(): Promise<boolean> {
     const lessonPlanData = getLessonPlan();
     const { log, detailedLog, completions } = getPracticeLogStateForSync();
 
+    // Collision safety guard: If both plans are identical non-empty arrays,
+    // abort sync to prevent clobbering cloud data with cross-contaminated state.
+    if (
+      planData.length > 0 &&
+      lessonPlanData.length > 0 &&
+      JSON.stringify(planData) === JSON.stringify(lessonPlanData)
+    ) {
+      console.error('[userDataSync] Aborting push: Practice plan and lesson plan are identical!');
+      return false;
+    }
+
     const payload = {
       user_id: userId,
       plan_data: planData,

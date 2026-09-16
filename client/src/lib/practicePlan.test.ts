@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { generateId, getPracticePlan, savePracticePlan, practicePlanApi, type PracticePlanItem } from './practicePlan';
+import { generateId, getPracticePlan, savePracticePlan, saveSnapshot, getSnapshots, practicePlanApi, type PracticePlanItem } from './practicePlan';
 import { createReportSnapshot, createGlobalReportSnapshot, restorePlanFromSnapshot } from './reportShare';
 
 // Mock localStorage
@@ -138,6 +138,18 @@ describe('practicePlan', () => {
             expect(snapshot.lastWeekLogSummary).toBeDefined();
             expect(snapshot.logSummary?.startDate).toBeDefined();
             expect(snapshot.lastWeekLogSummary?.startDate).toBeDefined();
+        });
+    });
+
+    describe('snapshots retention', () => {
+        it('preserves up to 30 snapshots without dropping earlier entries prematurely', () => {
+            for (let i = 1; i <= 35; i++) {
+                saveSnapshot([{ id: `item-${i}`, text: `Step ${i}`, checked: false, children: [] }]);
+            }
+            const snapshots = getSnapshots();
+            expect(snapshots.length).toBe(30);
+            expect(snapshots[snapshots.length - 1].items[0].text).toBe('Step 35');
+            expect(snapshots[0].items[0].text).toBe('Step 6');
         });
     });
 });

@@ -2527,17 +2527,21 @@ export function PlanEditorPane({
   }, [open, planApi]);
 
   useEffect(() => {
+    // Only practice plans contain pieces/segments that auto-check upon timer completion.
+    // Lesson plans must NEVER listen to or execute piece timer completion updates.
+    if (planType !== "practice") return;
+
     const handlePieceComplete = (event: Event) => {
       const { id } = (event as CustomEvent).detail;
       // Auto-check the piece item when its goal time is met
       if (id) {
-        applyChange((prev) => practicePlanApi.checkItem(prev, id));
+        applyChange((prev) => planApi.checkItem(prev, id));
       }
     };
 
     window.addEventListener('piece-timer-complete', handlePieceComplete);
     return () => window.removeEventListener('piece-timer-complete', handlePieceComplete);
-  }, [applyChange]);
+  }, [planType, planApi, applyChange]);
 
   const handleRowClick = useCallback(
     (id: string, e: React.MouseEvent<HTMLDivElement>, requestType: "row" | "edit" = "row") => {

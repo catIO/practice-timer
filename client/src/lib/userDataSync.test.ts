@@ -98,4 +98,21 @@ describe('userDataSync cross-device sync', () => {
       { onConflict: 'user_id' }
     );
   });
+
+  it('pushUserDataToCloud aborts push when practice plan and lesson plan are identical non-empty arrays', async () => {
+    const identicalPlan: PlanItem[] = [
+      { id: 'item-1', text: 'Sample Item', checked: false, children: [], blockType: 'heading1', isHeader: true },
+    ];
+    savePracticePlan(identicalPlan);
+    saveLessonPlan(identicalPlan);
+
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+    (supabase as any).from.mockReturnValue({
+      upsert: mockUpsert,
+    });
+
+    const success = await pushUserDataToCloud();
+    expect(success).toBe(false);
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
 });
