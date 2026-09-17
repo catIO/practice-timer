@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTimerStore } from '@/stores/timerStore';
@@ -82,6 +82,31 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
   const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'signup'>('signin');
 
   const [isUser, setIsUser] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const mainRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const windowY = typeof window !== 'undefined' ? (window.scrollY || document.documentElement.scrollTop || 0) : 0;
+      const mainY = mainRef.current ? mainRef.current.scrollTop : 0;
+      setIsScrolled(windowY > 4 || mainY > 4);
+    };
+
+    const mainEl = mainRef.current;
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    if (mainEl) {
+      mainEl.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (mainEl) {
+        mainEl.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -397,7 +422,15 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
       {/* 2. Main Container (Top App Bar + Page Card View) */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-0">
         {/* Top App Bar */}
-        <header className="sticky top-0 z-20 h-16 bg-transparent px-4 flex items-center justify-between">
+        <header
+          className={cn(
+            "sticky top-0 z-20 h-16 px-4 flex items-center justify-between transition-all duration-200",
+            "after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-4 after:pointer-events-none after:transition-opacity after:duration-200",
+            isScrolled
+              ? "bg-slate-50/85 dark:bg-[#111827]/85 backdrop-blur-md border-b border-black/[0.04] dark:border-white/[0.06] shadow-sm after:bg-gradient-to-b after:from-slate-50/85 dark:after:from-[#111827]/85 after:to-transparent after:opacity-100"
+              : "bg-transparent border-b border-transparent after:opacity-0"
+          )}
+        >
           <div className="flex items-center gap-2">
             {isSubPage && (
               <Button
@@ -556,7 +589,7 @@ export function NavigationLayout({ children }: NavigationLayoutProps) {
         </header>
 
         {/* Dynamic Card Area */}
-        <main className="flex-1 overflow-y-auto p-1.5 sm:p-2.5 md:p-3.5 lg:p-6 flex flex-col justify-start">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-1.5 sm:p-2.5 md:p-3.5 lg:p-6 flex flex-col justify-start">
           {isReportPath && (
             <div className="w-full max-w-4xl mx-auto mb-4 lg:mb-6 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 text-sm backdrop-blur-md">
               <div className="flex items-center gap-3 text-foreground">

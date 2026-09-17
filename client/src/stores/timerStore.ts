@@ -229,7 +229,7 @@ export const useTimerStore = create<TimerState>((baseSet, get) => {
         if (vol <= 1) vol = vol * 100;
         vol = Math.min(100, Math.max(0, vol));
         if (vol > 0) {
-          playSound('end', 1, vol, s.settings.soundType as any).catch(console.error);
+          playSound('segment-end', 1, vol, s.settings.soundType as any).catch(console.error);
         }
       }
 

@@ -1,5 +1,5 @@
 // Sound effects for the timer application
-export type SoundEffect = 'start' | 'end' | 'reset' | 'skip';
+export type SoundEffect = 'start' | 'end' | 'reset' | 'skip' | 'segment-end';
 export type SoundType = 'beep' | 'bell' | 'chime' | 'digital' | 'woodpecker';
 
 export interface SoundEffectParams {
@@ -207,6 +207,9 @@ const getSoundParams = (
   if (effect === 'skip') {
     return { freq: 550, decay: 0.4, interval: 0.5 };
   }
+  if (effect === 'segment-end') {
+    return { freq: 523.25, decay: 2.8, interval: 2.8 };
+  }
 
   switch (soundType) {
     case 'bell':
@@ -253,30 +256,75 @@ const playSoundWebAudio = async (
 
     const baseStartTime = Math.max(context.currentTime, 0) + 0.02;
 
-    for (let i = 0; i < count; i++) {
-      const beepStartTime = baseStartTime + i * interval;
-      const beepDecayEnd = beepStartTime + decay;
+    if (effect === 'segment-end') {
+      // Option A: Resonant Singing Bowl / Bell with rich acoustic overtones and 2.8s decay
+      const segmentDecay = 2.8;
+      const beepStartTime = baseStartTime;
+      const sustainEnd = beepStartTime + 0.12; // 120ms initial peak sustain hold
+      const beepDecayEnd = beepStartTime + segmentDecay;
       const beepStopTime = beepDecayEnd + 0.05;
 
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
+      let baseFreq = 523.25; // C5 default
+      if (soundType === 'bell') baseFreq = 440; // A4
+      else if (soundType === 'chime') baseFreq = 587.33; // D5
+      else if (soundType === 'digital') baseFreq = 880;
+      else if (soundType === 'woodpecker') baseFreq = 440;
+      else baseFreq = 659.25; // E5
 
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(freq, beepStartTime);
+      // Harmonic ratios & relative balance (fundamental, fifth, octave, bell shimmer overtone)
+      const partials = [
+        { ratio: 1.0, gainMult: 0.65 },
+        { ratio: 1.5, gainMult: 0.25 },
+        { ratio: 2.0, gainMult: 0.15 },
+        { ratio: 2.76, gainMult: 0.10 },
+      ];
 
-      gainNode.gain.setValueAtTime(startGain, beepStartTime);
-      gainNode.gain.exponentialRampToValueAtTime(minGain, beepDecayEnd);
+      for (const partial of partials) {
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
 
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(baseFreq * partial.ratio, beepStartTime);
 
-      oscillator.start(beepStartTime);
-      oscillator.stop(beepStopTime);
+        gainNode.gain.setValueAtTime(startGain * partial.gainMult, beepStartTime);
+        gainNode.gain.setValueAtTime(startGain * partial.gainMult, sustainEnd);
+        gainNode.gain.exponentialRampToValueAtTime(minGain, beepDecayEnd);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        oscillator.start(beepStartTime);
+        oscillator.stop(beepStopTime);
+      }
+
+      const totalDurationSeconds = segmentDecay + 0.1;
+      await new Promise((resolve) => setTimeout(resolve, Math.ceil(totalDurationSeconds * 1000)));
+    } else {
+      for (let i = 0; i < count; i++) {
+        const beepStartTime = baseStartTime + i * interval;
+        const beepDecayEnd = beepStartTime + decay;
+        const beepStopTime = beepDecayEnd + 0.05;
+
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(freq, beepStartTime);
+
+        gainNode.gain.setValueAtTime(startGain, beepStartTime);
+        gainNode.gain.exponentialRampToValueAtTime(minGain, beepDecayEnd);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        oscillator.start(beepStartTime);
+        oscillator.stop(beepStopTime);
+      }
+
+      // Wait until all scheduled beeps and decays have completed before resolving
+      const totalDurationSeconds = (count - 1) * interval + decay + 0.1;
+      await new Promise((resolve) => setTimeout(resolve, Math.ceil(totalDurationSeconds * 1000)));
     }
-
-    // Wait until all scheduled beeps and decays have completed before resolving
-    const totalDurationSeconds = (count - 1) * interval + decay + 0.1;
-    await new Promise((resolve) => setTimeout(resolve, Math.ceil(totalDurationSeconds * 1000)));
   } finally {
     activeSoundsCount--;
     if (activeSoundsCount <= 0) {

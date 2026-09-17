@@ -429,7 +429,7 @@ describe('timerStore', () => {
             expect(practicePlanApi.checkItem).toHaveBeenCalledExactlyOnceWith([], 'segment');
             expect(completed).toHaveBeenCalledTimes(1);
             expect(completed.mock.calls[0][0].detail).toEqual({ id: 'segment', name: 'Scales' });
-            expect(playSound).toHaveBeenCalledExactlyOnceWith('end', 1, DEFAULT_SETTINGS.volume, DEFAULT_SETTINGS.soundType);
+            expect(playSound).toHaveBeenCalledExactlyOnceWith('segment-end', 1, DEFAULT_SETTINGS.volume, DEFAULT_SETTINGS.soundType);
             expect(useTimerStore.getState()).toMatchObject({ activePieceId: null, pieceTimeRemaining: 0, pieceTotalTime: 0 });
             expect(addDetailedPracticeTime).toHaveBeenCalledExactlyOnceWith('segment', 'Scales', 60);
             expect(addPracticeTime).toHaveBeenCalledExactlyOnceWith(1);

@@ -212,5 +212,22 @@ describe('soundEffects', () => {
       expect(mockAudioContext.suspend).toHaveBeenCalled();
       expect(mockAudioContext.state).toBe('suspended');
     });
+
+    it('plays segment-end sound with resonant decay and suspends AudioContext after decay', async () => {
+      stopSilenceKeepAlive();
+
+      const playPromise = playSound('segment-end', 1, 50, 'bell');
+
+      // 4 harmonic oscillators should be created for the singing bowl resonance
+      expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(4);
+      expect(mockAudioContext.createGain).toHaveBeenCalledTimes(4);
+
+      // Fast forward time through 2800ms decay + 100ms margin
+      await vi.advanceTimersByTimeAsync(2900);
+      await playPromise;
+
+      expect(mockAudioContext.suspend).toHaveBeenCalled();
+      expect(mockAudioContext.state).toBe('suspended');
+    });
   });
 });
